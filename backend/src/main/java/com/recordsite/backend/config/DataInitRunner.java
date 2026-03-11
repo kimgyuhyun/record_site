@@ -15,8 +15,16 @@ public class DataInitRunner implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        log.info("=== 챔피언 데이터 초기화 시작");
+        log.info("=== 챔피언 데이터 초기화 시작 ===");
         dataDragonService.fetchAndSaveAllChampions();
         log.info("=== 챔피언 데이터 초기화 완료 ===");
+
+        log.info("=== 아이템 데이터 초기화 시작 ===");
+        dataDragonService.fetchAndSaveAllItems();
+        log.info("=== 아이템 데이터 초기화 완료 ===");
+        
+        log.info("=== 룬 데이터 초기화 시작 ===");
+        dataDragonService.fetchAndSaveAllRunes();
+        log.info("=== 룬 데이터 초기화 완료 ===");
     }
 }

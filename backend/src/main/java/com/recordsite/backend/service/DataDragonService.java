@@ -2,6 +2,9 @@ package com.recordsite.backend.service;
 
 import com.recordsite.backend.entity.*;
 import com.recordsite.backend.repository.ChampionRepository;
+import com.recordsite.backend.repository.ItemRepository;
+import com.recordsite.backend.repository.RunePathRepository;
+import com.recordsite.backend.repository.RuneRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,7 +20,10 @@ import java.util.Map;
 public class DataDragonService {
 
     private final ChampionRepository championRepository;
+    private final ItemRepository itemRepository;
     private final RestTemplate restTemplate;
+    private final RunePathRepository runePathRepository;
+    private final RuneRepository runeRepository;
 
     private static final String VERSION = "16.5.1";
     private static final String BASE_URL = "https://ddragon.leagueoflegends.com/cdn/" + VERSION;
@@ -168,5 +174,100 @@ public class DataDragonService {
         if (value instanceof Integer) return ((Integer) value).doubleValue();
         if (value instanceof Double) return (Double) value;
         return 0.0;
+    }
+
+    public void fetchAndSaveAllItems() {
+        String url = BASE_URL + "/data/ko_KR/item.json";
+        Map<String, Object> response = restTemplate.getForObject(url, Map.class);
+        Map<String, Object> dataMap = (Map<String, Object>) response.get("data");
+
+        for (String itemKey : dataMap.keySet()) {
+            if (itemRepository.existsByItemKey(itemKey)) {
+                log.info("이미 존재하는 아이템: {}", itemKey);
+                continue;
+            }
+
+            Map<String, Object> itemData = (Map<String, Object>) dataMap.get(itemKey);
+            Item item = buildItem(itemData, itemKey);
+            itemRepository.save(item);
+            log.info("아이템 저장 완료: {} - {}", itemKey, item.getItemName());
+        }
+    }
+
+    private Item buildItem(Map<String, Object> data, String itemKey) {
+        Item item = new Item();
+        item.setItemKey(itemKey);
+        item.setItemName((String) data.get("name"));
+        item.setDescription(data.get("description") != null ? (String) data.get("description") : "");
+        item.setPlaintext((String) data.get("plaintext"));
+
+        Map<String, Object> image = (Map<String, Object>) data.get("image");
+        item.setImage((String) image.get("full"));
+
+        List<String> intoList = (List<String>) data.get("into");
+        if (intoList != null) {
+            item.setBuildsInto(String.join(",", intoList));
+        }
+
+        Map<String, Object> gold = (Map<String, Object>) data.get("gold");
+        item.setGoldBase((int) gold.get("base"));
+        item.setGoldTotal((int) gold.get("total"));
+        item.setGoldSell((int) gold.get("sell"));
+        item.setPurchasable((boolean) gold.get("purchasable"));
+
+        List<String> tags = (List<String>) data.get("tags");
+        if (tags != null && !tags.isEmpty()) { // tags가 null이 아니고 비어있지 않으면
+            item.setTags(String.join(",",tags));
+        }
+        return item;
+    }
+
+    public void fetchAndSaveAllRunes() {
+        String url = BASE_URL + "/data/ko_KR/runesReforged.json";
+        List<Map<String, Object>> response = restTemplate.getForObject(url, List.class);
+
+        for (Map<String, Object> pathData : response) {
+            Integer pathKey = (Integer) pathData.get("id");
+            String runePathNameEn = (String) pathData.get("key");
+            String runePathNameKor = (String) pathData.get("name");
+            String icon = (String) pathData.get("icon");
+            
+            // 경로 저장 또는 조회
+            RunePath runePath = runePathRepository.findByPathKey(pathKey)
+                    .orElseGet(() -> { // orElseGet 메서드는 값이 있으면 그대로 리턴
+                        // 값이 없으면 () -> { ... } 람다식을 실행해서 그 결과를 리턴함
+                       RunePath rp = new RunePath();
+                       rp.setPathKey(pathKey);
+                       rp.setRunePathNameEn(runePathNameEn);
+                       rp.setRunePathNameKor(runePathNameKor);
+                       rp.setImage(icon);
+                       return runePathRepository.save(rp);
+                    });
+
+            // slots -> runes 파싱
+            List<Map<String, Object>> slots = (List<Map<String, Object>>) pathData.get("slots");
+            for (int slotIndex = 0; slotIndex < slots.size(); slotIndex++) {
+                Map<String, Object> slot = slots.get(slotIndex);
+                List<Map<String, Object>> runes = (List<Map<String, Object>>) slot.get("runes");
+
+                for (Map<String, Object> runeData : runes) {
+                    Integer runeKey = (Integer) runeData.get("id");
+                    if (runeRepository.existsByRuneKey(runeKey)) {
+                        continue;
+                    }
+
+                    Rune rune = new Rune();
+                    rune.setRuneKey(runeKey);
+                    rune.setRuneNameEn((String) runeData.get("key"));
+                    rune.setRuneNameKor((String) runeData.get("name"));
+                    rune.setImage((String) runeData.get("icon"));
+                    rune.setShortDesc((String) runeData.get("shortDesc"));
+                    rune.setLongDesc((String) runeData.get("longDesc"));
+                    rune.setPath(runePath);
+
+                    runeRepository.save(rune);
+                }
+            }
+        }
     }
 }
