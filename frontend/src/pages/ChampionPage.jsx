@@ -5,6 +5,8 @@ function ChampionPage() {
     const [champions, setChampions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const CHAMP_IMAGE_BASE =
+    'https://ddragon.leagueoflegends.com/cdn/16.5.1/img/champion/';
 
     useEffect(() => {
         apiClient
@@ -29,6 +31,11 @@ return (
         <ul>
             {champions.map((champ) => (
                 <li key={champ.championId}>
+                    <img
+                      src={CHAMP_IMAGE_BASE + champ.imageUrl}
+                      alt={champ.nameKor}
+                      style={{ width: 48, height: 48, marginRight: 8}}
+                    />
                     {champ.championId} / {champ.nameKor} / {champ.nameEn}
                 </li>
                 ))}
