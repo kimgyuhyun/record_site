@@ -17,14 +17,14 @@ public class ChampionController {
     private final ChampionService championService;
 
     @GetMapping
-    public List<ChampionSummaryDto> getChampions() {
+    public List<ChampionSummaryDto> getChampionList() throws Exception {
 //        List<ChampionSummaryDto> championSummaries = championService.getChampionSummaries();
 //        return championSummaries;
         return championService.getChampionSummaries();
     }
 
     @GetMapping(params = "name")
-    public ChampionSummaryDto getChampionByName(@RequestParam String name) {
+    public ChampionSummaryDto getChampionByName(@RequestParam String name) throws Exception{
         return championService.getChampionByName(name);
     }
 }

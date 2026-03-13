@@ -30,7 +30,7 @@ public class ChampionService {
     }
 
     public ChampionSummaryDto getChampionByName(String championId) {
-        Champion champion = championRepository.findAllById(championId);
+        Champion champion = championRepository.findByChampionId(championId);
         ChampionSummaryDto dto =  ChampionSummaryDto.from(champion);
         return dto;
     }
