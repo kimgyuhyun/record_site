@@ -2,7 +2,7 @@ spring:
   application:
     name: backend
   datasource:
-    url: jdbc:mysql://localhost:3307/loldb
+    url: jdbc:mysql://localhost:3307/loldb?characterEncoding=UTF-8&serverTimezone=Asia/Seoul&useServerPrepStmts=false
     username: root
     password: 1234
     driver-class-name: com.mysql.cj.jdbc.Driver
