@@ -35,7 +35,7 @@ class ChampionControllerTest {
 
 
     @Test
-    void getChampionByName() throws Exception {
+    void getChampionByNameTest() throws Exception {
         String korName = "아리";
         ChampionSummaryDto ahri = new ChampionSummaryDto();
         ahri.setChampionId("Ahri");
@@ -58,7 +58,7 @@ class ChampionControllerTest {
 
 
     @Test
-    void getChampions() throws Exception {
+    void getChampionListTest() throws Exception {
         ChampionSummaryDto c1 = new ChampionSummaryDto();
         ChampionSummaryDto c2 = new ChampionSummaryDto();
         ChampionSummaryDto c3 = new ChampionSummaryDto();
@@ -74,7 +74,8 @@ class ChampionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].championId").value("아리"))
                 .andExpect(jsonPath("$[1].championId").value("아트록스"))
-                .andExpect(jsonPath("$[2].championId").value("탈론"));
+                .andExpect(jsonPath("$[2].championId").value("탈론"))
+                .andExpect(jsonPath("$.length()").value(3));
 
 
     }
