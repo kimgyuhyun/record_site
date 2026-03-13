@@ -3,6 +3,7 @@ package com.recordsite.backend.controller;
 import com.recordsite.backend.dto.ItemDto;
 import com.recordsite.backend.service.ItemService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,7 +18,7 @@ public class ItemController {
     private final ItemService itemService;
 
     @GetMapping
-    public List<ItemDto> getItemList() throws Exception {
-         return itemService.findAllItemList();
+    public ResponseEntity<List<ItemDto>> getItemList() throws Exception {
+         return ResponseEntity.ok(itemService.findAllItemList());
     }
 }
