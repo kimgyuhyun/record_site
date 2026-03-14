@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity // DB 테이블 인식
@@ -62,8 +63,8 @@ public class Champion {
     private ChampionStats stats;
 
     @OneToMany(mappedBy = "champion", cascade = CascadeType.ALL)
-    private List<ChampionSpell> spells;
+    private List<ChampionSpell> spells = new ArrayList<>();
 
     @OneToMany(mappedBy = "champion", cascade = CascadeType.ALL)
-    private List<ChampionSkin> skins;
+    private List<ChampionSkin> skins = new ArrayList<>();
 }
