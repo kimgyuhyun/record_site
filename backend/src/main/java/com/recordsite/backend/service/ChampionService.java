@@ -2,6 +2,7 @@ package com.recordsite.backend.service;
 
 import com.recordsite.backend.dto.ChampionSummaryDto;
 import com.recordsite.backend.entity.Champion;
+import com.recordsite.backend.exception.ChampionNotFoundException;
 import com.recordsite.backend.repository.ChampionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -14,11 +15,8 @@ import java.util.List;
 public class ChampionService {
     private final ChampionRepository championRepository;
 
-
-
     public List<ChampionSummaryDto> getChampionSummaries() {
         List<Champion> champions = championRepository.findAll();
-
         List<ChampionSummaryDto> dtos = new ArrayList<>();
 
         for (Champion champion : champions) {
@@ -31,7 +29,10 @@ public class ChampionService {
 
     public ChampionSummaryDto getChampionByName(String championId) {
         Champion champion = championRepository.findByChampionId(championId);
-        ChampionSummaryDto dto =  ChampionSummaryDto.from(champion);
-        return dto;
+
+        if (champion == null) {
+            throw new ChampionNotFoundException(championId);
+        }
+        return ChampionSummaryDto.from(champion);
     }
 }

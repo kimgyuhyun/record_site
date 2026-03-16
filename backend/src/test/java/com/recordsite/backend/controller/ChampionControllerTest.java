@@ -1,6 +1,7 @@
 package com.recordsite.backend.controller;
 
 import com.recordsite.backend.dto.ChampionSummaryDto;
+import com.recordsite.backend.exception.ChampionNotFoundException;
 import com.recordsite.backend.service.ChampionService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,6 +12,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.mockito.Mockito.when;
@@ -46,14 +48,24 @@ class ChampionControllerTest {
         when(championService.getChampionByName(korName)).thenReturn(ahri);
 
         mockMvc.perform(get("/api/champions")
-                .param("name", "아리")
-        )
+                .param("name", "아리"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.championId").value("Ahri"))
                 .andExpect(jsonPath("$.championKey").value(1))
                 .andExpect(jsonPath("$.nameKor").value("아리"))
                 .andExpect(jsonPath("$.nameEn").value("Ahri"))
                 .andExpect(jsonPath("$.imageUrl").value("ahri.jpg"));
+    }
+
+    @Test
+    void getChampionByName_NotFound_Test() throws Exception {
+
+        when(championService.getChampionByName("null"))
+                .thenThrow(new ChampionNotFoundException("null"));
+
+        mockMvc.perform(get("/api/champions")
+                .param("name", "null"))
+                .andExpect(status().isNotFound());
     }
 
 
@@ -80,5 +92,14 @@ class ChampionControllerTest {
 
     }
 
+    @Test
+    void getChampionList_Empty_Test() throws Exception {
 
+        when(championService.getChampionSummaries())
+                .thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/champions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
 }

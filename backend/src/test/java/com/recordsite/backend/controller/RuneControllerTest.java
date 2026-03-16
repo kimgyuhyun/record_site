@@ -11,6 +11,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.Collections;
 import java.util.List;
 
 import static org.mockito.Mockito.when;
@@ -50,6 +51,17 @@ class RuneControllerTest {
     }
 
     @Test
+    void getRUnePathList_Empty_Test() throws Exception {
+
+        when(runeService.findAllRunePathList())
+                .thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/runePaths"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
     void getRuneListTest() throws Exception {
 
         RuneDto r1 = new RuneDto();
@@ -72,6 +84,17 @@ class RuneControllerTest {
                 .andExpect(jsonPath("$[1].runeKey").value(22))
                 .andExpect(jsonPath("$[1].pathKey").value(2))
                 .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
+    void getRuneList_Empty_Test() throws Exception {
+
+        when(runeService.findAllRuneList())
+                .thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/runePaths/runes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
     }
 
 }

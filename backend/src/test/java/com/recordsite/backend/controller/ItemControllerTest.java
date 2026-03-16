@@ -10,6 +10,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -43,6 +44,17 @@ class ItemControllerTest {
                 .andExpect(jsonPath("$[0].itemName").value("롱소드"))
                 .andExpect(jsonPath("$[1].itemName").value("도란검"))
                 .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
+    void getItemList_Empty_Test() throws Exception {
+
+        when(itemService.findAllItemList())
+                .thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/items"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
     }
 
 }
