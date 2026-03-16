@@ -10,3 +10,10 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+
+
+riot:
+  api:
+    key: RGAPI-871843a2-b7da-4d94-be8a-2eac6e2f0fb3
+    base-url: https://kr.api.riotgames.com
+    summoner-by-name-path: /lol/summoner/v4/summoners/by-name/{name}
