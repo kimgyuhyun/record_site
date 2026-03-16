@@ -1,5 +1,6 @@
 package com.recordsite.backend.entity;
 
+import com.recordsite.backend.dto.RiotSummonerResponse;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -36,4 +37,15 @@ public class Summoner {
 
     @OneToMany(mappedBy = "summoner", cascade = CascadeType.ALL)
     private List<Participant> participantList = new ArrayList<>();
+
+    public static Summoner from(RiotSummonerResponse res) {
+        Summoner summoner = new Summoner();
+        summoner.setSummonerId(res.getId());
+        summoner.setPuuid(res.getPuuid());
+        summoner.setName(res.getName());
+        summoner.setProfileIconId(res.getProfileIconId());
+        summoner.setLevel(res.getSummonerLevel());
+
+        return summoner;
+    }
 }
