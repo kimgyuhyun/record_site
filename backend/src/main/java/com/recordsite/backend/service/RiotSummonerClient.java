@@ -33,7 +33,7 @@ public class RiotSummonerClient {
                 .queryParam("api_key", apiKey);
 
         URI uri = builder.buildAndExpand(name).toUri();
-        // 경로에 남아있던 name 자리에 실제 검색할 소환사 이름을 끼움움
+        // 경로에 남아있던 name 자리에 실제 검색할 소환사 이름을 끼움
         /* "https://kr.api.riotgames.com/lol/summoner/v4/summoners/by-name/
         hide%20on%20bush?api_key=YOUR_API_KEY 를 최종 URI 객체로 만들어줌
         */
