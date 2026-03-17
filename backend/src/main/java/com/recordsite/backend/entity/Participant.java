@@ -1,5 +1,6 @@
 package com.recordsite.backend.entity;
 
+import com.recordsite.backend.dto.RiotParticipantResponse;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -73,13 +74,61 @@ public class Participant {
     private int goldEarned; // 총 획득 골드
 
     @Column(nullable = false)
-    private Long totalDamageDealtToChampions;
+    private Long totalDamageDealt; // 적에게 가한 피해량
+    @Column(nullable = false)
+    private Long totalDamageDealtToChampions; // 챔피언에게 가한 피해량
+    @Column(nullable = false)
+    private Long totalDamageTaken; // 받은 피해량    
 
     @Column(nullable = false)
     private int visionScore; // 시야 점수
     @Column(nullable = false)
     private int championLevel;
 
-    private String perks;
+    @Column(nullable = false)
+    private Integer StatPerkOffense;
+    @Column(nullable = false)
+    private Integer statPerkFlex;
+    @Column(nullable = false)
+    private Integer statPerkDefense;
+
+    public static Participant from(RiotParticipantResponse res, Match match) {
+        Participant p = new Participant();
+        p.setMatch(match);
+
+        p.setParticipantId(res.getParticipantId());
+        p.setPuuid(res.getPuuid());
+        p.setGameName(res.getRiotIdGameName());
+        p.setTagLine(res.getRiotIdTagLine());
+        p.setTeamId(res.getTeamId());
+        p.setWin(res.isWin());
+        p.setChampionId(res.getChampionId());
+        p.setChampionName(res.getChampionName());
+        p.setKills(res.getKills());
+        p.setDeaths(res.getDeaths());
+        p.setAssists(res.getAssists());
+        p.setTeamPosition(res.getTeamPosition());
+        p.setIndividualPosition(res.getIndividualPosition());
+        p.setItem0(res.getItem0());
+        p.setItem1(res.getItem1());
+        p.setItem2(res.getItem2());
+        p.setItem3(res.getItem3());
+        p.setItem4(res.getItem4());
+        p.setItem5(res.getItem5());
+        p.setItem6(res.getItem6());
+        p.setSpell1(res.getSpell1Id());
+        p.setSpell2(res.getSpell2Id());
+        p.setGoldEarned(res.getGoldEarned());
+        p.setTotalDamageDealt(res.getTotalDamageDealt());
+        p.setTotalDamageDealtToChampions(res.getTotalDamageDealtToChampions());
+        p.setTotalDamageTaken(res.getTotalDamageTaken());
+        p.setVisionScore(res.getVisionScore());
+        p.setChampionLevel(res.getChampionLevel());
+        p.setStatPerkOffense(res.getStatPerkOffense());
+        p.setStatPerkFlex(res.getStatPerkFlex());
+        p.setStatPerkDefense(res.getStatPerkDefense());
+
+        return p;
+    }
 
 }

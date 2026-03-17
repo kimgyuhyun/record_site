@@ -1,5 +1,6 @@
 package com.recordsite.backend.entity;
 
+import com.recordsite.backend.dto.RiotMatchResponse;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -26,7 +27,7 @@ public class Match {
 
     private Long gameCreation; // 게임 생성 시간
 
-    private int gameDuration; // 게임 길이
+    private Long gameDuration; // 게임 길이
 
     private int queueId; // 큐 ID (솔랭, 자랭, 칼바람)
 
@@ -39,4 +40,16 @@ public class Match {
     private String platformId; // 플랫폼 ID
 
 
+    public static Match from(RiotMatchResponse res) {
+        Match match = new Match();
+        match.setMatchId(res.getMatchId());
+        match.setGameCreation(res.getGameCreation());
+        match.setGameDuration(res.getGameDuration());
+        match.setQueueId(res.getQueueId());
+        match.setMapId(res.getMapId());
+        match.setGameMode(res.getGameMode());
+        match.setGameType(res.getGameType());
+
+        return match;
+    }
 }
