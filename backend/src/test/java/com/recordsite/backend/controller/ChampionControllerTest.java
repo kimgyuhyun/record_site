@@ -78,9 +78,9 @@ class ChampionControllerTest {
         c2.setChampionId("아트록스");
         c3.setChampionId("탈론");
 
-        List<ChampionSummaryDto> champions = List.of(new ChampionSummaryDto[]{c1, c2, c3});
+        List<ChampionSummaryDto> championDtoList = List.of(c1, c2, c3);
 
-        when(championService.getChampionSummaries()).thenReturn(champions);
+        when(championService.getChampionSummaries()).thenReturn(championDtoList);
 
         mockMvc.perform(get("/api/champions"))
                 .andExpect(status().isOk())
