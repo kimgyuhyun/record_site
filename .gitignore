@@ -16,3 +16,6 @@ Thumbs.db
 
 # Docker
 docker-compose.override.yml
+
+# Spring Boot application config
+backend/src/main/resources/application.yaml
