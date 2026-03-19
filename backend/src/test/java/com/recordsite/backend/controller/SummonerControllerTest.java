@@ -12,6 +12,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 import static org.mockito.Mockito.when;
@@ -30,8 +33,9 @@ class SummonerControllerTest {
     private SummonerService summonerService;
 
     @Test
-    void getSummonerByNameTest() throws Exception{
+    void getSummonerByRiotIdTest() throws Exception{
         String searchName = "ahri";
+        String tagLine = "KR1";
         SummonerDto summonerDto = new SummonerDto();
         summonerDto.setSummonerId("1");
         summonerDto.setName("ahri");
@@ -39,7 +43,8 @@ class SummonerControllerTest {
         summonerDto.setLevel(300);
         summonerDto.setProfileIconId(38);
 
-        when(summonerService.findSummonerByName(searchName)).thenReturn(summonerDto);
+        when(summonerService.findSummonerByRiotId(searchName, tagLine))
+                .thenReturn(summonerDto);
 
         mockMvc.perform(get("/api/summoners")
                         .param("name", "ahri"))
@@ -53,12 +58,44 @@ class SummonerControllerTest {
     }
 
     @Test
-    void getSummonerByName_notFound_Test() throws Exception {
+    void getSummonerByRiotId_notFound_Test() throws Exception {
 
-        when(summonerService.findSummonerByName("null"))
+        when(summonerService.findSummonerByRiotId("null", "KR1"))
                 .thenThrow(new SummonerNotFoundException("null"));
 
         mockMvc.perform(get("/api/summoners")
+                        .param("name", "null")
+                        .param("tagLine", "KR1"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getSummonerListByNameTest() throws Exception {
+        String name = "hide on bush";
+
+        SummonerDto summonerDto1 = new SummonerDto();
+        SummonerDto summonerDto2 = new SummonerDto();
+        summonerDto1.setName("hide on bush");
+        summonerDto2.setName("hide on bush");
+        
+        when(summonerService.findSummonerListByName(name))
+                .thenReturn(List.of(summonerDto1, summonerDto2));
+
+        mockMvc.perform(get("/api/summoners/search")
+                        .param("name", "hide on bush"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("hide on bush"))
+                .andExpect(jsonPath("$[1].name").value("hide on bush"))
+                .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
+    void getSummonerListByName_notFound_Test() throws Exception {
+
+        when(summonerService.findSummonerListByName("null"))
+                .thenThrow(new SummonerNotFoundException("null"));
+
+        mockMvc.perform(get("/api/summoners/search")
                         .param("name", "null"))
                 .andExpect(status().isNotFound());
     }
