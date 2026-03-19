@@ -7,9 +7,8 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-public class RiotSummonerResponse {
+public class RiotAccountResponse {
     private String puuid;
-    private int profileIconId;
-    private Long revisionDate;
-    private int summonerLevel;
+    private String gameName;
+    private String tagLine;
 }

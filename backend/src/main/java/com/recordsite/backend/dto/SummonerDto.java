@@ -10,7 +10,6 @@ import lombok.Setter;
 @NoArgsConstructor
 public class SummonerDto {
 
-    private String summonerId;
 
     private String puuid;
 
@@ -20,13 +19,15 @@ public class SummonerDto {
 
     private int level;
 
+    private String tagLine;
+
     public static SummonerDto from(Summoner summoner) {
         SummonerDto dto = new SummonerDto();
-        dto.setSummonerId(summoner.getSummonerId());
         dto.setPuuid(summoner.getPuuid());
         dto.setName(summoner.getName());
         dto.setProfileIconId(summoner.getProfileIconId());
         dto.setLevel(summoner.getLevel());
+        dto.setTagLine(summoner.getTagLine());
 
         return dto;
     }
