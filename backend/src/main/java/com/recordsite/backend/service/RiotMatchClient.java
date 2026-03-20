@@ -24,6 +24,10 @@ public class RiotMatchClient {
     @Value("${riot.api.base-url}")
     private String baseUrl;
 
+    @Value("${riot.api.asia-base-url}")
+    private String asiaBaseUrl;
+    // account-v1 같은 계정 단위에 씀
+
     @Value("${riot.api.match-ids-by-puuid-path}")
     // /lol/match/v5/matches/by-puuid/{puuid}/ids
     private String matchIdsByPuuidPath;
@@ -34,15 +38,15 @@ public class RiotMatchClient {
 
     // puuid 로 최근 matchId 리스트 가져오기
     public List<String> getMatchIdsByPuuid(String puuid, int start, int count) {
-        String url = baseUrl + matchIdsByPuuidPath;
+        String url = asiaBaseUrl + matchIdsByPuuidPath;
 
-        UriComponentsBuilder builder = UriComponentsBuilder
+        URI uri = UriComponentsBuilder
                 .fromHttpUrl(url)
                 .queryParam("start", start)
                 .queryParam("count", count)
-                .queryParam("api_key", apiKey);
-
-        URI uri = builder.buildAndExpand(puuid).toUri();
+                .queryParam("api_key", apiKey)
+                .buildAndExpand(puuid)
+                .toUri();
 
         String[] ids = restTemplate.getForObject(uri, String[].class);
         if (ids == null) {
@@ -51,15 +55,15 @@ public class RiotMatchClient {
         return Arrays.asList(ids);
     }
 
-    // matchId 하나로 매치 + 참가자 전체 정보 가져오기
+    // matchId 하나로 루트 매치부터 그 안에 metadata, info를 가져옴
     public RiotMatchResponse getMatchById(String matchId) {
-        String url = baseUrl + matchByIdPath;
+        String url = asiaBaseUrl + matchByIdPath;
 
-        UriComponentsBuilder builder = UriComponentsBuilder
+        URI uri = UriComponentsBuilder
                 .fromHttpUrl(url)
-                .queryParam("api_key", apiKey);
-
-        URI uri = builder.buildAndExpand(matchId).toUri();
+                .queryParam("api_key", apiKey)
+                .buildAndExpand(matchId)
+                .toUri();
 
         return restTemplate.getForObject(uri, RiotMatchResponse.class);
     }
