@@ -86,7 +86,7 @@ public class Participant {
     private int championLevel;
 
     @Column(nullable = false)
-    private Integer StatPerkOffense;
+    private Integer statPerkOffense;
     @Column(nullable = false)
     private Integer statPerkFlex;
     @Column(nullable = false)
@@ -99,7 +99,7 @@ public class Participant {
         p.setParticipantId(res.getParticipantId());
         p.setPuuid(res.getPuuid());
         p.setGameName(res.getRiotIdGameName());
-        p.setTagLine(res.getRiotIdTagLine());
+        p.setTagLine(res.getRiotIdTagline());
         p.setTeamId(res.getTeamId());
         p.setWin(res.isWin());
         p.setChampionId(res.getChampionId());
@@ -116,17 +116,28 @@ public class Participant {
         p.setItem4(res.getItem4());
         p.setItem5(res.getItem5());
         p.setItem6(res.getItem6());
-        p.setSpell1(res.getSpell1Id());
-        p.setSpell2(res.getSpell2Id());
+        p.setSpell1(res.getSummoner1Id());
+        p.setSpell2(res.getSummoner2Id());
         p.setGoldEarned(res.getGoldEarned());
         p.setTotalDamageDealt(res.getTotalDamageDealt());
         p.setTotalDamageDealtToChampions(res.getTotalDamageDealtToChampions());
         p.setTotalDamageTaken(res.getTotalDamageTaken());
         p.setVisionScore(res.getVisionScore());
-        p.setChampionLevel(res.getChampionLevel());
-        p.setStatPerkOffense(res.getStatPerkOffense());
-        p.setStatPerkFlex(res.getStatPerkFlex());
-        p.setStatPerkDefense(res.getStatPerkDefense());
+        p.setChampionLevel(res.getChampLevel());
+
+        Integer offense = 0;
+        Integer flex = 0;
+        Integer defense = 0;
+
+        if (res.getPerks() != null && res.getPerks().getStatPerks() != null) {
+            offense = res.getPerks().getStatPerks().getOffense();
+            flex = res.getPerks().getStatPerks().getFlex();
+            defense = res.getPerks().getStatPerks().getDefense();
+        }
+
+        p.setStatPerkOffense(offense != null ? offense : 0);
+        p.setStatPerkFlex(flex != null ?  flex : 0);
+        p.setStatPerkDefense(defense != null ? defense : 0);
 
         return p;
     }

@@ -12,7 +12,7 @@ public class RiotParticipantResponse {
     private Integer participantId;
     private String puuid;
     private String riotIdGameName;
-    private String riotIdTagLine;
+    private String riotIdTagline;
     private int teamId;
     private boolean win;
     private int championId;
@@ -32,8 +32,8 @@ public class RiotParticipantResponse {
     private int item5;
     private int item6;
 
-    private int spell1Id;
-    private int spell2Id;
+    private int summoner1Id; // 스펠
+    private int summoner2Id;
 
     private int goldEarned;
 
@@ -42,9 +42,22 @@ public class RiotParticipantResponse {
     private Long totalDamageTaken;
 
     private int visionScore;
-    private int championLevel;
+    private int champLevel;
 
-    private Integer statPerkOffense;
-    private Integer statPerkFlex;
-    private Integer statPerkDefense;
+
+    private Perks perks;
+
+    @Getter
+    @Setter
+    public static class Perks {
+        private StatPerks statPerks;
+    }
+
+    @Getter
+    @Setter
+    public static class StatPerks {
+        private Integer offense;
+        private Integer flex;
+        private Integer defense;
+    }
 }
