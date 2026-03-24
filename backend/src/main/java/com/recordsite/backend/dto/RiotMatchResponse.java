@@ -37,6 +37,7 @@ public class RiotMatchResponse {
         private int mapId;
         private String gameMode;
         private String gameType;
+        private String platformId;
 
         private List<RiotParticipantResponse> participants = new ArrayList<>();
 

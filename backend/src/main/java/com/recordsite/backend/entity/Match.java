@@ -42,14 +42,21 @@ public class Match {
 
     public static Match from(RiotMatchResponse res) {
         Match match = new Match();
-        match.setMatchId(res.getMatchId());
-        match.setGameCreation(res.getGameCreation());
-        match.setGameDuration(res.getGameDuration());
-        match.setQueueId(res.getQueueId());
-        match.setMapId(res.getMapId());
-        match.setGameMode(res.getGameMode());
-        match.setGameType(res.getGameType());
+        match.setMatchId(res.getMetadata().getMatchId());
+        match.setGameCreation(res.getInfo().getGameCreation());
+        match.setGameDuration(res.getInfo().getGameDuration());
+        match.setQueueId(res.getInfo().getQueueId());
+        match.setMapId(res.getInfo().getMapId());
+        match.setGameMode(res.getInfo().getGameMode());
+        match.setGameType(res.getInfo().getGameType());
+
+        String platformId = (res.getInfo() != null && res.getInfo().getPlatformId() != null)
+                ? res.getInfo().getPlatformId() : "";
+        match.setPlatformId(platformId);
 
         return match;
     }
 }
+
+// int, boolean, long 은 null 처리 불필요
+// Integer, Long, String, 이나 중첩객체는 Null 처리 필요
