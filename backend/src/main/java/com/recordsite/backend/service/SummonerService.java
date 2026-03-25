@@ -22,7 +22,7 @@ public class SummonerService {
     public SummonerDto findSummonerByRiotId(String gameName, String tagLine) {
         Summoner summoner = summonerRepository.findByNameAndTagLine(gameName, tagLine);
         if (summoner == null) {
-            RiotSummonerResponse res = riotSummonerClient.getByRiotId(gameName, tagLine);
+            RiotSummonerResponse res = riotSummonerClient.getSummonerByRiotId(gameName, tagLine);
             if (res == null) {
                 throw new SummonerNotFoundException(gameName);
             }
