@@ -7,8 +7,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.util.UriUtils;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Service
 @RequiredArgsConstructor
@@ -35,8 +39,9 @@ public class RiotSummonerClient {
     // puuid로 소환사 상세정보 얻을때 사용
 
 
-    public RiotSummonerResponse getByRiotId(String gameName, String tagLine) {
-        String puuid = getPuuidByRiotId(gameName, tagLine); // gameName과 tagLine으로 puuid 얻는 함수
+    // gameName과 tagLine 으로 puuid 얻는 함수
+    public RiotSummonerResponse getSummonerByRiotId(String gameName, String tagLine) {
+        String puuid = getPuuidByRiotId(gameName, tagLine);
         if (puuid == null || puuid.isBlank()) return null;
 
         return getSummonerByPuuid(puuid); // puuid로 소환사 상세정보 얻는 함수
@@ -44,12 +49,20 @@ public class RiotSummonerClient {
 
     // RiotId=gameName, tagLine 으로 Puuid 가져오는 함수
     private String getPuuidByRiotId(String gameName, String tagLine) {
-        String url = asiaBaseUrl + accountByRiotIdPath;
+
+        String safeGameName = UriUtils.encodePathSegment(gameName, UTF_8);
+        String safeTagLine = UriUtils.encodePathSegment(tagLine, UTF_8);
+
+        String path = accountByRiotIdPath
+                .replace("{gameName}", safeGameName)
+                .replace("{tagLine}", safeTagLine);
+
+        String full = asiaBaseUrl + path;
 
         URI uri = UriComponentsBuilder
-                .fromHttpUrl(url)
+                .fromHttpUrl(full)
                 .queryParam("api_key", apiKey)
-                .buildAndExpand(gameName, tagLine)
+                .build(true)
                 .toUri();
 
         RiotAccountResponse res = restTemplate.getForObject(uri, RiotAccountResponse.class);
