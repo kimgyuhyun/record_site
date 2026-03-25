@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# CDN assets are downloaded/managed separately.
+# Keep them out of git tracking to avoid huge diffs.
+public/cdn/
