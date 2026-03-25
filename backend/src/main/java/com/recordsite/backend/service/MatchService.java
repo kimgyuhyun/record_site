@@ -22,6 +22,7 @@ import java.util.List;
 public class MatchService {
     private final MatchRepository matchRepository;
     private final ParticipantRepository participantRepository;
+    private final ParticipantService participantService;
     private final RiotMatchClient riotMatchClient;
 
 
@@ -43,6 +44,7 @@ public class MatchService {
                             "DB inconsistency: participants exist for puuid but none for matchId=" + matchId);
                 }
 
+                Participant me = null;
                 List<MatchListDto.ParticipantChampionIcon> icons = new ArrayList<>();
                 for (Participant p : matchParticipantList) {
                     icons.add(new MatchListDto.ParticipantChampionIcon(
@@ -54,8 +56,18 @@ public class MatchService {
                             p.getTeamPosition(),
                             p.getIndividualPosition()
                     ));
+
+                    if (puuid.equals(p.getPuuid())) {
+                        me = p;
+                    }
                 }
 
+                if (me == null) {
+                    throw new IllegalStateException("Requested puuid not found in match participants. matchId=" + matchId);
+                }
+
+
+                participantService.linkSummonerToParticipant(me);
                 matchListDtos.add(MatchListDto.from(match, participant, icons));
                 // 해당 매치, 본인, 나머지 참가자들
             }
@@ -95,6 +107,7 @@ public class MatchService {
                 if (me == null) {
                     throw new IllegalStateException("Requested puuid not found in match participants. matchId=" + matchId);
                 }
+                participantService.linkSummonerToParticipant(me);
                 matchListDtoR.add(MatchListDto.from(match, me, icons));
             }
             return matchListDtoR;
