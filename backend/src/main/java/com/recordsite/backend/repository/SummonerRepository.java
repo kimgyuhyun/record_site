@@ -8,7 +8,7 @@ import java.util.List;
 
 @Repository
 public interface SummonerRepository extends JpaRepository<Summoner, Long> {
-    Summoner findByName(String name);
+    Summoner findBypuuid(String puuid);
     Summoner findByNameAndTagLine(String name, String tagLine);
     List<Summoner> findAllByName(String name);
 }
