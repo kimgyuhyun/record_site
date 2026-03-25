@@ -24,7 +24,7 @@ public class SummonerController {
             @RequestParam(required = false, defaultValue = "KR") String region // 지역 선택값
     ) throws Exception {
         String resolvedTagLine = (tagLine != null && !tagLine.isBlank())
-                ? tagLine.trim().toUpperCase() // 태그가 있으면 대문자로 변경해서 넘김
+                ? tagLine.trim().toUpperCase().replaceFirst("^#", "") // 태그가 있으면 대문자로 변경해서 넘김
                 : deFaultTagLineByRegion(region); // 태그가 없으면 리전을 태그로 변환해서 넘김
 
         return ResponseEntity.ok(summonerService.findSummonerByRiotId(name, resolvedTagLine));
