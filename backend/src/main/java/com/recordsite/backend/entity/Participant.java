@@ -6,7 +6,19 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "participant")
+@Table(
+        name = "participant",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_participant_match_slot", // DB 복합 유니크 제약 이름
+                        columnNames = {"match_id", "participant_id"}
+                        // match_id + participant_id 조합이 같은 값인 row를
+                        // 테이블 전체에서 중복으로 만들지 못하게 막는 제약
+                        // 1번째 유저와 2번째 유저가 만나는 판이 있을때
+                        // 중복저장을 막기위해서 생성함
+                )
+        }
+)
 @Getter
 @Setter
 public class Participant {
