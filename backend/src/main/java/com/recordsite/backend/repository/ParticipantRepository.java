@@ -1,5 +1,6 @@
 package com.recordsite.backend.repository;
 
+import com.recordsite.backend.entity.Match;
 import com.recordsite.backend.entity.Participant;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -31,4 +32,6 @@ public interface ParticipantRepository extends JpaRepository<Participant, Long> 
     // matchId로 해당판에 참가자 목록을 asc로 정렬해서 가져옵니다.
     // @Param은 컴파일 시 인자가 arg0, arg1 등으로 바뀔수있기떄문에 바인딩 정확하게 하기위해 명시하는것
     // 여긴 안해도되긴함 그냥 해본것
+
+    boolean existsByMatchAndParticipantId(Match match, Integer participantId);
 }
