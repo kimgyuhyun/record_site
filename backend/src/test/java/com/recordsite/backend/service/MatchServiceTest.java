@@ -183,7 +183,6 @@ class MatchServiceTest {
 
     }
 
-    
 
     // DB에 매치는 있는데 participant가 10명 미만이면 getmMachById로 보강하고, 최종 DTO는 1개 나와야함
     @Test
