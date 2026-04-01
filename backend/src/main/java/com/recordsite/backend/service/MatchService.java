@@ -32,7 +32,7 @@ public class MatchService {
         List<Participant> participantList = participantRepository.findAllParticipantListByPuuid(puuid);
         List<MatchListDto> matchListDtos = new ArrayList<>();
 
-        List<String> processMatchIds = new ArrayList<>(); //중복 체크용 매치아이디
+        List<String> processMatchIds = new ArrayList<>(); //중복 체크용 matchIdList
 
         if (!participantList.isEmpty()) { // 이 puuid로 저장된 참가자리스트가 있으면
             for (Participant participant : participantList) {
