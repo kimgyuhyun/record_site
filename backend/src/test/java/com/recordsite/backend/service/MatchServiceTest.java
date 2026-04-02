@@ -186,7 +186,7 @@ class MatchServiceTest {
         // verify: 검증
         // never는 한번도 호출되면 안된다는 뜻
         verify(riotMatchClient).getMatchIdsByPuuid(puuid, 0, 20);
-        verify(riotMatchClient, never()).getMatchById(anyString());
+        verify(riotMatchClient, never()).getMatchById(any());
         verify(matchRepository, never()).save(any(Match.class));
         verify(participantRepository, never()).save(any(Participant.class));
 
@@ -265,11 +265,67 @@ class MatchServiceTest {
         verify(riotMatchClient).getMatchIdsByPuuid(puuid, 0, 20);
         verify(riotMatchClient).getMatchById("1");
         verify(matchRepository, never()).save(any(Match.class));
-        verify(participantRepository, times(5)).save(any(Participant.class));
+        verify(participantRepository, times(5))
+                .save(any(Participant.class));
         // save가 Participant 인자를 전달받으며 5번 호출됐는지 검증
-        verify(participantService, times(1)).linkSummonerToParticipant(any(Participant.class));
+        verify(participantService, times(1))
+                .linkSummonerToParticipant(any(Participant.class));
+    }
+
+    @Test
+    @DisplayName("DTO 전부 matchID가 동일, 전부 다른 puuid를 가져야함, 유저 본인도 포함되어야함")
+    void getMatchSummaryList_dbComplete_test() {
+
+        String puuid = "puuid1";
+        String matchId = "1";
+
+        Match m1 = new Match();
+        m1.setMatchId("1");
+
+        List<Participant> participantList = buildParticipantList(m1, puuid, 10);
+
+        when(participantRepository.findByMatchIdForParticipantList(matchId))
+                .thenReturn(participantList);
+
+        when(matchRepository.findByMatchId(matchId))
+                .thenReturn(m1);
+
+        List<MatchSummaryDto> summaryList =
+                matchService.getMatchSummaryListByMatchId(matchId);
+
+        assertEquals(participantList.size(), summaryList.size());
+        assertTrue( // DTO 10개 전부 matchId가 동일한지 확인
+                summaryList.stream()
+                        .allMatch(dto -> matchId.equals(dto.getMatchId())));
+        // allmatch는 스트림의 모든 요소가 조건을 만족하면 true, 하나라도 false면 false를 반환함
+        assertEquals(10, summaryList.stream()
+                .map(MatchSummaryDto :: getPuuid)
+                .distinct()
+                .count()); // DTO 전부 다른 유저인지 확인
+        // list를 stream으로 바꿈 Stream<MatchSummaryDto>
+        // stream의 각 요소(MatchSummaryDto)에서 getPuuid()가 주는 값만 뽑아옴 Stream<String>
+        // distinct()로 중복 제거 후 남은 문자열 개수 세서 비교
+        assertEquals(1, summaryList.stream()
+                .filter(dto -> puuid.equals(dto.getPuuid()))
+                .count()); // dtoList에 내 puuid가 있는지 확인
+        // 각 요소(matchSummaryDto)에서 puuid 뽑고 내가 세팅해둔 puuid와 같은지 비교
+        // 조건이 참이면 통과, 거짓이면 제거
+        // 그 뒤에 count()가 내 puuid를 가진 dto개수를 세서 비교
+        // 람다식이라 값을 꺼낸다기보단, 걸러내는 조건 역할
+
+        verifyNoInteractions(riotMatchClient);
+        verify(participantRepository, never()).save(any(Participant.class));
+        verify(participantRepository, times(1))
+                .findByMatchIdForParticipantList(matchId);
+        verify(matchRepository, times(1)).findByMatchId(matchId);
 
 
+
+    }
+
+    @Test
+    @DisplayName("matchId로 match 상세 목록 조회 (DB에 매치가 없음: 예외)")
+    void getMatchSummaryList_notFound_Test() {
 
     }
 
