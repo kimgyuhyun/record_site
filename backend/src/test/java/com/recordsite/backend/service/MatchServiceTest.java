@@ -5,6 +5,7 @@ import com.recordsite.backend.entity.Match;
 import com.recordsite.backend.entity.Participant;
 import com.recordsite.backend.repository.MatchRepository;
 import com.recordsite.backend.repository.ParticipantRepository;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -130,8 +131,8 @@ class MatchServiceTest {
         return res;
     }
 
-    // DB에 매치에 대한 참가자가 10명 완전히 있을때 보강로직을 안타고 최종 DTO를 중복없이 리턴해줘야함
     @Test
+    @DisplayName("DB에 매치에 대한 참가자가 10명 완전히 있을때 보강로직을 안타고 최종 DTO를 중복없이 리턴해줘야함")
     void getMatchListByPuuid_dbCOmplete_Test() {
         String puuid = "puuid1";
 
@@ -194,9 +195,8 @@ class MatchServiceTest {
 
     }
 
-
-    // DB에 매치는 있는데 participant가 10명 미만이면 getmMachById로 보강하고, 최종 DTO는 중복없이 나와야함
     @Test
+    @DisplayName("DB에 매치는 있는데 participant가 10명 미만이면 getmMachById로 보강하고, 최종 DTO는 중복없이 나와야함")
     @SuppressWarnings({"unchecked", "varargs"})
     void getMatchListByPuuid_dbIncomplete_test() {
         String puuid = "puuid1";
