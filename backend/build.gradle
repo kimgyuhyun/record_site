@@ -39,4 +39,8 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	def mockitoCoreJar = configurations.testRuntimeClasspath.find {
+		it.name.startsWith('mockito-core') && it.name.endsWith('.jar')
+	}
+	jvmArgs "-javaagent:${mockitoCoreJar}", "-Xshare:off"
 }

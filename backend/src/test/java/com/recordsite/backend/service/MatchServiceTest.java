@@ -197,6 +197,7 @@ class MatchServiceTest {
 
     // DB에 매치는 있는데 participant가 10명 미만이면 getmMachById로 보강하고, 최종 DTO는 중복없이 나와야함
     @Test
+    @SuppressWarnings({"unchecked", "varargs"})
     void getMatchListByPuuid_dbIncomplete_test() {
         String puuid = "puuid1";
 
@@ -214,7 +215,7 @@ class MatchServiceTest {
 
         when(participantRepository.findAllParticipantListByPuuid(puuid))
                 .thenReturn(List.of(p1, p2));
-
+        
         when(participantRepository.findByMatchIdForParticipantList("1"))
                 .thenReturn(
                         buildParticipantList(m1, puuid, 5),
