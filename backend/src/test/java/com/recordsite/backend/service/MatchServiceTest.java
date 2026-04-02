@@ -137,18 +137,24 @@ class MatchServiceTest {
 
         Match m1 = new Match();
         Match m2 = new Match();
+        Match m3 = new Match(); // 중복 체크용 match
         m1.setMatchId("1");
         m2.setMatchId("2");
+        m3.setMatchId("2");
 
         Participant p1 = new Participant();
         Participant p2 = new Participant();
-        p1.setPuuid("puuid1");
-        p2.setPuuid("puuid1");
+        Participant p3 = new Participant();
+        p1.setPuuid(puuid);
+        p2.setPuuid(puuid);
+        p3.setPuuid(puuid);
         p1.setMatch(m1);
         p2.setMatch(m2);
+        p3.setMatch(m3);
+
 
         when(participantRepository.findAllParticipantListByPuuid(puuid))
-                .thenReturn(List.of(p1, p2));
+                .thenReturn(List.of(p1, p2, p3));
 
         when(riotMatchClient.getMatchIdsByPuuid(puuid, 0, 20))
                 .thenReturn(List.of("1", "2"));
@@ -164,7 +170,12 @@ class MatchServiceTest {
 
         List<MatchListDto> matchListDtos = matchService.getMatchListByPuuid(puuid);
 
+        List<String> matchIds = matchListDtos.stream()
+                        .map(MatchListDto::getMatchId)
+                        .toList();
+
         assertEquals(2, matchListDtos.size());
+        assertEquals(matchListDtos.size(), matchIds.stream().distinct().count());
         assertEquals("1", matchListDtos.get(0).getMatchId());
         assertEquals("2", matchListDtos.get(1).getMatchId());
         assertEquals(puuid, matchListDtos.get(0).getMyPuuid());
@@ -184,20 +195,25 @@ class MatchServiceTest {
     }
 
 
-    // DB에 매치는 있는데 participant가 10명 미만이면 getmMachById로 보강하고, 최종 DTO는 1개 나와야함
+    // DB에 매치는 있는데 participant가 10명 미만이면 getmMachById로 보강하고, 최종 DTO는 중복없이 나와야함
     @Test
     void getMatchListByPuuid_dbIncomplete_test() {
         String puuid = "puuid1";
 
         Match m1 = new Match();
+        Match m2 = new Match();
         m1.setMatchId("1");
+        m2.setMatchId("1");
 
         Participant p1 = new Participant();
-        p1.setPuuid("puuid1");
+        Participant p2 = new Participant();
+        p1.setPuuid(puuid);
+        p2.setPuuid(puuid);
         p1.setMatch(m1);
+        p2.setMatch(m2);
 
         when(participantRepository.findAllParticipantListByPuuid(puuid))
-                .thenReturn(List.of(p1));
+                .thenReturn(List.of(p1, p2));
 
         when(participantRepository.findByMatchIdForParticipantList("1"))
                 .thenReturn(
@@ -235,7 +251,12 @@ class MatchServiceTest {
 
         List<MatchListDto> matchListDtos = matchService.getMatchListByPuuid(puuid);
 
+        List<String> matchIds = matchListDtos.stream()
+                        .map(MatchListDto :: getMatchId)
+                        .toList();
+
         assertEquals(1, matchListDtos.size());
+        assertEquals(matchListDtos.size(), matchIds.stream().distinct().count());
         assertEquals("1", matchListDtos.get(0).getMatchId());
         assertEquals(puuid, matchListDtos.get(0).getMyPuuid());
 
@@ -247,12 +268,6 @@ class MatchServiceTest {
         // save가 Participant 인자를 전달받으며 5번 호출됐는지 검증
         verify(participantService, times(1)).linkSummonerToParticipant(any(Participant.class));
 
-
-
-    }
-
-    @Test
-    void getMatchListByPuuid_dbEmpty_test() {
 
 
     }
