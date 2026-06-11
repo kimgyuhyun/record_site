@@ -12,7 +12,7 @@ import java.util.List;
 @Getter
 @Setter
 @NoArgsConstructor
-public class MatchListDto {
+public class MatchRecordDto {
 
     // 매치 메타데이터 정보
     private String matchId;
@@ -76,8 +76,8 @@ public class MatchListDto {
         private String individualPosition;
     }
 
-    public static MatchListDto from(Match match, Participant me, List<ParticipantChampionIcon> icons) {
-        MatchListDto dto = new MatchListDto();
+    public static MatchRecordDto from(Match match, Participant me, List<ParticipantChampionIcon> icons) {
+        MatchRecordDto dto = new MatchRecordDto();
 
         dto.setMatchId(match.getMatchId());
         dto.setGameCreation(match.getGameCreation());
