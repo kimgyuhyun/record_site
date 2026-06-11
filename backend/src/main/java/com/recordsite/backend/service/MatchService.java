@@ -1,6 +1,6 @@
 package com.recordsite.backend.service;
 
-import com.recordsite.backend.dto.MatchListDto;
+import com.recordsite.backend.dto.MatchRecordDto;
 import com.recordsite.backend.dto.MatchSummaryDto;
 import com.recordsite.backend.dto.RiotMatchResponse;
 import com.recordsite.backend.dto.RiotParticipantResponse;
@@ -9,16 +9,19 @@ import com.recordsite.backend.entity.Participant;
 import com.recordsite.backend.repository.MatchRepository;
 import com.recordsite.backend.repository.ParticipantRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Transactional // 서비스 메서드 실행 동안 영속성 컨텍스트를 유지해줘서 LAZY 로딩이 메서드
-// 내부에서 일어나도록 보장
+@Transactional
 public class MatchService {
     private final MatchRepository matchRepository;
     private final ParticipantRepository participantRepository;
@@ -26,79 +29,114 @@ public class MatchService {
     private final RiotMatchClient riotMatchClient;
 
 
-    // puuid 기준으로 매치목록 가져옵니다.
-    // DB에 정보가 없으면 Riot 호출 후 저장합니다.
-    public List<MatchListDto> getMatchListByPuuid(String puuid) {
-        List<Participant> participantList = participantRepository.findAllParticipantListByPuuid(puuid);
-        List<MatchListDto> matchListDtos = new ArrayList<>();
+    // 게임 모드별 기대 참가자 수
+    // CHERRY(아레나) = 16명, NEXUSBLITZ(돌격넥서스) = 12명, 나머지 = 10명
+    private int getExpectedParticipantCount(Match match) {
+        String gameMode = match.getGameMode();
+        if (gameMode == null) return 10;
+        return switch (gameMode) {
+            case "CHERRY"     -> 18;
+            case "NEXUSBLITZ" -> 12;
+            default           -> 10;
+        };
+    }
 
-        List<String> processMatchIds = new ArrayList<>(); //중복 체크용 matchIdList
+    // 조회 전용 Riot API 호출 없음
 
-        if (!participantList.isEmpty()) { // 이 puuid로 저장된 참가자리스트가 있으면
-            for (Participant participant : participantList) {
-                String riotMatchId = participant.getMatch().getMatchId();
+    // DB에서 페이지 단위로 매치목록 반환
+    @Transactional(readOnly = true)
+    public Page<MatchRecordDto> getMatchRecordsByPuuid(String puuid, Pageable pageable) {
+        return participantRepository.findMatchRecordByPuuid(puuid, pageable);
+    }
 
-                if (processMatchIds.contains(riotMatchId)) {
-                    continue; // 중복이면 스킵하고 다음 루프 진행
-                }
+    // 해당 판 전체 참가자 상세 정보 반환
+    public List<MatchSummaryDto> getParticipantSummaryListByMatchId(String matchId) {
+        List<Participant> participantList = participantRepository.findByMatchIdForParticipantList(matchId);
+        Match match = matchRepository.findByMatchId(matchId);
 
-                processMatchIds.add(riotMatchId);
-                matchListDtos.add(processMatch(puuid, riotMatchId));
-            }
+        if (match == null) {
+            throw new IllegalStateException("Match not found: " + matchId);
         }
 
-        List<String> machIdList = riotMatchClient.getMatchIdsByPuuid(puuid, 0, 20);
-        for (String matchId : machIdList) {
-            if (processMatchIds.contains(matchId)) {
-                continue;
-            }
-            processMatchIds.add(matchId);
-            matchListDtos.add(processMatch(puuid, matchId));
+        List<MatchSummaryDto> matchSummaryDtoList = new ArrayList<>();
+        for (Participant participant : participantList) {
+            matchSummaryDtoList.add(MatchSummaryDto.from(match, participant));
         }
-        return matchListDtos;
+        return matchSummaryDtoList;
     }
 
 
-    private MatchListDto processMatch(String puuid, String riotMatchId) {
+    // 갱신 전용 - 전적갱신 버튼 클릭 시에만 호출
+
+    // Riot API에서 최근 20개 받아서 DB에 없는 것만 저장, 새로 저장된 수 반환
+    public int refreshMatchesByPuuid(String puuid) {
+        List<String> matchIdList = riotMatchClient.getMatchIdsByPuuid(puuid, 0, 20);
+
+        int newCount = 0;
+        for (String matchId : matchIdList) {
+            Match existing = matchRepository.findByMatchId(matchId);
+            if (existing == null) {
+                processMatch(puuid, matchId);
+                newCount++;
+            }
+        }
+
+        return newCount;
+    }
+
+    private MatchRecordDto processMatch(String puuid, String riotMatchId) {
         String targetMatchId = riotMatchId;
         Match match = matchRepository.findByMatchId(targetMatchId);
         List<Participant> matchParticipantList = participantRepository.findByMatchIdForParticipantList(targetMatchId);
-        if (matchParticipantList.size() > 10) { // 매치참가자가 10명보다 크면 예외
-            throw new IllegalStateException("Participant count > 10. matchId=" + targetMatchId);
-        }
-        // match가 null 또는 matchParticipantList가 10보다 작으면
-        if (match == null || matchParticipantList.size() < 10) {
+
+        if (match == null || matchParticipantList.isEmpty()) {
             RiotMatchResponse res = riotMatchClient.getMatchById(targetMatchId);
-            targetMatchId = res.getMetadata().getMatchId(); // 안전하게 라이엇 응답에 matchId로 다시 세팅
-           
-            match = matchRepository.findByMatchId(targetMatchId); // 다시 가져온 matchId로 재조회
+            targetMatchId = res.getMetadata().getMatchId();
+
+            match = matchRepository.findByMatchId(targetMatchId);
             if (match == null) {
                 match = matchRepository.save(Match.from(res));
             }
-            
-            // 매치 참가자 리스트 재조회
+
+            int expected = getExpectedParticipantCount(match);
+
+            // DB에 저장된 participantId 목록을 Set으로 관리 (1차 캐시 문제 회피)
             matchParticipantList = participantRepository.findByMatchIdForParticipantList(targetMatchId);
-            if (matchParticipantList.size() > 10) { // 10보다 크면 예외
-                throw new IllegalStateException("Participant count > 10. matchId=" + targetMatchId);
-            }
-            if (matchParticipantList.size() < 10) {
+            Set<Integer> savedParticipantIds = matchParticipantList.stream()
+                    .map(Participant::getParticipantId)
+                    .collect(Collectors.toSet());
+
+            if (matchParticipantList.size() < expected) {
                 for (RiotParticipantResponse rp : res.getInfo().getParticipants()) {
-                    boolean exists = participantRepository.existsByMatchAndParticipantId(match, rp.getParticipantId());
-                    if (!exists) {
+                    if (!savedParticipantIds.contains(rp.getParticipantId())) {
                         participantRepository.save(Participant.from(rp, match));
+                        savedParticipantIds.add(rp.getParticipantId()); // 저장 즉시 set에 추가
                     }
                 }
             }
+
+            // flush 후 재조회해서 정확한 count 확인
+            participantRepository.flush();
             matchParticipantList = participantRepository.findByMatchIdForParticipantList(targetMatchId);
+
+            if (matchParticipantList.size() != expected) {
+                throw new IllegalStateException(
+                    "Participant count != " + expected + ". matchId=" + targetMatchId
+                    + " (actual=" + matchParticipantList.size() + ", gameMode=" + match.getGameMode() + ")");
+            }
         }
-        // 최종 검증: 반드시 정확히 10명이어야 함
-        if (matchParticipantList.size() != 10) {
-            throw new IllegalStateException("Participant count != 10. matchId=" + targetMatchId);
+
+        int expected = getExpectedParticipantCount(match);
+        if (matchParticipantList.size() != expected) {
+            throw new IllegalStateException(
+                "Participant count != " + expected + ". matchId=" + targetMatchId
+                + " (actual=" + matchParticipantList.size() + ", gameMode=" + match.getGameMode() + ")");
         }
+
         Participant me = null;
-        List<MatchListDto.ParticipantChampionIcon> icons = new ArrayList<>();
+        List<MatchRecordDto.ParticipantChampionIcon> icons = new ArrayList<>();
         for (Participant p : matchParticipantList) {
-            icons.add(new MatchListDto.ParticipantChampionIcon(
+            icons.add(new MatchRecordDto.ParticipantChampionIcon(
                     p.getPuuid(),
                     p.getParticipantId(),
                     p.getTeamId(),
@@ -111,30 +149,15 @@ public class MatchService {
                 me = p;
             }
         }
+
         if (me == null) {
-            throw new IllegalStateException("Requested puuid not found in match participants. matchId=" + targetMatchId);
+            throw new IllegalStateException(
+                "Requested puuid not found in match participants. matchId=" + targetMatchId);
         }
+
         participantService.linkSummonerToParticipant(me);
-        return MatchListDto.from(match, me, icons);
+        return MatchRecordDto.from(match, me, icons);
     }
-    
-    public List<MatchSummaryDto> getMatchSummaryListByMatchId(String matchId) {
-        List<Participant> participantList = participantRepository.findByMatchIdForParticipantList(matchId);
-        Match match = matchRepository.findByMatchId(matchId);
-        List<MatchSummaryDto> matchSummaryDtoList = new ArrayList<>();
 
-        if (match == null) {
-            throw new IllegalStateException("Match not found: " + matchId);
-        }
-
-        for (Participant participant : participantList) {
-            matchSummaryDtoList.add(MatchSummaryDto.from(match, participant));
-        }
-        return matchSummaryDtoList;
-    }
 
 }
-
-//        return participantList.stream()
-//                .map(p -> MatchSummaryDto.from(p.getMatch(), p))
-//                .toList(); 스트림 버전
