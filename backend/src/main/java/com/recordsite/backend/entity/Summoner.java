@@ -21,10 +21,10 @@ public class Summoner {
     private Long id;
 
     @Column(name = "summoner_Id", nullable = true, unique = true)
-    private String summonerId; // 랭크용
+    private String summonerId; // 랭크용 (deprecated 예정)
 
     @Column(nullable = false, unique = true)
-    private String puuid; // 전역으로 사용가능한 소환사 고유 ID / 끝난 게임 매치 조회키
+    private String puuid;
 
     @Column(nullable = false)
     private String name;
@@ -50,7 +50,6 @@ public class Summoner {
         summoner.setProfileIconId(res.getProfileIconId());
         summoner.setLevel(res.getSummonerLevel());
         summoner.setRevisionDate(res.getRevisionDate());
-
         return summoner;
     }
 }
