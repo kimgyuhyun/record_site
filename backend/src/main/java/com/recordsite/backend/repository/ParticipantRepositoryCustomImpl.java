@@ -5,14 +5,18 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.recordsite.backend.dto.MatchRecordDto;
 import com.recordsite.backend.entity.QMatch;
 import com.recordsite.backend.entity.QParticipant;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
-public class ParticipantRepositoryCustomImpl implements ParticipantRepositoryCustom{
-    private JPAQueryFactory queryFactory;
+@Repository
+@RequiredArgsConstructor
+public class ParticipantRepositoryCustomImpl implements ParticipantRepositoryCustom {
+    private final JPAQueryFactory queryFactory;
 
     @Override
     public Page<MatchRecordDto> findMatchRecordByPuuid(String puuid, Pageable pageable) {
@@ -72,6 +76,5 @@ public class ParticipantRepositoryCustomImpl implements ParticipantRepositoryCus
                 .fetchOne();
 
         return new PageImpl<>(content, pageable, total != null ? total : 0);
-
     }
 }

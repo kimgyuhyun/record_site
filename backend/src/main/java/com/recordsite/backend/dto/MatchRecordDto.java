@@ -14,6 +14,59 @@ import java.util.List;
 @NoArgsConstructor
 public class MatchRecordDto {
 
+    public MatchRecordDto(
+            String matchId, Long gameCreation, Long gameDuration,
+            Integer queueId, Integer mapId,
+            String gameMode, String gameType,
+            String myPuuid, String myGameName, String myTagLine,
+            Integer myTeamId, Boolean myWin,
+            Integer myChampionId, String myChampionName, Integer myChampionLevel,
+            Integer myKills, Integer myDeaths, Integer myAssists,
+            Integer myGoldEarned,
+            Long myTotalDamageDealt, Long myTotalDamageDealtToChampions, Long myTotalDamageTaken,
+            Integer myVisionScore,
+            Integer myItem0, Integer myItem1, Integer myItem2, Integer myItem3,
+            Integer myItem4, Integer myItem5, Integer myItem6,
+            Integer mySpell1, Integer mySpell2,
+            Integer myStatPerkOffense, Integer myStatPerkFlex, Integer myStatPerkDefense
+    ) {
+        this.matchId = matchId;
+        this.gameCreation = gameCreation;
+        this.gameDuration = gameDuration;
+        this.queueId = queueId;
+        this.mapId = mapId;
+        this.gameMode = gameMode;
+        this.gameType = gameType;
+        this.myPuuid = myPuuid;
+        this.myGameName = myGameName;
+        this.myTagLine = myTagLine;
+        this.myTeamId = myTeamId;
+        this.myWin = myWin;
+        this.myChampionId = myChampionId;
+        this.myChampionName = myChampionName;
+        this.myChampionLevel = myChampionLevel;
+        this.myKills = myKills;
+        this.myDeaths = myDeaths;
+        this.myAssists = myAssists;
+        this.myGoldEarned = myGoldEarned;
+        this.myTotalDamageDealt = myTotalDamageDealt;
+        this.myTotalDamageDealtToChampions = myTotalDamageDealtToChampions;
+        this.myTotalDamageTaken = myTotalDamageTaken;
+        this.myVisionScore = myVisionScore;
+        this.myItem0 = myItem0;
+        this.myItem1 = myItem1;
+        this.myItem2 = myItem2;
+        this.myItem3 = myItem3;
+        this.myItem4 = myItem4;
+        this.myItem5 = myItem5;
+        this.myItem6 = myItem6;
+        this.mySpell1 = mySpell1;
+        this.mySpell2 = mySpell2;
+        this.myStatPerkOffense = myStatPerkOffense;
+        this.myStatPerkFlex = myStatPerkFlex;
+        this.myStatPerkDefense = myStatPerkDefense;
+    }
+
     // 매치 메타데이터 정보
     private String matchId;
     private Long gameCreation;

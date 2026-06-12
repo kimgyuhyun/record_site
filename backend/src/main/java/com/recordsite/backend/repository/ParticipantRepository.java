@@ -30,8 +30,15 @@ public interface ParticipantRepository extends JpaRepository<Participant, Long>,
             """)
     List<Participant> findByMatchIdForParticipantList(@Param("matchId") String matchId);
     // matchId로 해당판에 참가자 목록을 asc로 정렬해서 가져옵니다.
-    // @Param은 컴파일 시 인자가 arg0, arg1 등으로 바뀔수있기떄문에 바인딩 정확하게 하기위해 명시하는것
-    // 여긴 안해도되긴함 그냥 해본것
+
+    @Query("""
+            select p
+            from Participant p
+            where p.match.matchId = :matchId
+            and p.puuid = :puuid
+            """)
+    Participant findByMatchIdAndPuuid(@Param("matchId") String matchId, @Param("puuid") String puuid);
+    // matchId와 puuid로 특정 참가자 한 명 조회
 
     boolean existsByMatchAndParticipantId(Match match, Integer participantId);
 }
