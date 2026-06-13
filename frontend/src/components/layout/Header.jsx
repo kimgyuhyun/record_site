@@ -33,8 +33,9 @@ export default function Header({ region, setRegion }) {
   const handleSearch = () => {
     const { name, tagLine } = parseQuery(query);
     if (!name) return;
-    // /find/kr/Hide%20on%20bush-KR1
-    const slug = tagLine ? `${name}-${tagLine}` : name;
+    // tagLine 없으면 region을 기본 태그로 사용 (ex: KR → KR1)
+    const tag = tagLine || region;
+    const slug = `${name}-${tag}`;
     navigate(`/find/${region.toLowerCase()}/${encodeURIComponent(slug)}`);
     inputRef.current?.blur();
   };

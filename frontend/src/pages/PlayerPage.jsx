@@ -1,24 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import apiClient from '../api/client';
+import { getSummoner } from '../api/summoner';
+import { getLeagueEntries } from '../api/league';
+import { getMatches, refreshMatches } from '../api/match';
 import SummonerProfilePage from './SummonerProfilePage';
 
 /**
- * URL: /find/:region/:slug
- *   region = "kr", "na", ...
- *   slug   = "Hide%20on%20bush-KR1"  (name-tagLine, URL 디코딩 후 마지막 "-" 기준 분리)
- *
- * 파싱 규칙: slug에서 마지막 "-"를 태그 구분자로 사용
- *   "Hide on bush-KR1"  → name="Hide on bush", tagLine="KR1"
- *   "Hide on bush"      → name="Hide on bush", tagLine=""
+ * URL 패턴: /find/:region/:slug
+ *   slug = "Hide%20on%20bush-KR1"
+ *          → decodeURIComponent → "Hide on bush-KR1"
+ *          → lastIndexOf('-')   → name="Hide on bush", tagLine="KR1"
  */
 function parseSlug(slug) {
   const decoded = decodeURIComponent(slug);
   const idx = decoded.lastIndexOf('-');
   if (idx > 0) {
-    return { name: decoded.slice(0, idx), tagLine: decoded.slice(idx + 1) };
+    return { name: decoded.slice(0, idx).trim(), tagLine: decoded.slice(idx + 1).trim() };
   }
-  return { name: decoded, tagLine: '' };
+  return { name: decoded.trim(), tagLine: '' };
 }
 
 export default function PlayerPage() {
@@ -44,14 +43,13 @@ export default function PlayerPage() {
     setRankEntries([]);
     setMatchList([]);
     try {
-      const sumRes = await apiClient.get('/api/summoners', {
-        params: { name, tagLine: tagLine || undefined, region: regionUpper },
-      });
+      const sumRes = await getSummoner(name, tagLine, regionUpper);
       const summonerData = sumRes.data;
       setSummoner(summonerData);
+
       const [rankRes, matchRes] = await Promise.all([
-        apiClient.get('/api/league/entries', { params: { puuid: summonerData.puuid } }),
-        apiClient.get('/api/matches',         { params: { puuid: summonerData.puuid } }),
+        getLeagueEntries(summonerData.puuid),
+        getMatches(summonerData.puuid),
       ]);
       setRankEntries(rankRes.data || []);
       setMatchList(matchRes.data?.content || []);
@@ -68,12 +66,10 @@ export default function PlayerPage() {
     setRefreshing(true);
     setError('');
     try {
-      await apiClient.post('/api/matches/refresh', null, {
-        params: { puuid: summoner.puuid },
-      });
+      await refreshMatches(summoner.puuid);
       const [rankRes, matchRes] = await Promise.all([
-        apiClient.get('/api/league/entries', { params: { puuid: summoner.puuid } }),
-        apiClient.get('/api/matches',         { params: { puuid: summoner.puuid } }),
+        getLeagueEntries(summoner.puuid),
+        getMatches(summoner.puuid),
       ]);
       setRankEntries(rankRes.data || []);
       setMatchList(matchRes.data?.content || []);
@@ -85,7 +81,6 @@ export default function PlayerPage() {
     }
   };
 
-  /* ── 로딩 ── */
   if (loading) return (
     <div style={{
       display: 'flex', justifyContent: 'center', alignItems: 'center',
@@ -101,7 +96,6 @@ export default function PlayerPage() {
     </div>
   );
 
-  /* ── 에러 ── */
   if (error) return (
     <div style={{
       display: 'flex', justifyContent: 'center', alignItems: 'center',

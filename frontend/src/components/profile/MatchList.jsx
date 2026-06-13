@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import apiClient from '../../api/client';
+import { getMatchSummary } from '../../api/match';
 import { DATA_CDN, imgChampion, imgItem, imgSpell } from '../../constants/ddragon';
 
 function ItemStrip({ itemIds = [], spell1, spell2, spellMap, size = 24 }) {
@@ -238,7 +238,7 @@ export default function MatchList({ matches = [] }) {
     if (summaryMap[matchId]) return;
     setSummaryLoadingMap(prev => ({ ...prev, [matchId]: true }));
     try {
-      const res = await apiClient.get(`/api/matches/${matchId}/summary`);
+      const res = await getMatchSummary(matchId);
       setSummaryMap(prev => ({ ...prev, [matchId]: res.data || [] }));
     } catch (e) {
       console.error(e);
