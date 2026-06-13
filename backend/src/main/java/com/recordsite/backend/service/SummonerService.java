@@ -40,14 +40,11 @@ public class SummonerService {
         return SummonerDto.from(summoner);
     }
 
-    public List<SummonerDto> findSummonerListByName(String name) {
-        List<Summoner> summonerList = summonerRepository.findAllByName(name);
-        List<SummonerDto> summonerDtoList= new ArrayList<>();
-        for (Summoner summoner : summonerList) {
-            SummonerDto dto = SummonerDto.from(summoner);
-            summonerDtoList.add(dto);
-        }
-
-        return summonerDtoList;
+    public List<SummonerDto> searchByName(String name) {
+        return summonerRepository
+                .findByNameContainingIgnoreCase(name)
+                .stream()
+                .map(SummonerDto :: from)
+                .toList();
     }
 }

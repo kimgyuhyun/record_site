@@ -18,7 +18,7 @@ public class SummonerController {
     private final SummonerService summonerService;
 
     @GetMapping()
-    public ResponseEntity<SummonerDto> getSummonerByName(
+    public ResponseEntity<SummonerDto> getSummonerByNameAndTag(
             @RequestParam String name,
             @RequestParam(required = false) String tagLine, // 유저가 입력한 태그값
             @RequestParam(required = false, defaultValue = "KR") String region // 지역 선택값
@@ -49,11 +49,19 @@ public class SummonerController {
         };
     }
 
+    //
     @GetMapping("/search")
-    public ResponseEntity<List<SummonerDto>> getSummonerListByName(
-            @RequestParam String name) throws Exception {
-        return ResponseEntity.ok(summonerService.findSummonerListByName(name));
+    public ResponseEntity<List<SummonerDto>> getSummonerSearchByName(
+            @RequestParam String name) {
+        return ResponseEntity.ok(summonerService.searchByName(name));
     }
+
+
+//    @GetMapping("/search")
+//    public ResponseEntity<List<SummonerDto>> getSummonerListByName(
+//            @RequestParam String name) throws Exception {
+//        return ResponseEntity.ok(summonerService.findSummonerListByName(name));
+//    }
 
 
 }

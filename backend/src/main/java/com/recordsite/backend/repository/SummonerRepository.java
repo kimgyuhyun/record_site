@@ -11,4 +11,5 @@ public interface SummonerRepository extends JpaRepository<Summoner, Long> {
     Summoner findBypuuid(String puuid);
     Summoner findByNameAndTagLine(String name, String tagLine);
     List<Summoner> findAllByName(String name);
+    List<Summoner> findByNameContainingIgnoreCase(String name);
 }
