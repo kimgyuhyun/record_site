@@ -26,6 +26,7 @@ public class MatchService {
     private final ParticipantRepository participantRepository;
     private final MatchSaveHelper matchSaveHelper;
     private final RiotMatchClient riotMatchClient;
+    private final LeagueService leagueService;
 
 
     // ──────────────────────────────────────────
@@ -57,10 +58,12 @@ public class MatchService {
     // 갱신 전용 - 전적갱신 버튼 클릭 시에만 호출
     // ──────────────────────────────────────────
 
-    // Riot API에서 최근 20개 받아서 DB에 없는 것만 저장, 새로 저장된 수 반환
-    @Transactional(readOnly = true)
+    // Riot API에서 최근 전적 20개 받아서 DB에 없는 것만 저장,
+    // 자유/솔로 랭크도 갱신 
+    // 새로 저장된 수 반환
     public int refreshMatchesByPuuid(String puuid) {
         List<String> matchIdList = riotMatchClient.getMatchIdsByPuuid(puuid, 0, 20);
+        leagueService.updateAndSaveLeague(puuid);
 
         int newCount = 0;
         for (String matchId : matchIdList) {
