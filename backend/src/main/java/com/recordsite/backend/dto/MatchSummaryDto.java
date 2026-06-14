@@ -60,6 +60,8 @@ public class MatchSummaryDto {
     private Integer statPerkFlex;
     private Integer statPerkDefense;
 
+    private boolean gameEndedInEarlySurrender;
+
     public static MatchSummaryDto from(Match match, Participant p) {
         MatchSummaryDto dto = new MatchSummaryDto();
 
@@ -108,6 +110,8 @@ public class MatchSummaryDto {
         dto.setStatPerkOffense(p.getStatPerkOffense());
         dto.setStatPerkFlex(p.getStatPerkFlex());
         dto.setStatPerkDefense(p.getStatPerkDefense());
+
+        dto.setGameEndedInEarlySurrender(p.isGameEndedInEarlySurrender());
 
         return dto;
     }
