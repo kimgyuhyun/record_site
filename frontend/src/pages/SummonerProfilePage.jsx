@@ -5,42 +5,50 @@ import ChampionStatTable from '../components/profile/ChampionStatTable';
 import TabNav from '../components/profile/TabNav';
 import MatchList from '../components/profile/MatchList';
 
-function parseRankData(entries) {
-  const result = { solo: null, flex: null };
-  for (const entry of entries) {
-    const data = {
-      tier: entry.tier, rank: entry.rank,
-      lp: entry.leaguePoints, wins: entry.wins, losses: entry.losses,
-    };
-    if (entry.queueType === 'RANKED_SOLO_5x5') result.solo = data;
-    if (entry.queueType === 'RANKED_FLEX_SR')  result.flex = data;
-  }
-  return result;
+// summoner 객체에서 직접 solo/flex 랭크 추출
+function parseRankFromSummoner(summoner) {
+  if (!summoner) return { solo: null, flex: null };
+
+  const solo = summoner.soloTier ? {
+    tier:   summoner.soloTier,
+    rank:   summoner.soloRank,
+    lp:     summoner.soloLp,
+    wins:   summoner.soloWins,
+    losses: summoner.soloLosses,
+  } : null;
+
+  const flex = summoner.flexTier ? {
+    tier:   summoner.flexTier,
+    rank:   summoner.flexRank,
+    lp:     summoner.flexLp,
+    wins:   summoner.flexWins,
+    losses: summoner.flexLosses,
+  } : null;
+
+  return { solo, flex };
 }
 
 export default function SummonerProfilePage({
-  summoner, rankEntries, matchList = [], champStats,
-  onRefresh, refreshing, championKeyById,
+  summoner, matchList = [], champStats,
+  onRefresh, refreshing,
 }) {
   const [mainTab, setMainTab] = useState('챔피언');
   const [subTab, setSubTab]   = useState('전체');
 
-  const rankData = rankEntries ? parseRankData(rankEntries) : { solo: null, flex: null };
+  const { solo, flex } = parseRankFromSummoner(summoner);
 
   return (
     <div style={{
-      maxWidth: 1000,
-      margin: '0 auto',
-      padding: '24px 16px',
+      maxWidth: 1000, margin: '0 auto', padding: '24px 16px',
       fontFamily: "'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif",
     }}>
       {/* 1. 유저 정보 */}
       <UserInfo summoner={summoner} onRefresh={onRefresh} refreshing={refreshing} />
 
-      {/* 2. 랭크 박스 */}
+      {/* 2. 랭크 박스 — summoner에서 직접 */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
-        <RankTierBox title="개인 / 2인전"   rankData={rankData.solo} />
-        <RankTierBox title="자유 5대5 대전" rankData={rankData.flex} />
+        <RankTierBox title="개인 / 2인전"   rankData={solo} />
+        <RankTierBox title="자유 5대5 대전" rankData={flex} />
       </div>
 
       {/* 3. 탭 */}
@@ -48,7 +56,7 @@ export default function SummonerProfilePage({
 
       {/* 4. 탭 콘텐츠 */}
       {mainTab === '챔피언' && (
-        <ChampionStatTable stats={champStats || []} championKeyById={championKeyById || {}} />
+        <ChampionStatTable stats={champStats || []} championKeyById={{}} />
       )}
       {mainTab === '게임 관전하기 - 인게임 정보' && (
         <div style={{

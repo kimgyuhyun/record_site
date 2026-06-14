@@ -50,11 +50,16 @@ function ChampionFace({ championId, championKeyById, championName, size = 40 }) 
 function MatchRow({ match, championKeyById, spellMap, onToggle, isExpanded, summaryLoading, summaryRows }) {
   const items = [match.myItem0, match.myItem1, match.myItem2,
                  match.myItem3, match.myItem4, match.myItem5, match.myItem6];
-  const winColor   = match.myWin ? '#3b82f6' : '#ef4444';
-  const winBg      = match.myWin
-    ? 'linear-gradient(90deg, #1a2d5a33 0%, #111c2700 100%)'
-    : 'linear-gradient(90deg, #3b0a0a33 0%, #111c2700 100%)';
-  const borderLeft = `3px solid ${match.myWin ? '#3b82f6' : '#ef4444'}`;
+
+  const isRemake = match.gameEndedInEarlySurrender;
+  const resultText  = isRemake ? '다시하기' : match.myWin ? '승리' : '패배';
+  const winColor    = isRemake ? '#888888' : match.myWin ? '#3b82f6' : '#ef4444';
+  const winBg       = isRemake
+    ? 'linear-gradient(90deg, #2a2a2a33 0%, #111c2700 100%)'
+    : match.myWin
+      ? 'linear-gradient(90deg, #1a2d5a33 0%, #111c2700 100%)'
+      : 'linear-gradient(90deg, #3b0a0a33 0%, #111c2700 100%)';
+  const borderLeft  = `3px solid ${winColor}`;
 
   return (
     <div style={{ marginBottom: 6, borderRadius: 8, overflow: 'hidden', border: '1px solid #1e2d3d' }}>
@@ -79,7 +84,7 @@ function MatchRow({ match, championKeyById, spellMap, onToggle, isExpanded, summ
         {/* 승패 + KDA */}
         <div style={{ minWidth: 80, flexShrink: 0 }}>
           <div style={{ color: winColor, fontWeight: 800, fontSize: 13, marginBottom: 2 }}>
-            {match.myWin ? '승리' : '패배'}
+            {resultText}
           </div>
           <div style={{ color: '#e8e0d0', fontSize: 13 }}>
             <span style={{ fontWeight: 700 }}>{match.myKills}</span>
@@ -159,7 +164,7 @@ function DetailTable({ rows, championKeyById, spellMap }) {
             const rowItems = [row.item0, row.item1, row.item2, row.item3, row.item4, row.item5, row.item6];
             return (
               <tr key={`${row.puuid}-${row.championId}`}
-                style={{ borderBottom: '1px solid #111c27', background: row.win ? '#0d1f3033' : '#1f0d0d22' }}>
+                style={{ borderBottom: '1px solid #111c27', background: row.gameEndedInEarlySurrender ? '#1a1a1a22' : row.win ? '#0d1f3033' : '#1f0d0d22' }}>
                 <td style={{ padding: '8px 10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <ChampionFace championId={row.championId} championKeyById={championKeyById}
@@ -182,8 +187,11 @@ function DetailTable({ rows, championKeyById, spellMap }) {
                   {row.kills}/{row.deaths}/{row.assists}
                 </td>
                 <td style={{ padding: '8px 10px' }}>
-                  <span style={{ color: row.win ? '#3b82f6' : '#ef4444', fontWeight: 700, fontSize: 12 }}>
-                    {row.win ? 'WIN' : 'LOSE'}
+                  <span style={{
+                    color: row.gameEndedInEarlySurrender ? '#888888' : row.win ? '#3b82f6' : '#ef4444',
+                    fontWeight: 700, fontSize: 12,
+                  }}>
+                    {row.gameEndedInEarlySurrender ? 'REMAKE' : row.win ? 'WIN' : 'LOSE'}
                   </span>
                 </td>
                 <td style={{ padding: '8px 10px', textAlign: 'right', color: '#9ca3af', fontSize: 12 }}>
