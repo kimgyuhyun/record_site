@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -43,6 +44,23 @@ public class Summoner {
 
     @OneToMany(mappedBy = "summoner", cascade = CascadeType.ALL)
     private List<Participant> participantList = new ArrayList<>();
+
+    // 솔로랭크
+    @Column private String soloTier;
+    @Column private String soloRank;
+    @Column private Integer soloLp;
+    @Column private Integer soloWins;
+    @Column private Integer soloLosses;
+
+    // 자유랭크
+    @Column private String flexTier;
+    @Column private String flexRank;
+    @Column private Integer flexLp;
+    @Column private Integer flexWins;
+    @Column private Integer flexLosses;
+
+    // 마지막 랭크 갱신 시각
+    @Column private LocalDateTime rankUpdatedAt;
 
     public static Summoner from(RiotSummonerResponse res) {
         Summoner summoner = new Summoner();

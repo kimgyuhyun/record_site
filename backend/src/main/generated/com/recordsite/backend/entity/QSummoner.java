@@ -20,6 +20,16 @@ public class QSummoner extends EntityPathBase<Summoner> {
 
     public static final QSummoner summoner = new QSummoner("summoner");
 
+    public final NumberPath<Integer> flexLosses = createNumber("flexLosses", Integer.class);
+
+    public final NumberPath<Integer> flexLp = createNumber("flexLp", Integer.class);
+
+    public final StringPath flexRank = createString("flexRank");
+
+    public final StringPath flexTier = createString("flexTier");
+
+    public final NumberPath<Integer> flexWins = createNumber("flexWins", Integer.class);
+
     public final NumberPath<Long> id = createNumber("id", Long.class);
 
     public final NumberPath<Integer> level = createNumber("level", Integer.class);
@@ -32,7 +42,19 @@ public class QSummoner extends EntityPathBase<Summoner> {
 
     public final StringPath puuid = createString("puuid");
 
+    public final DateTimePath<java.time.LocalDateTime> rankUpdatedAt = createDateTime("rankUpdatedAt", java.time.LocalDateTime.class);
+
     public final NumberPath<Long> revisionDate = createNumber("revisionDate", Long.class);
+
+    public final NumberPath<Integer> soloLosses = createNumber("soloLosses", Integer.class);
+
+    public final NumberPath<Integer> soloLp = createNumber("soloLp", Integer.class);
+
+    public final StringPath soloRank = createString("soloRank");
+
+    public final StringPath soloTier = createString("soloTier");
+
+    public final NumberPath<Integer> soloWins = createNumber("soloWins", Integer.class);
 
     public final StringPath summonerId = createString("summonerId");
 
