@@ -116,26 +116,10 @@ public class MatchRecordDto {
     private Integer myStatPerkFlex;
     private Integer myStatPerkDefense;
 
-    // 해당판에 참가한 챔피언 아이콘 보여주기위한 용도
-    private List<ParticipantChampionIcon> participants;
-
     private boolean gameEndedInEarlySurrender; // 다시하기 여부
     private boolean teamEarlySurrendered;
 
-    @Getter
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class ParticipantChampionIcon {
-        private String puuid;
-        private Integer participantId; // 경기 내 참가자 번호
-        private int teamId;
-        private int championId;
-        private String championName;
-        private String teamPosition;
-        private String individualPosition;
-    }
-
-    public static MatchRecordDto from(Match match, Participant me, List<ParticipantChampionIcon> icons) {
+    public static MatchRecordDto from(Match match, Participant me) {
         MatchRecordDto dto = new MatchRecordDto();
 
         dto.setMatchId(match.getMatchId());
@@ -181,9 +165,7 @@ public class MatchRecordDto {
         dto.setMyStatPerkOffense(me.getStatPerkOffense());
         dto.setMyStatPerkFlex(me.getStatPerkFlex());
         dto.setMyStatPerkDefense(me.getStatPerkDefense());
-
-        dto.setParticipants(icons);
-
+        
         dto.setGameEndedInEarlySurrender(me.isGameEndedInEarlySurrender());
         dto.setTeamEarlySurrendered(me.isTeamEarlySurrendered());
         return dto;
