@@ -28,7 +28,8 @@ public class MatchRecordDto {
             Integer myItem0, Integer myItem1, Integer myItem2, Integer myItem3,
             Integer myItem4, Integer myItem5, Integer myItem6,
             Integer mySpell1, Integer mySpell2,
-            Integer myStatPerkOffense, Integer myStatPerkFlex, Integer myStatPerkDefense
+            Integer myStatPerkOffense, Integer myStatPerkFlex, Integer myStatPerkDefense,
+            Boolean myGameEndedInEarlySurrender, Boolean myTeamEarlySurrendered
     ) {
         this.matchId = matchId;
         this.gameCreation = gameCreation;
@@ -65,6 +66,8 @@ public class MatchRecordDto {
         this.myStatPerkOffense = myStatPerkOffense;
         this.myStatPerkFlex = myStatPerkFlex;
         this.myStatPerkDefense = myStatPerkDefense;
+        this.gameEndedInEarlySurrender = myGameEndedInEarlySurrender;
+        this.teamEarlySurrendered = myTeamEarlySurrendered;
     }
 
     // 매치 메타데이터 정보
@@ -115,6 +118,9 @@ public class MatchRecordDto {
 
     // 해당판에 참가한 챔피언 아이콘 보여주기위한 용도
     private List<ParticipantChampionIcon> participants;
+
+    private boolean gameEndedInEarlySurrender; // 다시하기 여부
+    private boolean teamEarlySurrendered;
 
     @Getter
     @AllArgsConstructor
@@ -177,6 +183,9 @@ public class MatchRecordDto {
         dto.setMyStatPerkDefense(me.getStatPerkDefense());
 
         dto.setParticipants(icons);
+
+        dto.setGameEndedInEarlySurrender(me.isGameEndedInEarlySurrender());
+        dto.setTeamEarlySurrendered(me.isTeamEarlySurrendered());
         return dto;
     }
 }

@@ -104,6 +104,11 @@ public class Participant {
     @Column(nullable = false)
     private Integer statPerkDefense;
 
+    @Column
+    private boolean gameEndedInEarlySurrender;
+    @Column
+    private boolean teamEarlySurrendered;
+
     public static Participant from(RiotParticipantResponse res, Match match) {
         Participant p = new Participant();
         p.setMatch(match);
@@ -136,6 +141,8 @@ public class Participant {
         p.setTotalDamageTaken(res.getTotalDamageTaken());
         p.setVisionScore(res.getVisionScore());
         p.setChampionLevel(res.getChampLevel());
+        p.setGameEndedInEarlySurrender(res.isGameEndedInEarlySurrender());
+        p.setTeamEarlySurrendered(res.isTeamEarlySurrendered());
 
         Integer offense = 0;
         Integer flex = 0;

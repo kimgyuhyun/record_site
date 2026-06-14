@@ -32,6 +32,8 @@ public class QParticipant extends EntityPathBase<Participant> {
 
     public final NumberPath<Integer> deaths = createNumber("deaths", Integer.class);
 
+    public final BooleanPath gameEndedInEarlySurrender = createBoolean("gameEndedInEarlySurrender");
+
     public final StringPath gameName = createString("gameName");
 
     public final NumberPath<Integer> goldEarned = createNumber("goldEarned", Integer.class);
@@ -75,6 +77,8 @@ public class QParticipant extends EntityPathBase<Participant> {
     public final QSummoner summoner;
 
     public final StringPath tagLine = createString("tagLine");
+
+    public final BooleanPath teamEarlySurrendered = createBoolean("teamEarlySurrendered");
 
     public final NumberPath<Integer> teamId = createNumber("teamId", Integer.class);
 

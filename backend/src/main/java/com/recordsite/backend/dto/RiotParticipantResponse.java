@@ -47,6 +47,12 @@ public class RiotParticipantResponse {
 
     private Perks perks;
 
+    private boolean gameEndedInEarlySurrender; // 다시하기 여부
+    private boolean teamEarlySurrendered;
+    // 본인이 속한 팀이 다시하기를 당한 쪽인지 여부 탈주자 발생 팀 = true, win=false
+    // 상대 팀 false, win=true
+
+
     @Getter
     @Setter
     public static class Perks {

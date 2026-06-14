@@ -59,7 +59,9 @@ public class ParticipantRepositoryCustomImpl implements ParticipantRepositoryCus
                         p.spell2,
                         p.statPerkOffense,
                         p.statPerkFlex,
-                        p.statPerkDefense
+                        p.statPerkDefense,
+                        p.gameEndedInEarlySurrender,
+                        p.teamEarlySurrendered
                 ))
                 .from(p)
                 .join(p.match, m)
