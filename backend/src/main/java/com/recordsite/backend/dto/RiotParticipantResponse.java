@@ -52,6 +52,9 @@ public class RiotParticipantResponse {
     // 본인이 속한 팀이 다시하기를 당한 쪽인지 여부 탈주자 발생 팀 = true, win=false
     // 상대 팀 false, win=true
 
+    private int totalMinionsKilled;
+    private int neutralMinionsKilled;
+
 
     @Getter
     @Setter

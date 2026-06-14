@@ -109,6 +109,11 @@ public class Participant {
     @Column
     private boolean teamEarlySurrendered;
 
+    @Column
+    private int totalMinionsKilled; // 미니언 킬수
+    @Column
+    private int neutralMinionsKilled; // 중립 몬스터 킬수
+
     public static Participant from(RiotParticipantResponse res, Match match) {
         Participant p = new Participant();
         p.setMatch(match);
@@ -143,6 +148,8 @@ public class Participant {
         p.setChampionLevel(res.getChampLevel());
         p.setGameEndedInEarlySurrender(res.isGameEndedInEarlySurrender());
         p.setTeamEarlySurrendered(res.isTeamEarlySurrendered());
+        p.setTotalMinionsKilled(res.getTotalMinionsKilled());
+        p.setNeutralMinionsKilled(res.getNeutralMinionsKilled());
 
         Integer offense = 0;
         Integer flex = 0;
