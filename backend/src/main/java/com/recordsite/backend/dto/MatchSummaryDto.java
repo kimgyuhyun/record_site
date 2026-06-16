@@ -6,7 +6,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.Optional;
 
 @Getter
 @Setter
@@ -61,6 +60,22 @@ public class MatchSummaryDto {
     private Integer statPerkDefense;
 
     private boolean gameEndedInEarlySurrender;
+    private boolean teamEarlySurrendered;
+
+    private int totalMinionsKilled;
+    private int neutralMinionsKilled;
+
+    private int blueBaronKills;
+    private int blueDragonKills;
+    private int blueTowerKills;
+    private int blueInhibitorKills; // 억제기
+    private int blueRiftHeraldKills; // 전령
+
+    private int redBaronKills;
+    private int redDragonKills;
+    private int redTowerKills;
+    private int redInhibitorKills;
+    private int redRiftHeraldKills;
 
     public static MatchSummaryDto from(Match match, Participant p) {
         MatchSummaryDto dto = new MatchSummaryDto();
@@ -112,6 +127,22 @@ public class MatchSummaryDto {
         dto.setStatPerkDefense(p.getStatPerkDefense());
 
         dto.setGameEndedInEarlySurrender(p.isGameEndedInEarlySurrender());
+        dto.setTeamEarlySurrendered(p.isTeamEarlySurrendered());
+
+        dto.setTotalMinionsKilled(p.getTotalMinionsKilled());
+        dto.setNeutralMinionsKilled(p.getNeutralMinionsKilled());
+
+        dto.setBlueBaronKills(match.getBlueBaronKills());
+        dto.setBlueDragonKills(match.getBlueDragonKills());
+        dto.setBlueTowerKills(match.getBlueTowerKills());
+        dto.setBlueInhibitorKills(match.getBlueInhibitorKills());
+        dto.setBlueRiftHeraldKills(match.getBlueRiftHeraldKills());
+
+        dto.setRedBaronKills(match.getRedBaronKills());
+        dto.setRedDragonKills(match.getRedDragonKills());
+        dto.setRedTowerKills(match.getRedTowerKills());
+        dto.setRedInhibitorKills(match.getRedInhibitorKills());
+        dto.setRedRiftHeraldKills(match.getRedRiftHeraldKills());
 
         return dto;
     }

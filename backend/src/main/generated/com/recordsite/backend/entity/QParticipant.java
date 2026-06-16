@@ -60,6 +60,8 @@ public class QParticipant extends EntityPathBase<Participant> {
 
     public final QMatch match;
 
+    public final NumberPath<Integer> neutralMinionsKilled = createNumber("neutralMinionsKilled", Integer.class);
+
     public final NumberPath<Integer> participantId = createNumber("participantId", Integer.class);
 
     public final StringPath puuid = createString("puuid");
@@ -89,6 +91,8 @@ public class QParticipant extends EntityPathBase<Participant> {
     public final NumberPath<Long> totalDamageDealtToChampions = createNumber("totalDamageDealtToChampions", Long.class);
 
     public final NumberPath<Long> totalDamageTaken = createNumber("totalDamageTaken", Long.class);
+
+    public final NumberPath<Integer> totalMinionsKilled = createNumber("totalMinionsKilled", Integer.class);
 
     public final NumberPath<Integer> visionScore = createNumber("visionScore", Integer.class);
 

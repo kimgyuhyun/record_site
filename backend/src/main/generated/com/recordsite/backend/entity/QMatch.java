@@ -20,6 +20,16 @@ public class QMatch extends EntityPathBase<Match> {
 
     public static final QMatch match = new QMatch("match");
 
+    public final NumberPath<Integer> blueBaronKills = createNumber("blueBaronKills", Integer.class);
+
+    public final NumberPath<Integer> blueDragonKills = createNumber("blueDragonKills", Integer.class);
+
+    public final NumberPath<Integer> blueInhibitorKills = createNumber("blueInhibitorKills", Integer.class);
+
+    public final NumberPath<Integer> blueRiftHeraldKills = createNumber("blueRiftHeraldKills", Integer.class);
+
+    public final NumberPath<Integer> blueTowerKills = createNumber("blueTowerKills", Integer.class);
+
     public final NumberPath<Long> gameCreation = createNumber("gameCreation", Long.class);
 
     public final NumberPath<Long> gameDuration = createNumber("gameDuration", Long.class);
@@ -39,6 +49,16 @@ public class QMatch extends EntityPathBase<Match> {
     public final StringPath platformId = createString("platformId");
 
     public final NumberPath<Integer> queueId = createNumber("queueId", Integer.class);
+
+    public final NumberPath<Integer> redBaronKills = createNumber("redBaronKills", Integer.class);
+
+    public final NumberPath<Integer> redDragonKills = createNumber("redDragonKills", Integer.class);
+
+    public final NumberPath<Integer> redInhibitorKills = createNumber("redInhibitorKills", Integer.class);
+
+    public final NumberPath<Integer> redRiftHeraldKills = createNumber("redRiftHeraldKills", Integer.class);
+
+    public final NumberPath<Integer> redTowerKills = createNumber("redTowerKills", Integer.class);
 
     public QMatch(String variable) {
         super(Match.class, forVariable(variable));
