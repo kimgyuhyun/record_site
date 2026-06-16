@@ -2,17 +2,20 @@ package com.recordsite.backend.service;
 
 import com.recordsite.backend.dto.MatchRecordDto;
 import com.recordsite.backend.dto.MatchSummaryDto;
+import com.recordsite.backend.dto.SummonerDto;
 import com.recordsite.backend.entity.Match;
 import com.recordsite.backend.entity.Participant;
 import com.recordsite.backend.repository.MatchRepository;
 import com.recordsite.backend.repository.ParticipantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cglib.core.Local;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,6 +30,7 @@ public class MatchService {
     private final MatchSaveHelper matchSaveHelper;
     private final RiotMatchClient riotMatchClient;
     private final LeagueService leagueService;
+    private final SummonerService summonerService;
 
 
     // ──────────────────────────────────────────
@@ -63,7 +67,17 @@ public class MatchService {
     // 새로 저장된 수 반환
     public int refreshMatchesByPuuid(String puuid) {
         List<String> matchIdList = riotMatchClient.getMatchIdsByPuuid(puuid, 0, 20);
-        leagueService.updateAndSaveLeague(puuid);
+
+        SummonerDto summoner = summonerService.findByPuuid(puuid);
+        LocalDateTime rankUpdatedAt = summoner.getRankUpdatedAt();
+
+        LocalDateTime threeMinutesAgo = LocalDateTime.now().minusMinutes(3);
+        boolean isUpdateRecently = rankUpdatedAt != null &&
+                rankUpdatedAt.isAfter(threeMinutesAgo);
+        if (isUpdateRecently) {
+            return -1;
+        }
+
 
         int newCount = 0;
         for (String matchId : matchIdList) {
@@ -76,6 +90,9 @@ public class MatchService {
                 }
             }
         }
+
+        leagueService.updateAndSaveLeague(puuid);
+
         return newCount;
     }
 }
