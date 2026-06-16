@@ -9,7 +9,6 @@ import com.recordsite.backend.repository.MatchRepository;
 import com.recordsite.backend.repository.ParticipantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cglib.core.Local;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -18,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -66,11 +66,10 @@ public class MatchService {
     // 자유/솔로 랭크도 갱신 
     // 새로 저장된 수 반환
     public int refreshMatchesByPuuid(String puuid) {
-        List<String> matchIdList = riotMatchClient.getMatchIdsByPuuid(puuid, 0, 20);
 
+        // 갱신 체크
         SummonerDto summoner = summonerService.findByPuuid(puuid);
         LocalDateTime rankUpdatedAt = summoner.getRankUpdatedAt();
-
         LocalDateTime threeMinutesAgo = LocalDateTime.now().minusMinutes(3);
         boolean isUpdateRecently = rankUpdatedAt != null &&
                 rankUpdatedAt.isAfter(threeMinutesAgo);
@@ -78,19 +77,32 @@ public class MatchService {
             return -1;
         }
 
+        // 라이엇 API 에서 최근 매치 20개 조회
+        List<String> matchIdList = riotMatchClient.getMatchIdsByPuuid(puuid, 0, 20);
+        if (matchIdList.isEmpty()) return 0;
 
+        // DB에 이미 있는 matchId를 한 번의 쿼리로 조회 -> Set 으로 변환
+        Set<String> existingIds = matchRepository.findExistingMatchIds(matchIdList);
+
+        List<String> newMatchIds = matchIdList.stream()
+                .filter(id -> !existingIds.contains(id))
+                .toList();
+
+        if (newMatchIds.isEmpty()) return 0;
+
+        // db에 없는 매치 저장
         int newCount = 0;
-        for (String matchId : matchIdList) {
-            if (matchRepository.findByMatchId(matchId) == null) {
+        for (String matchId : newMatchIds) {
                 try {
                     matchSaveHelper.saveMatchWithParticipants(matchId, puuid);
                     newCount++;
                 } catch (Exception e) {
                     log.warn("매치 저장 실패, 스킵: matchId={}, error={}", matchId, e.getMessage());
                 }
-            }
+
         }
 
+        // 랭크 갱신 + 최근 갱신시간 찍기
         leagueService.updateAndSaveLeague(puuid);
 
         return newCount;
