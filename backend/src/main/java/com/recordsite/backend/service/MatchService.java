@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -26,7 +25,7 @@ import java.util.Set;
 public class MatchService {
 
     private final MatchRepository matchRepository;
-    private final ParticipantRepository participantRepository;
+    private final ParticipantService participantService;
     private final MatchSaveHelper matchSaveHelper;
     private final RiotMatchClient riotMatchClient;
     private final LeagueService leagueService;
@@ -40,22 +39,14 @@ public class MatchService {
     // DB에서 페이지 단위로 전적 목록 반환
     @Transactional(readOnly = true)
     public Page<MatchRecordDto> getMatchRecordsByPuuid(String puuid, Pageable pageable) {
-        return participantRepository.findMatchRecordByPuuid(puuid, pageable);
+        return participantService.findMatchRecordByPuuid(puuid, pageable);
     }
 
     // 해당 판 전체 참가자 상세 정보 반환
     @Transactional(readOnly = true)
     public List<MatchSummaryDto> getParticipantSummaryListByMatchId(String matchId) {
-        Match match = matchRepository.findByMatchId(matchId);
-        if (match == null) {
-            throw new IllegalStateException("Match not found: " + matchId);
-        }
-        List<Participant> participantList = participantRepository.findByMatchIdForParticipantList(matchId);
-        List<MatchSummaryDto> result = new ArrayList<>();
-        for (Participant participant : participantList) {
-            result.add(MatchSummaryDto.from(match, participant));
-        }
-        return result;
+        return participantService.findParticipantSummaryListByMatchId(matchId);
+
     }
 
     // ──────────────────────────────────────────
