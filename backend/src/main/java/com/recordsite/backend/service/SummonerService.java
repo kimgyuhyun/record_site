@@ -47,4 +47,8 @@ public class SummonerService {
                 .map(SummonerDto :: from)
                 .toList();
     }
+
+    public SummonerDto findByPuuid(String puuid) {
+        return SummonerDto.from(summonerRepository.findBypuuid(puuid));
+    }
 }
