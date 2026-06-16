@@ -1,8 +1,6 @@
 package com.recordsite.backend.service;
 
-import com.recordsite.backend.dto.RiotMatchResponse;
-import com.recordsite.backend.dto.RiotParticipantResponse;
-import com.recordsite.backend.dto.SummonerDto;
+import com.recordsite.backend.dto.*;
 import com.recordsite.backend.entity.Match;
 import com.recordsite.backend.entity.Participant;
 import com.recordsite.backend.entity.Summoner;
@@ -10,6 +8,8 @@ import com.recordsite.backend.repository.MatchRepository;
 import com.recordsite.backend.repository.ParticipantRepository;
 import com.recordsite.backend.repository.SummonerRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +34,18 @@ public class ParticipantService {
     }
 
 
+    @Transactional(readOnly = true)
+    public Page<MatchRecordDto> findMatchRecordByPuuid(String puuid, Pageable pageable) {
+        return participantRepository.findMatchRecordByPuuid(puuid, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MatchSummaryDto> findParticipantSummaryListByMatchId(String matchId) {
+        return participantRepository.findByMatchIdForParticipantList(matchId)
+                .stream()
+                .map(p -> MatchSummaryDto.from(p.getMatch(), p))
+                .toList();
+    }
 
 
 }

@@ -25,7 +25,7 @@ public interface ParticipantRepository extends JpaRepository<Participant, Long>,
     @Query("""
             select p
             from Participant p
-            join p.match m
+            join fetch p.match m
             where m.matchId = :matchId
             order by p.participantId asc
             """)
