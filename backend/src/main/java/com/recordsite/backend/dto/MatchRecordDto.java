@@ -2,7 +2,6 @@ package com.recordsite.backend.dto;
 
 import com.recordsite.backend.entity.Match;
 import com.recordsite.backend.entity.Participant;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -10,10 +9,10 @@ import lombok.Setter;
 import java.util.List;
 
 @Getter
-@Setter
 @NoArgsConstructor
 public class MatchRecordDto {
 
+    // QueryDSL 전용 생성자 (직접 명시 - 순서 안전 보장)
     public MatchRecordDto(
             String matchId, Long gameCreation, Long gameDuration,
             Integer queueId, Integer mapId,
@@ -30,7 +29,8 @@ public class MatchRecordDto {
             Integer mySpell1, Integer mySpell2,
             Integer myStatPerkOffense, Integer myStatPerkFlex, Integer myStatPerkDefense,
             Boolean myGameEndedInEarlySurrender, Boolean myTeamEarlySurrendered,
-            int totalMinionsKilled, int neutralMinionsKilled
+            int totalMinionsKilled, int neutralMinionsKilled,
+            int teamKills
     ) {
         this.matchId = matchId;
         this.gameCreation = gameCreation;
@@ -71,6 +71,7 @@ public class MatchRecordDto {
         this.teamEarlySurrendered = myTeamEarlySurrendered;
         this.totalMinionsKilled = totalMinionsKilled;
         this.neutralMinionsKilled = neutralMinionsKilled;
+        this.teamKills = teamKills;
     }
 
     // 매치 메타데이터 정보
@@ -125,55 +126,57 @@ public class MatchRecordDto {
     private int totalMinionsKilled;
     private int neutralMinionsKilled;
 
+    private int teamKills;
+
+    // Service 레이어에서 주입하는 파생/조합 필드 (Setter만 열어둠)
+    @Setter
+    private double myKillParticipation;
+    @Setter
+    private List<ParticipantSummaryDto> participantSummaryDtos;
+
+
     public static MatchRecordDto from(Match match, Participant me) {
-        MatchRecordDto dto = new MatchRecordDto();
-
-        dto.setMatchId(match.getMatchId());
-        dto.setGameCreation(match.getGameCreation());
-        dto.setGameDuration(match.getGameDuration());
-        dto.setQueueId(match.getQueueId());
-        dto.setMapId(match.getMapId());
-        dto.setGameMode(match.getGameMode());
-        dto.setGameType(match.getGameType());
-
-        dto.setMyPuuid(me.getPuuid());
-        dto.setMyGameName(me.getGameName());
-        dto.setMyTagLine(me.getTagLine());
-        dto.setMyTeamId(me.getTeamId());
-        dto.setMyWin(me.isWin());
-
-        dto.setMyChampionId(me.getChampionId());
-        dto.setMyChampionName(me.getChampionName());
-        dto.setMyChampionLevel(me.getChampionLevel());
-
-        dto.setMyKills(me.getKills());
-        dto.setMyDeaths(me.getDeaths());
-        dto.setMyAssists(me.getAssists());
-
-        dto.setMyGoldEarned(me.getGoldEarned());
-        dto.setMyTotalDamageDealt(me.getTotalDamageDealt());
-        dto.setMyTotalDamageDealtToChampions(me.getTotalDamageDealtToChampions());
-        dto.setMyTotalDamageTaken(me.getTotalDamageTaken());
-
-        dto.setMyVisionScore(me.getVisionScore());
-
-        dto.setMyItem0(me.getItem0());
-        dto.setMyItem1(me.getItem1());
-        dto.setMyItem2(me.getItem2());
-        dto.setMyItem3(me.getItem3());
-        dto.setMyItem4(me.getItem4());
-        dto.setMyItem5(me.getItem5());
-        dto.setMyItem6(me.getItem6());
-
-        dto.setMySpell1(me.getSpell1());
-        dto.setMySpell2(me.getSpell2());
-
-        dto.setMyStatPerkOffense(me.getStatPerkOffense());
-        dto.setMyStatPerkFlex(me.getStatPerkFlex());
-        dto.setMyStatPerkDefense(me.getStatPerkDefense());
-        
-        dto.setGameEndedInEarlySurrender(me.isGameEndedInEarlySurrender());
-        dto.setTeamEarlySurrendered(me.isTeamEarlySurrendered());
-        return dto;
+        return new MatchRecordDto(
+                match.getMatchId(),
+                match.getGameCreation(),
+                match.getGameDuration(),
+                match.getQueueId(),
+                match.getMapId(),
+                match.getGameMode(),
+                match.getGameType(),
+                me.getPuuid(),
+                me.getGameName(),
+                me.getTagLine(),
+                me.getTeamId(),
+                me.isWin(),
+                me.getChampionId(),
+                me.getChampionName(),
+                me.getChampionLevel(),
+                me.getKills(),
+                me.getDeaths(),
+                me.getAssists(),
+                me.getGoldEarned(),
+                me.getTotalDamageDealt(),
+                me.getTotalDamageDealtToChampions(),
+                me.getTotalDamageTaken(),
+                me.getVisionScore(),
+                me.getItem0(),
+                me.getItem1(),
+                me.getItem2(),
+                me.getItem3(),
+                me.getItem4(),
+                me.getItem5(),
+                me.getItem6(),
+                me.getSpell1(),
+                me.getSpell2(),
+                me.getStatPerkOffense(),
+                me.getStatPerkFlex(),
+                me.getStatPerkDefense(),
+                me.isGameEndedInEarlySurrender(),
+                me.isTeamEarlySurrendered(),
+                me.getTotalMinionsKilled(),
+                me.getNeutralMinionsKilled(),
+                me.getTeamKills()
+        );
     }
 }
