@@ -2,9 +2,7 @@ package com.recordsite.backend.entity;
 
 import com.recordsite.backend.dto.RiotSummonerResponse;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -14,7 +12,9 @@ import java.util.List;
 @Table(name = "summoner")
 @Getter
 @Setter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder
 public class Summoner {
 
     @Id
@@ -43,6 +43,7 @@ public class Summoner {
     private long revisionDate;
 
     @OneToMany(mappedBy = "summoner", cascade = CascadeType.ALL)
+    @Builder.Default
     private List<Participant> participantList = new ArrayList<>();
 
     // 솔로랭크
@@ -63,11 +64,11 @@ public class Summoner {
     @Column private LocalDateTime rankUpdatedAt;
 
     public static Summoner from(RiotSummonerResponse res) {
-        Summoner summoner = new Summoner();
-        summoner.setPuuid(res.getPuuid());
-        summoner.setProfileIconId(res.getProfileIconId());
-        summoner.setLevel(res.getSummonerLevel());
-        summoner.setRevisionDate(res.getRevisionDate());
-        return summoner;
+        return Summoner.builder()
+                .puuid(res.getPuuid())
+                .profileIconId(res.getProfileIconId())
+                .level(res.getSummonerLevel())
+                .revisionDate(res.getRevisionDate())
+                .build();
     }
 }
