@@ -83,18 +83,21 @@ public class Match {
         match.setPlatformId(platformId);
 
         for (RiotMatchResponse.Info.Team team : res.getInfo().getTeams()) {
+            RiotMatchResponse.Info.Team.Objectives obj = team.getObjectives();
+            if (obj == null) continue;
+
             if (team.getTeamId() == 100) {
-                match.setBlueBaronKills(team.getObjectives().getBaron().getKills());
-                match.setBlueDragonKills(team.getObjectives().getDragon().getKills());
-                match.setBlueTowerKills(team.getObjectives().getTower().getKills());
-                match.setBlueInhibitorKills(team.getObjectives().getInhibitor().getKills());
-                match.setBlueRiftHeraldKills(team.getObjectives().getRiftHerald().getKills());
+                match.setBlueBaronKills(obj.getBaron() != null ? obj.getBaron().getKills() : 0);
+                match.setBlueDragonKills(obj.getDragon() != null ? obj.getDragon().getKills() : 0);
+                match.setBlueTowerKills(obj.getTower() != null ? obj.getTower().getKills() : 0);
+                match.setBlueInhibitorKills(obj.getInhibitor() != null ? obj.getInhibitor().getKills() : 0);
+                match.setBlueRiftHeraldKills(obj.getRiftHerald() != null ? obj.getRiftHerald().getKills() : 0);
             } else {
-                match.setRedBaronKills(team.getObjectives().getBaron().getKills());
-                match.setRedDragonKills(team.getObjectives().getDragon().getKills());
-                match.setRedTowerKills(team.getObjectives().getTower().getKills());
-                match.setRedInhibitorKills(team.getObjectives().getInhibitor().getKills());
-                match.setRedRiftHeraldKills(team.getObjectives().getRiftHerald().getKills());
+                match.setRedBaronKills(obj.getBaron() != null ? obj.getBaron().getKills() : 0);
+                match.setRedDragonKills(obj.getDragon() != null ? obj.getDragon().getKills() : 0);
+                match.setRedTowerKills(obj.getTower() != null ? obj.getTower().getKills() : 0);
+                match.setRedInhibitorKills(obj.getInhibitor() != null ? obj.getInhibitor().getKills() : 0);
+                match.setRedRiftHeraldKills(obj.getRiftHerald() != null ? obj.getRiftHerald().getKills() : 0);
             }
         }
 
