@@ -31,8 +31,8 @@ public class RiotMatchResponse {
     @NoArgsConstructor
     public static class Info {
 
-        private long gameCreation;
-        private long gameDuration;
+        private Long gameCreation;
+        private Long gameDuration;
         private int queueId;
         private int mapId;
         private String gameMode;

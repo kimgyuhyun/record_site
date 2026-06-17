@@ -29,7 +29,8 @@ public class MatchRecordDto {
             Integer myItem4, Integer myItem5, Integer myItem6,
             Integer mySpell1, Integer mySpell2,
             Integer myStatPerkOffense, Integer myStatPerkFlex, Integer myStatPerkDefense,
-            Boolean myGameEndedInEarlySurrender, Boolean myTeamEarlySurrendered
+            Boolean myGameEndedInEarlySurrender, Boolean myTeamEarlySurrendered,
+            int totalMinionsKilled, int neutralMinionsKilled
     ) {
         this.matchId = matchId;
         this.gameCreation = gameCreation;
@@ -68,6 +69,8 @@ public class MatchRecordDto {
         this.myStatPerkDefense = myStatPerkDefense;
         this.gameEndedInEarlySurrender = myGameEndedInEarlySurrender;
         this.teamEarlySurrendered = myTeamEarlySurrendered;
+        this.totalMinionsKilled = totalMinionsKilled;
+        this.neutralMinionsKilled = neutralMinionsKilled;
     }
 
     // 매치 메타데이터 정보
@@ -118,6 +121,9 @@ public class MatchRecordDto {
 
     private boolean gameEndedInEarlySurrender; // 다시하기 여부
     private boolean teamEarlySurrendered;
+
+    private int totalMinionsKilled;
+    private int neutralMinionsKilled;
 
     public static MatchRecordDto from(Match match, Participant me) {
         MatchRecordDto dto = new MatchRecordDto();

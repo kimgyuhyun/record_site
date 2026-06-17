@@ -65,17 +65,17 @@ public class MatchSummaryDto {
     private int totalMinionsKilled;
     private int neutralMinionsKilled;
 
-    private int blueBaronKills;
-    private int blueDragonKills;
+    private Integer blueBaronKills;
+    private Integer blueDragonKills;
     private int blueTowerKills;
     private int blueInhibitorKills; // 억제기
-    private int blueRiftHeraldKills; // 전령
+    private Integer blueRiftHeraldKills; // 전령
 
-    private int redBaronKills;
-    private int redDragonKills;
+    private Integer redBaronKills;
+    private Integer redDragonKills;
     private int redTowerKills;
     private int redInhibitorKills;
-    private int redRiftHeraldKills;
+    private Integer redRiftHeraldKills;
 
     public static MatchSummaryDto from(Match match, Participant p) {
         MatchSummaryDto dto = new MatchSummaryDto();
