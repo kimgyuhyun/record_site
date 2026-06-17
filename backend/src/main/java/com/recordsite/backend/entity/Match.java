@@ -2,9 +2,7 @@ package com.recordsite.backend.entity;
 
 import com.recordsite.backend.dto.RiotMatchResponse;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,7 +11,9 @@ import java.util.List;
 @Table(name = "matches")
 @Getter
 @Setter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder
 public class Match {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,6 +23,7 @@ public class Match {
     private String matchId; // 해당 판의 matchId (매치 고유 ID)
 
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
+    @Builder.Default
     private List<Participant> participantList = new ArrayList<>(); // 참가자 10명의 puuID List
 
     @Column
@@ -69,39 +70,56 @@ public class Match {
     private int redRiftHeraldKills;
 
     public static Match from(RiotMatchResponse res) {
-        Match match = new Match();
-        match.setMatchId(res.getMetadata().getMatchId());
-        match.setGameCreation(res.getInfo().getGameCreation());
-        match.setGameDuration(res.getInfo().getGameDuration());
-        match.setQueueId(res.getInfo().getQueueId());
-        match.setMapId(res.getInfo().getMapId());
-        match.setGameMode(res.getInfo().getGameMode());
-        match.setGameType(res.getInfo().getGameType());
+        // 루프 결과를 먼저 변수로 추출 (빌더 체이닝 안에서는 for loop 불가)
+        int blueBaronKills = 0, blueDragonKills = 0, blueTowerKills = 0;
+        int blueInhibitorKills = 0, blueRiftHeraldKills = 0;
+        int redBaronKills = 0, redDragonKills = 0, redTowerKills = 0;
+        int redInhibitorKills = 0, redRiftHeraldKills = 0;
 
-        String platformId = (res.getInfo() != null && res.getInfo().getPlatformId() != null)
-                ? res.getInfo().getPlatformId() : "";
-        match.setPlatformId(platformId);
 
         for (RiotMatchResponse.Info.Team team : res.getInfo().getTeams()) {
             RiotMatchResponse.Info.Team.Objectives obj = team.getObjectives();
             if (obj == null) continue;
 
             if (team.getTeamId() == 100) {
-                match.setBlueBaronKills(obj.getBaron() != null ? obj.getBaron().getKills() : 0);
-                match.setBlueDragonKills(obj.getDragon() != null ? obj.getDragon().getKills() : 0);
-                match.setBlueTowerKills(obj.getTower() != null ? obj.getTower().getKills() : 0);
-                match.setBlueInhibitorKills(obj.getInhibitor() != null ? obj.getInhibitor().getKills() : 0);
-                match.setBlueRiftHeraldKills(obj.getRiftHerald() != null ? obj.getRiftHerald().getKills() : 0);
+                blueBaronKills = obj.getBaron() != null ? obj.getBaron().getKills()      : 0;
+                blueDragonKills = obj.getDragon() != null ? obj.getDragon().getKills()     : 0;
+                blueTowerKills = obj.getTower() != null ? obj.getTower().getKills()      : 0;
+                blueInhibitorKills = obj.getInhibitor() != null ? obj.getInhibitor().getKills()  : 0;
+                blueRiftHeraldKills = obj.getRiftHerald() != null ? obj.getRiftHerald().getKills() : 0;
             } else {
-                match.setRedBaronKills(obj.getBaron() != null ? obj.getBaron().getKills() : 0);
-                match.setRedDragonKills(obj.getDragon() != null ? obj.getDragon().getKills() : 0);
-                match.setRedTowerKills(obj.getTower() != null ? obj.getTower().getKills() : 0);
-                match.setRedInhibitorKills(obj.getInhibitor() != null ? obj.getInhibitor().getKills() : 0);
-                match.setRedRiftHeraldKills(obj.getRiftHerald() != null ? obj.getRiftHerald().getKills() : 0);
+                redBaronKills = obj.getBaron() != null ? obj.getBaron().getKills()      : 0;
+                redDragonKills = obj.getDragon() != null ? obj.getDragon().getKills()     : 0;
+                redTowerKills = obj.getTower() != null ? obj.getTower().getKills()      : 0;
+                redInhibitorKills = obj.getInhibitor() != null ? obj.getInhibitor().getKills()  : 0;
+                redRiftHeraldKills = obj.getRiftHerald() != null ? obj.getRiftHerald().getKills() : 0;
             }
         }
 
-        return match;
+
+        String platformId = (res.getInfo() != null && res.getInfo().getPlatformId() != null)
+                ? res.getInfo().getPlatformId() : "";
+
+        return Match.builder()
+                .matchId(res.getMetadata().getMatchId())
+                .gameCreation(res.getInfo().getGameCreation())
+                .gameDuration(res.getInfo().getGameDuration())
+                .queueId(res.getInfo().getQueueId())
+                .mapId(res.getInfo().getMapId())
+                .gameMode(res.getInfo().getGameMode())
+                .gameType(res.getInfo().getGameType())
+                .platformId(platformId)
+                .blueBaronKills(blueBaronKills)
+                .blueDragonKills(blueDragonKills)
+                .blueTowerKills(blueTowerKills)
+                .blueInhibitorKills(blueInhibitorKills)
+                .blueRiftHeraldKills(blueRiftHeraldKills)
+                .redBaronKills(redBaronKills)
+                .redDragonKills(redDragonKills)
+                .redTowerKills(redTowerKills)
+                .redInhibitorKills(redInhibitorKills)
+                .redRiftHeraldKills(redRiftHeraldKills)
+                .build();
     }
 }
 
