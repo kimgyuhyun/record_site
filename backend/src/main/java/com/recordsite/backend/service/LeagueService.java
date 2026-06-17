@@ -6,7 +6,6 @@ import com.recordsite.backend.repository.SummonerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -23,22 +22,20 @@ public class LeagueService {
 
         for (RiotLeagueEntryResponse entry : leagueEntries) {
             if (entry.getQueueType().equals("RANKED_SOLO_5x5")) {
-                summoner.setSoloTier(entry.getTier());
-                summoner.setSoloRank(entry.getRank());
-                summoner.setSoloLp(entry.getLeaguePoints());
-                summoner.setSoloWins(entry.getWins());
-                summoner.setSoloLosses(entry.getLosses());
+                summoner.updateSoloRank(
+                        entry.getTier(), entry.getRank(),
+                        entry.getLeaguePoints(), entry.getWins(), entry.getLosses()
+                );
             }
 
             if (entry.getQueueType().equals("RANKED_FLEX_SR")) {
-                summoner.setFlexTier(entry.getTier());
-                summoner.setFlexRank(entry.getRank());
-                summoner.setFlexLp(entry.getLeaguePoints());
-                summoner.setFlexWins(entry.getWins());
-                summoner.setFlexLosses(entry.getLosses());
+                summoner.updateFlexRank(
+                        entry.getTier(), entry.getRank(),
+                        entry.getLeaguePoints(), entry.getWins(), entry.getLosses()
+                );
             }
         }
-        summoner.setRankUpdatedAt(LocalDateTime.now());
+        summoner.stampRankUpdateAt();
         return summonerRepository.save(summoner);
     }
 

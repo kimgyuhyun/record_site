@@ -71,4 +71,26 @@ public class Summoner {
                 .revisionDate(res.getRevisionDate())
                 .build();
     }
+
+    public void updateSoloRank(String tier, String rank,
+                               int lp, int wins, int losses) {
+        this.soloTier = tier;
+        this.soloRank = rank;
+        this.soloLp = lp;
+        this.soloWins = wins;
+        this.soloLosses = losses;
+    }
+
+    public void updateFlexRank(String tier, String rank,
+                               int lp, int wins, int losses) {
+        this.flexTier = tier;
+        this.flexRank = rank;
+        this.flexLp = lp;
+        this.flexWins = wins;
+        this.flexLosses = losses;
+    }
+
+    public void stampRankUpdateAt() {
+        this.rankUpdatedAt = LocalDateTime.now();
+    }
 }
