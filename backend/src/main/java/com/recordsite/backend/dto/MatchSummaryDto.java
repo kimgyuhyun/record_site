@@ -2,14 +2,11 @@ package com.recordsite.backend.dto;
 
 import com.recordsite.backend.entity.Match;
 import com.recordsite.backend.entity.Participant;
+import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-
 
 @Getter
-@Setter
-@NoArgsConstructor
+@Builder
 public class MatchSummaryDto {
 
     // 매치 공통 정보
@@ -78,72 +75,56 @@ public class MatchSummaryDto {
     private Integer redRiftHeraldKills;
 
     public static MatchSummaryDto from(Match match, Participant p) {
-        MatchSummaryDto dto = new MatchSummaryDto();
-
-        // 매치 공통
-        dto.setMatchId(match.getMatchId());
-        dto.setGameCreation(match.getGameCreation());
-        dto.setGameDuration(match.getGameDuration());
-        dto.setQueueId(match.getQueueId());
-        dto.setMapId(match.getMapId());
-        dto.setGameMode(match.getGameMode());
-        dto.setGameType(match.getGameType());
-
-        // 개인 정보
-        dto.setPuuid(p.getPuuid());
-        dto.setGameName(p.getGameName());
-        dto.setTagLine(p.getTagLine());
-        dto.setTeamId(p.getTeamId());
-        dto.setWin(p.isWin());
-
-        dto.setChampionId(p.getChampionId());
-        dto.setChampionName(p.getChampionName());
-        dto.setChampionLevel(p.getChampionLevel());
-
-        dto.setKills(p.getKills());
-        dto.setDeaths(p.getDeaths());
-        dto.setAssists(p.getAssists());
-
-        dto.setGoldEarned(p.getGoldEarned());
-        dto.setTotalDamageDealt(p.getTotalDamageDealt());
-        dto.setTotalDamageDealtToChampions(p.getTotalDamageDealtToChampions());
-        dto.setTotalDamageTaken(p.getTotalDamageTaken());
-
-        dto.setVisionScore(p.getVisionScore());
-
-        dto.setItem0(p.getItem0());
-        dto.setItem1(p.getItem1());
-        dto.setItem2(p.getItem2());
-        dto.setItem3(p.getItem3());
-        dto.setItem4(p.getItem4());
-        dto.setItem5(p.getItem5());
-        dto.setItem6(p.getItem6());
-
-        dto.setSpell1(p.getSpell1());
-        dto.setSpell2(p.getSpell2());
-
-        dto.setStatPerkOffense(p.getStatPerkOffense());
-        dto.setStatPerkFlex(p.getStatPerkFlex());
-        dto.setStatPerkDefense(p.getStatPerkDefense());
-
-        dto.setGameEndedInEarlySurrender(p.isGameEndedInEarlySurrender());
-        dto.setTeamEarlySurrendered(p.isTeamEarlySurrendered());
-
-        dto.setTotalMinionsKilled(p.getTotalMinionsKilled());
-        dto.setNeutralMinionsKilled(p.getNeutralMinionsKilled());
-
-        dto.setBlueBaronKills(match.getBlueBaronKills());
-        dto.setBlueDragonKills(match.getBlueDragonKills());
-        dto.setBlueTowerKills(match.getBlueTowerKills());
-        dto.setBlueInhibitorKills(match.getBlueInhibitorKills());
-        dto.setBlueRiftHeraldKills(match.getBlueRiftHeraldKills());
-
-        dto.setRedBaronKills(match.getRedBaronKills());
-        dto.setRedDragonKills(match.getRedDragonKills());
-        dto.setRedTowerKills(match.getRedTowerKills());
-        dto.setRedInhibitorKills(match.getRedInhibitorKills());
-        dto.setRedRiftHeraldKills(match.getRedRiftHeraldKills());
-
-        return dto;
+        return MatchSummaryDto.builder()
+                .matchId(match.getMatchId())
+                .gameCreation(match.getGameCreation())
+                .gameDuration(match.getGameDuration())
+                .queueId(match.getQueueId())
+                .mapId(match.getMapId())
+                .gameMode(match.getGameMode())
+                .gameType(match.getGameType())
+                .puuid(p.getPuuid())
+                .gameName(p.getGameName())
+                .tagLine(p.getTagLine())
+                .teamId(p.getTeamId())
+                .win(p.isWin())
+                .championId(p.getChampionId())
+                .championName(p.getChampionName())
+                .championLevel(p.getChampionLevel())
+                .kills(p.getKills())
+                .deaths(p.getDeaths())
+                .assists(p.getAssists())
+                .goldEarned(p.getGoldEarned())
+                .totalDamageDealt(p.getTotalDamageDealt())
+                .totalDamageDealtToChampions(p.getTotalDamageDealtToChampions())
+                .totalDamageTaken(p.getTotalDamageTaken())
+                .visionScore(p.getVisionScore())
+                .item0(p.getItem0())
+                .item1(p.getItem1())
+                .item2(p.getItem2())
+                .item3(p.getItem3())
+                .item4(p.getItem4())
+                .item5(p.getItem5())
+                .item6(p.getItem6())
+                .spell1(p.getSpell1())
+                .spell2(p.getSpell2())
+                .statPerkOffense(p.getStatPerkOffense())
+                .statPerkFlex(p.getStatPerkFlex())
+                .statPerkDefense(p.getStatPerkDefense())
+                .gameEndedInEarlySurrender(p.isGameEndedInEarlySurrender())
+                .teamEarlySurrendered(p.isTeamEarlySurrendered())
+                .totalMinionsKilled(p.getTotalMinionsKilled())
+                .neutralMinionsKilled(p.getNeutralMinionsKilled())
+                .blueBaronKills(match.getBlueBaronKills())
+                .blueDragonKills(match.getBlueDragonKills())
+                .blueTowerKills(match.getBlueTowerKills())
+                .blueInhibitorKills(match.getBlueInhibitorKills())
+                .blueRiftHeraldKills(match.getBlueRiftHeraldKills())
+                .redBaronKills(match.getRedBaronKills())
+                .redDragonKills(match.getRedDragonKills())
+                .redTowerKills(match.getRedTowerKills())
+                .redInhibitorKills(match.getRedInhibitorKills())
+                .redRiftHeraldKills(match.getRedRiftHeraldKills())
+                .build();
     }
 }
