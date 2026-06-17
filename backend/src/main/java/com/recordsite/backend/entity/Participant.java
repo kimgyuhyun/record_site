@@ -109,10 +109,13 @@ public class Participant {
     @Column
     private boolean teamEarlySurrendered;
 
-    @Column
+    @Column(nullable = false)
     private int totalMinionsKilled; // 미니언 킬수
-    @Column
+    @Column(nullable = false)
     private int neutralMinionsKilled; // 중립 몬스터 킬수
+
+    @Column(nullable = false)
+    private int teamKills; // 소속 팀 전체 킬 합산(킬관여율 계산용)
 
     public static Participant from(RiotParticipantResponse res, Match match) {
         Participant p = new Participant();
