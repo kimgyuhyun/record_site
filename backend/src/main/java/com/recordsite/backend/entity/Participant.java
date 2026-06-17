@@ -2,8 +2,7 @@ package com.recordsite.backend.entity;
 
 import com.recordsite.backend.dto.RiotParticipantResponse;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 @Entity
 @Table(
@@ -21,6 +20,9 @@ import lombok.Setter;
 )
 @Getter
 @Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder
 public class Participant {
 
     @Id
@@ -118,57 +120,58 @@ public class Participant {
     private int teamKills; // 소속 팀 전체 킬 합산(킬관여율 계산용)
 
     public static Participant from(RiotParticipantResponse res, Match match) {
-        Participant p = new Participant();
-        p.setMatch(match);
-
-        p.setParticipantId(res.getParticipantId());
-        p.setPuuid(res.getPuuid());
-        p.setGameName(res.getRiotIdGameName());
-        p.setTagLine(res.getRiotIdTagline());
-        p.setTeamId(res.getTeamId());
-        p.setWin(res.isWin());
-        p.setChampionId(res.getChampionId());
-        p.setChampionName(res.getChampionName());
-        p.setKills(res.getKills());
-        p.setDeaths(res.getDeaths());
-        p.setAssists(res.getAssists());
-        p.setTeamPosition(res.getTeamPosition());
-        p.setIndividualPosition(res.getIndividualPosition());
-        p.setItem0(res.getItem0());
-        p.setItem1(res.getItem1());
-        p.setItem2(res.getItem2());
-        p.setItem3(res.getItem3());
-        p.setItem4(res.getItem4());
-        p.setItem5(res.getItem5());
-        p.setItem6(res.getItem6());
-        p.setSpell1(res.getSummoner1Id());
-        p.setSpell2(res.getSummoner2Id());
-        p.setGoldEarned(res.getGoldEarned());
-        p.setTotalDamageDealt(res.getTotalDamageDealt());
-        p.setTotalDamageDealtToChampions(res.getTotalDamageDealtToChampions());
-        p.setTotalDamageTaken(res.getTotalDamageTaken());
-        p.setVisionScore(res.getVisionScore());
-        p.setChampionLevel(res.getChampLevel());
-        p.setGameEndedInEarlySurrender(res.isGameEndedInEarlySurrender());
-        p.setTeamEarlySurrendered(res.isTeamEarlySurrendered());
-        p.setTotalMinionsKilled(res.getTotalMinionsKilled());
-        p.setNeutralMinionsKilled(res.getNeutralMinionsKilled());
-
-        Integer offense = 0;
-        Integer flex = 0;
-        Integer defense = 0;
-
+        // 빌더 체이닝 안에서 null 체크 로직은 불가 -> 미리 추출
+        int offense = 0;
+        int flex = 0;
+        int defense = 0;
         if (res.getPerks() != null && res.getPerks().getStatPerks() != null) {
-            offense = res.getPerks().getStatPerks().getOffense();
-            flex = res.getPerks().getStatPerks().getFlex();
-            defense = res.getPerks().getStatPerks().getDefense();
+            offense = res.getPerks().getStatPerks().getOffense() != null
+                    ? res.getPerks().getStatPerks().getOffense() : 0;
+            flex = res.getPerks().getStatPerks().getFlex() != null
+                    ? res.getPerks().getStatPerks().getFlex() : 0;
+            defense = res.getPerks().getStatPerks().getDefense() != null
+                    ? res.getPerks().getStatPerks().getDefense() : 0;
         }
 
-        p.setStatPerkOffense(offense != null ? offense : 0);
-        p.setStatPerkFlex(flex != null ?  flex : 0);
-        p.setStatPerkDefense(defense != null ? defense : 0);
 
-        return p;
+        return Participant.builder()
+                .match(match)
+                .participantId(res.getParticipantId())
+                .puuid(res.getPuuid())
+                .gameName(res.getRiotIdGameName())
+                .tagLine(res.getRiotIdTagline())
+                .teamId(res.getTeamId())
+                .win(res.isWin())
+                .championId(res.getChampionId())
+                .championName(res.getChampionName())
+                .kills(res.getKills())
+                .deaths(res.getDeaths())
+                .assists(res.getAssists())
+                .teamPosition(res.getTeamPosition())
+                .individualPosition(res.getIndividualPosition())
+                .item0(res.getItem0())
+                .item1(res.getItem1())
+                .item2(res.getItem2())
+                .item3(res.getItem3())
+                .item4(res.getItem4())
+                .item5(res.getItem5())
+                .item6(res.getItem6())
+                .spell1(res.getSummoner1Id())
+                .spell2(res.getSummoner2Id())
+                .goldEarned(res.getGoldEarned())
+                .totalDamageDealt(res.getTotalDamageDealt())
+                .totalDamageDealtToChampions(res.getTotalDamageDealtToChampions())
+                .totalDamageTaken(res.getTotalDamageTaken())
+                .visionScore(res.getVisionScore())
+                .championLevel(res.getChampLevel())
+                .gameEndedInEarlySurrender(res.isGameEndedInEarlySurrender())
+                .teamEarlySurrendered(res.isTeamEarlySurrendered())
+                .totalMinionsKilled(res.getTotalMinionsKilled())
+                .neutralMinionsKilled(res.getNeutralMinionsKilled())
+                .statPerkOffense(offense)
+                .statPerkFlex(flex)
+                .statPerkDefense(defense)
+                // teamKills는 from()에서 세팅 불가 (팀 전체 합산이라 MatchSaveHelper에서 별도 세팅)
+                .build();
     }
-
 }
