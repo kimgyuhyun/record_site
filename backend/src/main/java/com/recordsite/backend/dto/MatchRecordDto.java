@@ -30,7 +30,7 @@ public class MatchRecordDto {
             Integer myStatPerkOffense, Integer myStatPerkFlex, Integer myStatPerkDefense,
             Integer myPrimaryStyleId, Integer myKeystoneId, Integer mySubStyleId,
             Boolean myGameEndedInEarlySurrender, Boolean myTeamEarlySurrendered,
-            int totalMinionsKilled, int neutralMinionsKilled,
+            int myTotalMinionsKilled, int myNeutralMinionsKilled,
             int teamKills
     ) {
         this.matchId = matchId;
@@ -73,8 +73,8 @@ public class MatchRecordDto {
         this.mySubStyleId = mySubStyleId;
         this.gameEndedInEarlySurrender = myGameEndedInEarlySurrender;
         this.teamEarlySurrendered = myTeamEarlySurrendered;
-        this.totalMinionsKilled = totalMinionsKilled;
-        this.neutralMinionsKilled = neutralMinionsKilled;
+        this.myTotalMinionsKilled = myTotalMinionsKilled;
+        this.myNeutralMinionsKilled = myNeutralMinionsKilled;
         this.teamKills = teamKills;
     }
 
@@ -131,8 +131,8 @@ public class MatchRecordDto {
     private boolean gameEndedInEarlySurrender; // 다시하기 여부
     private boolean teamEarlySurrendered;
 
-    private int totalMinionsKilled;
-    private int neutralMinionsKilled;
+    private int myTotalMinionsKilled;
+    private int myNeutralMinionsKilled;
 
     private int teamKills;
 
