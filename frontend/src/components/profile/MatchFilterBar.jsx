@@ -51,7 +51,7 @@ export default function MatchFilterBar({ value = 'ALL', onChange }) {
       ))}
 
       {/* 큐 타입 드롭다운 */}
-      <div style={{ position: 'relative', marginLeft: 'auto' }}>
+      <div style={{ position: 'relative' }}>
         <TabButton label={dropdownLabel} active={dropdownActive}
           onClick={() => setOpen(o => !o)}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
