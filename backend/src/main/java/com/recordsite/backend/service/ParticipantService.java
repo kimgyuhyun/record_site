@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 public class ParticipantService {
     private final ParticipantRepository participantRepository;
     private final SummonerRepository summonerRepository;
+    private final RankSnapshotService rankSnapshotService;
 
     @Transactional
     public void linkSummonerToParticipant(Participant participant) {
@@ -61,7 +62,10 @@ public class ParticipantService {
         // 소환사 랭크는 페이지 전체가 같은 puuid라 한 번만 조회 (없으면 null)
         Summoner summoner = summonerRepository.findBypuuid(puuid);
 
-        // 각 MatchRecordDto에 participantSummaryDtos, killParticipation, tier 주입
+        // matchId -> 판당 LP 증감 (스냅샷이 없는 매치는 맵에 없음 = 미표시)
+        Map<String, Integer> lpChangeByMatchId = rankSnapshotService.getLpChangesByPuuid(puuid);
+
+        // 각 MatchRecordDto에 participantSummaryDtos, killParticipation, tier, lpChange 주입
         page.getContent().forEach(dto -> {
             List<ParticipantSummaryDto> summaries = participantMap.getOrDefault(dto.getMatchId(), Collections.emptyList());
             dto.setParticipantSummaryDtos(summaries);
@@ -72,6 +76,7 @@ public class ParticipantService {
             dto.setMyKillParticipation(Math.round(kp * 10.0) / 10.0);
 
             injectTier(dto, summoner);
+            dto.setMyLpChange(lpChangeByMatchId.get(dto.getMatchId()));
         });
 
         return page;

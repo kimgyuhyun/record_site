@@ -2,6 +2,7 @@ package com.recordsite.backend.repository;
 
 import com.recordsite.backend.entity.Match;
 import com.recordsite.backend.entity.Participant;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -50,4 +51,16 @@ public interface ParticipantRepository extends JpaRepository<Participant, Long>,
             where p.match.matchId in :matchIds
             """)
     List<Participant> findByMatch_MatchIdIn(@Param("matchIds") List<String> matchIds);
+
+    @Query("""
+            select p.match.matchId
+            from Participant p
+            where p.puuid = :puuid
+            and p.match.queueId = :queueId
+            order by p.match.gameCreation desc
+            """)
+    List<String> findMatchIdsByPuuidAndQueueId(@Param("puuid") String puuid,
+                                               @Param("queueId") int queueId,
+                                               Pageable pageable);
+    // 해당 큐에서 puuid가 참가한 매치 ID를 최신순으로. Pageable로 최신 1건만 뽑아 LP 스냅샷 앵커로 사용
 }

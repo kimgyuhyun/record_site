@@ -30,6 +30,7 @@ public class MatchService {
     private final RiotMatchClient riotMatchClient;
     private final LeagueService leagueService;
     private final SummonerService summonerService;
+    private final RankSnapshotService rankSnapshotService;
 
 
     // ──────────────────────────────────────────
@@ -95,6 +96,9 @@ public class MatchService {
 
         // 랭크 갱신 + 최근 갱신시간 찍기
         leagueService.updateAndSaveLeague(puuid);
+
+        // 갱신된 현재 LP를 최신 랭크 매치에 스냅샷으로 박아둠 (판당 LP 증감 계산 근거)
+        rankSnapshotService.recordSnapshots(puuid);
 
         return newCount;
     }

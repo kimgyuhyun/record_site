@@ -700,6 +700,12 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
     diffMonth < 1  ? `${diffWeek}주 전` :
     `${diffMonth}개월 전`;
 
+  /* 판당 LP 증감 (백엔드 스냅샷 비교값, 계산 불가 매치는 null → 미표시) */
+  const lp     = match.myLpChange;
+  const hasLp  = lp !== null && lp !== undefined;
+  const lpColor = !hasLp ? null : lp > 0 ? '#2bb673' : lp < 0 ? T.red : T.txtMuted;
+  const lpText  = !hasLp ? null : `${lp > 0 ? '▲' : lp < 0 ? '▼' : ''}${Math.abs(lp)}`;
+
   /* 요약 KDA */
   const mRatio = match.myDeaths === 0
     ? Infinity : (match.myKills + match.myAssists) / match.myDeaths;
@@ -736,6 +742,11 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
           </div>
           <div style={{ color: T.txtMuted, fontSize: 10, marginBottom: 4 }}>{dateStr}</div>
           <div style={{ color: accent, fontWeight: 800, fontSize: 15 }}>{resultText}</div>
+          {hasLp && (
+            <div style={{ color: lpColor, fontSize: 11, fontWeight: 700, marginTop: 2 }}>
+              {lpText}
+            </div>
+          )}
           <div style={{ color: T.txtMuted, fontSize: 10, marginTop: 2 }}>{durStr}</div>
         </div>
 
