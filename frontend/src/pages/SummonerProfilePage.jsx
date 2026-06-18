@@ -94,18 +94,10 @@ export default function SummonerProfilePage({
         <RankTierBox title="자유 5대5 대전" rankData={flex} />
       </div>
 
-      {/* 3. 최근 게임 요약 (최근 20게임 집계) */}
-      <RecentGamesSummary
-        matches={matchList}
-        championKeyById={championKeyById}
-        search={champSearch}
-        onSearchChange={setChampSearch}
-      />
-
-      {/* 4. 탭 */}
+      {/* 3. 탭 */}
       <TabNav mainTab={mainTab} setMainTab={setMainTab} subTab={subTab} setSubTab={setSubTab} />
 
-      {/* 5. 탭 콘텐츠 */}
+      {/* 4. 탭 콘텐츠 (챔피언 통계) */}
       {mainTab === '챔피언' && (
         champLoading && champStats.length === 0 ? (
           <div style={{
@@ -134,8 +126,18 @@ export default function SummonerProfilePage({
         </div>
       )}
 
+      {/* 5. 최근 게임 요약 (챔피언 통계 아래) */}
+      <div style={{ marginTop: 16 }}>
+        <RecentGamesSummary
+          matches={matchList}
+          championKeyById={championKeyById}
+          search={champSearch}
+          onSearchChange={setChampSearch}
+        />
+      </div>
+
       {/* 6. 매치 큐 필터 (최근 전적 바로 위) */}
-      <div style={{ marginTop: 24 }}>
+      <div style={{ marginTop: 8 }}>
         <MatchFilterBar value={queueFilter} onChange={setQueueFilter} />
       </div>
 
