@@ -770,6 +770,10 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
           <ItemSlots itemIds={items} />
         </div>
 
+        {/* 신축 스페이서 — 좌측(내 정보)과 우측(팀 목록/버튼)을 양 끝으로 분리.
+            자식이 전부 flexShrink:0 이라 남는 공간이 한쪽 꼬리 여백으로 몰리던 문제 해소 */}
+        <div style={{ flex: 1, minWidth: 12 }} />
+
         {/* 블루팀 / 레드팀 미니 참가자 목록 — participantSummaryDtos 직접 사용 */}
         {match.participantSummaryDtos?.length > 0 && (
           <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
