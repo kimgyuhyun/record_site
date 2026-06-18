@@ -730,7 +730,7 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
       {/* ── 요약 행 ── */}
       <div style={{
         display: 'flex', alignItems: 'center',
-        padding: '10px 14px', gap: 12,
+        padding: '10px 14px', gap: 10,
         background: cardBg,
         borderLeft: `4px solid ${accent}`,
         minHeight: 70,
@@ -774,39 +774,40 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
           styleIconById={styleIconById}
         />
 
-        {/* KDA + 킬관여/CS */}
-        <div style={{ flexShrink: 0, minWidth: 110 }}>
-          <div style={{ fontSize: 16, fontWeight: 700 }}>
+        {/* KDA (가운데 정렬, 좁은 컬럼) */}
+        <div style={{ flexShrink: 0, width: 96, textAlign: 'center' }}>
+          <div style={{ fontSize: 16, fontWeight: 700, whiteSpace: 'nowrap' }}>
             <span style={{ color: T.txtKills }}>{match.myKills}</span>
             <span style={{ color: T.txtMuted }}> / </span>
             <span style={{ color: T.txtDeaths }}>{match.myDeaths}</span>
             <span style={{ color: T.txtMuted }}> / </span>
             <span style={{ color: T.txtAssists }}>{match.myAssists}</span>
           </div>
-          <div style={{ marginTop: 2, fontSize: 11 }}>
+          <div style={{ marginTop: 3, fontSize: 12 }}>
             <span style={{ color: mKdaColor, fontWeight: 700 }}>{mKdaStr}</span>
+            <span style={{ color: T.txtMuted, fontSize: 11 }}> 평점</span>
           </div>
-          <div style={{ marginTop: 2, fontSize: 10, color: T.txtSub }}>
-            킬관여 <span style={{ color: T.txtPrimary }}>{myKillPct}%</span>
-            {myCs > 0 && (
-              <span style={{ marginLeft: 6 }}>
-                CS <span style={{ color: T.txtPrimary }}>{myCs}</span>
-                {myCsPerMin && <span style={{ color: T.txtMuted }}> ({myCsPerMin})</span>}
-              </span>
-            )}
+        </div>
+
+        {/* 스탯: 킬관여 / CS / 평균티어 (KDA와 분리해 가로 폭을 채움) */}
+        <div style={{ flexShrink: 0, width: 122, display: 'flex',
+          flexDirection: 'column', gap: 3, fontSize: 11, color: T.txtSub }}>
+          <div>킬관여 <span style={{ color: T.txtPrimary, fontWeight: 600 }}>{myKillPct}%</span></div>
+          <div>
+            CS <span style={{ color: T.txtPrimary, fontWeight: 600 }}>{myCs}</span>
+            {myCsPerMin && <span style={{ color: T.txtMuted }}> ({myCsPerMin})</span>}
           </div>
           {/* 평균 티어 (랭크 큐일 때만) */}
-          <div><AverageTierBadge tier={match.myTier} rank={match.myRank} /></div>
+          <AverageTierBadge tier={match.myTier} rank={match.myRank} />
         </div>
 
         {/* 아이템 */}
-        <div style={{ minWidth: 0 }}>
+        <div style={{ flexShrink: 0 }}>
           <ItemSlots itemIds={items} />
         </div>
 
-        {/* 신축 스페이서 — 좌측(내 정보)과 우측(팀 목록/버튼)을 양 끝으로 분리.
-            자식이 전부 flexShrink:0 이라 남는 공간이 한쪽 꼬리 여백으로 몰리던 문제 해소 */}
-        <div style={{ flex: 1, minWidth: 12 }} />
+        {/* 신축 스페이서 — 내 정보(좌)와 팀 목록/버튼(우) 사이 잔여 공간만 흡수(작게) */}
+        <div style={{ flex: 1, minWidth: 16 }} />
 
         {/* 블루팀 / 레드팀 미니 참가자 목록 — participantSummaryDtos 직접 사용 */}
         {match.participantSummaryDtos?.length > 0 && (
@@ -825,7 +826,7 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
                       fontSize: 11, color: r.puuid === match.myPuuid ? T.txtName : T.txtSub,
                       fontWeight: r.puuid === match.myPuuid ? 700 : 400,
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                      maxWidth: 72,
+                      maxWidth: 66,
                     }}>{r.gameName}</span>
                   </div>
                 ))}
