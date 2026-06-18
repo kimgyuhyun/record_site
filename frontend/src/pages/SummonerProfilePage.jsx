@@ -1,9 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import UserInfo from '../components/profile/UserInfo';
 import RankTierBox from '../components/profile/RankTierBox';
+import RecentGamesSummary from '../components/profile/RecentGamesSummary';
 import ChampionStatTable from '../components/profile/ChampionStatTable';
 import TabNav from '../components/profile/TabNav';
+import MatchFilterBar from '../components/profile/MatchFilterBar';
 import MatchList from '../components/profile/MatchList';
+import useChampionMeta from '../hooks/useChampionMeta';
+import { getChampionStats } from '../api/champion';
+import { filterMatchesByQueue } from '../constants/queueFilters';
 
 // summoner 객체에서 직접 solo/flex 랭크 추출
 function parseRankFromSummoner(summoner) {
@@ -28,14 +33,52 @@ function parseRankFromSummoner(summoner) {
   return { solo, flex };
 }
 
+// 챔피언 통계 서브탭(전체/솔로/자유) → 백엔드 queueType 파라미터
+const QUEUE_TYPE_BY_SUBTAB = { '전체': undefined, '솔로랭크': 'SOLO', '자유랭크': 'FLEX' };
+
 export default function SummonerProfilePage({
-  summoner, matchList = [], champStats,
+  summoner, matchList = [],
   onRefresh, refreshing, cooldown = 0,
 }) {
   const [mainTab, setMainTab] = useState('챔피언');
   const [subTab, setSubTab]   = useState('전체');
+  const [champSearch, setChampSearch]   = useState('');
+  const [queueFilter, setQueueFilter]   = useState('ALL');
 
+  const [champStats, setChampStats]     = useState([]);
+  const [champLoading, setChampLoading] = useState(false);
+
+  const { championKeyById, championNameById } = useChampionMeta();
   const { solo, flex } = parseRankFromSummoner(summoner);
+
+  // 챔피언 통계 조회 (puuid·서브탭·매치목록 변경 시). 챔피언 탭일 때만.
+  useEffect(() => {
+    const puuid = summoner?.puuid;
+    if (!puuid || mainTab !== '챔피언') return;
+    let cancelled = false;
+
+    const loadChampionStats = async () => {
+      setChampLoading(true);
+      try {
+        const res = await getChampionStats(puuid, QUEUE_TYPE_BY_SUBTAB[subTab]);
+        if (!cancelled) setChampStats(res.data || []);
+      } catch (e) {
+        console.error('챔피언 통계 조회 실패', e);
+        if (!cancelled) setChampStats([]);
+      } finally {
+        if (!cancelled) setChampLoading(false);
+      }
+    };
+
+    loadChampionStats();
+    return () => { cancelled = true; };
+  }, [summoner?.puuid, subTab, mainTab, matchList]);
+
+  // 큐 필터 적용된 매치 목록
+  const filteredMatches = useMemo(
+    () => filterMatchesByQueue(matchList, queueFilter),
+    [matchList, queueFilter],
+  );
 
   return (
     <div style={{
@@ -45,18 +88,41 @@ export default function SummonerProfilePage({
       {/* 1. 유저 정보 */}
       <UserInfo summoner={summoner} onRefresh={onRefresh} refreshing={refreshing} cooldown={cooldown} />
 
-      {/* 2. 랭크 박스 — summoner에서 직접 */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+      {/* 2. 랭크 박스 */}
+      <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
         <RankTierBox title="개인 / 2인전"   rankData={solo} />
         <RankTierBox title="자유 5대5 대전" rankData={flex} />
       </div>
 
-      {/* 3. 탭 */}
+      {/* 3. 최근 게임 요약 (최근 20게임 집계) */}
+      <RecentGamesSummary
+        matches={matchList}
+        championKeyById={championKeyById}
+        search={champSearch}
+        onSearchChange={setChampSearch}
+      />
+
+      {/* 4. 탭 */}
       <TabNav mainTab={mainTab} setMainTab={setMainTab} subTab={subTab} setSubTab={setSubTab} />
 
-      {/* 4. 탭 콘텐츠 */}
+      {/* 5. 탭 콘텐츠 */}
       {mainTab === '챔피언' && (
-        <ChampionStatTable stats={champStats || []} championKeyById={{}} />
+        champLoading && champStats.length === 0 ? (
+          <div style={{
+            background: '#111c27', border: '1px solid #2a3a4a', borderTop: 'none',
+            borderRadius: '0 0 10px 10px', padding: '32px 0',
+            textAlign: 'center', color: '#4a5568', fontSize: 14,
+          }}>
+            챔피언 통계 조회 중...
+          </div>
+        ) : (
+          <ChampionStatTable
+            stats={champStats}
+            championKeyById={championKeyById}
+            championNameById={championNameById}
+            search={champSearch}
+          />
+        )
       )}
       {mainTab === '게임 관전하기 - 인게임 정보' && (
         <div style={{
@@ -68,15 +134,20 @@ export default function SummonerProfilePage({
         </div>
       )}
 
-      {/* 5. 매치 리스트 */}
+      {/* 6. 매치 큐 필터 (최근 전적 바로 위) */}
       <div style={{ marginTop: 24 }}>
+        <MatchFilterBar value={queueFilter} onChange={setQueueFilter} />
+      </div>
+
+      {/* 7. 최근 전적 */}
+      <div style={{ marginTop: 16 }}>
         <div style={{
           color: '#6b7a8d', fontSize: 12, fontWeight: 600,
           letterSpacing: '0.5px', marginBottom: 12, textTransform: 'uppercase',
         }}>
-          최근 전적 ({matchList.length})
+          최근 전적 ({filteredMatches.length})
         </div>
-        <MatchList matches={matchList} />
+        <MatchList matches={filteredMatches} />
       </div>
     </div>
   );
