@@ -1,8 +1,12 @@
 package com.recordsite.backend.repository;
 
+import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.recordsite.backend.dto.MatchRecordDto;
+import com.recordsite.backend.dto.PlayedChampionAggregate;
 import com.recordsite.backend.entity.QMatch;
 import com.recordsite.backend.entity.QParticipant;
 import lombok.RequiredArgsConstructor;
@@ -84,5 +88,41 @@ public class ParticipantRepositoryCustomImpl implements ParticipantRepositoryCus
                 .fetchOne();
 
         return new PageImpl<>(content, pageable, total != null ? total : 0);
+    }
+
+    @Override
+    public List<PlayedChampionAggregate> aggregatePlayedChampions(String puuid, Integer queueId) {
+        QParticipant p = QParticipant.participant;
+        QMatch m = QMatch.match;
+
+        // 승리 1 / 패배 0 으로 환산해 합산 → 승리 수
+        NumberExpression<Integer> winToInt = new CaseBuilder()
+                .when(p.win.isTrue()).then(1).otherwise(0);
+        // CS = 미니언 + 중립 몬스터
+        NumberExpression<Integer> cs = p.totalMinionsKilled.add(p.neutralMinionsKilled);
+
+        BooleanBuilder where = new BooleanBuilder().and(p.puuid.eq(puuid));
+        if (queueId != null) {
+            where.and(m.queueId.eq(queueId));
+        }
+
+        return queryFactory
+                .select(Projections.constructor(PlayedChampionAggregate.class,
+                        p.championId,
+                        p.championName,
+                        p.count(),
+                        winToInt.sum().longValue(),
+                        p.kills.avg(),
+                        p.deaths.avg(),
+                        p.assists.avg(),
+                        cs.avg(),
+                        p.goldEarned.avg()
+                ))
+                .from(p)
+                .join(p.match, m)
+                .where(where)
+                .groupBy(p.championId, p.championName)
+                .orderBy(p.count().desc())
+                .fetch();
     }
 }
