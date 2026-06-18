@@ -270,8 +270,14 @@ const QUEUE_NAME = {
   1700: '아레나', 1701: '아레나', 1900: 'URF',
   400: '일반', 430: '일반(블라인드)',
 };
+// queueId가 매핑에 없을 때 gameMode를 한글로 치환 (예: 아레나 CHERRY)
+const GAME_MODE_NAME = {
+  CHERRY: '아레나', ARAM: '칼바람', URF: 'URF', ARURF: 'URF',
+  NEXUSBLITZ: '돌격! 넥서스', ONEFORALL: '단일 챔피언', ULTBOOK: '궁극기 주문서',
+  CLASSIC: '일반',
+};
 const getQueueName = (queueId, gameMode) =>
-  QUEUE_NAME[queueId] || gameMode || '일반';
+  QUEUE_NAME[queueId] || GAME_MODE_NAME[gameMode] || gameMode || '일반';
 /* ═══════════════════════════════════════════════════════════════
    팀 구분선 — 이미지 기준: 승리팀(좌) vs 패배팀(우) 오브젝트 + 양방향 바
    winRows = 승리팀 rows, loseRows = 패배팀 rows
