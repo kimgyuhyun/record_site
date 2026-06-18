@@ -37,7 +37,6 @@ class SummonerControllerTest {
         String searchName = "ahri";
         String tagLine = "KR1";
         SummonerDto summonerDto = new SummonerDto();
-        summonerDto.setSummonerId("1");
         summonerDto.setName("ahri");
         summonerDto.setPuuid("1513");
         summonerDto.setLevel(300);
@@ -49,7 +48,6 @@ class SummonerControllerTest {
         mockMvc.perform(get("/api/summoners")
                         .param("name", "ahri"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.summonerId").value("1"))
                 .andExpect(jsonPath("$.name").value("ahri"))
                 .andExpect(jsonPath("$.puuid").value("1513"))
                 .andExpect(jsonPath("$.level").value(300))
@@ -78,7 +76,7 @@ class SummonerControllerTest {
         summonerDto1.setName("hide on bush");
         summonerDto2.setName("hide on bush");
         
-        when(summonerService.findSummonerListByName(name))
+        when(summonerService.searchByName(name))
                 .thenReturn(List.of(summonerDto1, summonerDto2));
 
         mockMvc.perform(get("/api/summoners/search")
@@ -92,7 +90,7 @@ class SummonerControllerTest {
     @Test
     void getSummonerListByName_notFound_Test() throws Exception {
 
-        when(summonerService.findSummonerListByName("null"))
+        when(summonerService.searchByName("null"))
                 .thenThrow(new SummonerNotFoundException("null"));
 
         mockMvc.perform(get("/api/summoners/search")
