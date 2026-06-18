@@ -23,8 +23,15 @@ function getTierStyle(tierStr) {
   return { bg: '#eee', color: '#333', border: '#aaa' };
 }
 
-export default function UserInfo({ summoner, onRefresh, refreshing }) {
+export default function UserInfo({ summoner, onRefresh, refreshing, cooldown = 0 }) {
   if (!summoner) return null;
+
+  const isCooldown  = cooldown > 0;
+  const isDisabled  = refreshing || isCooldown;
+
+  const mins = Math.floor(cooldown / 60);
+  const secs = String(cooldown % 60).padStart(2, '0');
+  const cooldownText = mins > 0 ? `${mins}분 ${secs}초` : `${cooldown}초`;
 
   const profileIconSrc = summoner.profileIconId != null
     ? imgProfileIcon(summoner.profileIconId)
@@ -85,25 +92,34 @@ export default function UserInfo({ summoner, onRefresh, refreshing }) {
             </h2>
             <button
               onClick={onRefresh}
-              disabled={refreshing}
+              disabled={isDisabled}
               style={{
                 padding: '6px 16px',
-                background: refreshing ? '#2a3a4a' : 'linear-gradient(135deg, #c89b3c, #e8b84b)',
-                color: refreshing ? '#6b7a8d' : '#0f1923',
+                background: isDisabled
+                  ? '#2a3a4a'
+                  : '#1a3a6b',
+                color: isDisabled ? '#6b7a8d' : '#e2e8f0',
                 border: 'none',
                 borderRadius: 6,
                 fontWeight: 700,
                 fontSize: 13,
-                cursor: refreshing ? 'not-allowed' : 'pointer',
+                cursor: isDisabled ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s',
                 flexShrink: 0,
               }}
-              onMouseEnter={e => { if (!refreshing) e.target.style.transform = 'translateY(-1px)'; }}
+              onMouseEnter={e => { if (!isDisabled) e.target.style.transform = 'translateY(-1px)'; }}
               onMouseLeave={e => { e.target.style.transform = 'translateY(0)'; }}
             >
               {refreshing ? '갱신 중...' : '전적 갱신'}
             </button>
           </div>
+
+          {/* 쿨다운 안내 메시지 */}
+          {isCooldown && !refreshing && (
+            <div style={{ color: '#4a5568', fontSize: 12, marginTop: 6 }}>
+              ⏱ {cooldownText} 후 재갱신 가능합니다.
+            </div>
+          )}
 
           {/* 최근 업데이트 */}
           {summoner.lastUpdated && (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getSummoner } from '../api/summoner';
 import { getMatches, refreshMatches } from '../api/match';
@@ -25,10 +25,35 @@ export default function PlayerPage() {
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error,      setError]      = useState('');
+  const [cooldown,   setCooldown]   = useState(0); // 남은 쿨다운 초
+  const cooldownTimer = useRef(null);
+
+  // 페이지 진입 시 rankUpdatedAt 기반으로 남은 쿨다운 계산
+  const initCooldown = (summonerData) => {
+    if (!summonerData?.rankUpdatedAt) return;
+    const updatedAt = new Date(summonerData.rankUpdatedAt);
+    const remaining = Math.ceil(180 - (Date.now() - updatedAt.getTime()) / 1000);
+    if (remaining > 0) startCooldownTimer(remaining);
+  };
+
+  const startCooldownTimer = (seconds) => {
+    if (cooldownTimer.current) clearInterval(cooldownTimer.current);
+    setCooldown(seconds);
+    cooldownTimer.current = setInterval(() => {
+      setCooldown(prev => {
+        if (prev <= 1) {
+          clearInterval(cooldownTimer.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   useEffect(() => {
     const { name, tagLine } = parseSlug(slug);
     load(name, tagLine, region.toUpperCase());
+    return () => { if (cooldownTimer.current) clearInterval(cooldownTimer.current); };
   }, [region, slug]);
 
   const load = async (name, tagLine, regionUpper) => {
@@ -40,6 +65,7 @@ export default function PlayerPage() {
       // getSummoner 응답에 랭크(soloTier 등)가 이미 포함돼 있음
       const sumRes = await getSummoner(name, tagLine, regionUpper);
       setSummoner(sumRes.data);
+      initCooldown(sumRes.data);
 
       const matchRes = await getMatches(sumRes.data.puuid);
       setMatchList(matchRes.data?.content || []);
@@ -52,12 +78,20 @@ export default function PlayerPage() {
   };
 
   const handleRefresh = async () => {
-    if (!summoner?.puuid) return;
+    if (!summoner?.puuid || cooldown > 0) return;
     setRefreshing(true);
     setError('');
     try {
-      await refreshMatches(summoner.puuid);
-      // 갱신 후 소환사 정보(랭크 포함) + 매치 재조회
+      const result = await refreshMatches(summoner.puuid);
+      const count = result.data;
+
+      // 백엔드가 -1 반환 → 쿨다운 중 (이미 프론트에서 막지만 이중 방어)
+      if (count === -1) {
+        startCooldownTimer(180);
+        return;
+      }
+
+      // 갱신 후 소환사 정보 + 매치 재조회
       const { name, tagLine } = parseSlug(slug);
       const [sumRes, matchRes] = await Promise.all([
         getSummoner(name, tagLine, region.toUpperCase()),
@@ -65,6 +99,9 @@ export default function PlayerPage() {
       ]);
       setSummoner(sumRes.data);
       setMatchList(matchRes.data?.content || []);
+
+      // 갱신 완료 후 쿨다운 시작
+      startCooldownTimer(180);
     } catch (err) {
       console.error(err);
       setError('전적 갱신 중 오류가 발생했습니다.');
@@ -123,6 +160,7 @@ export default function PlayerPage() {
       champStats={[]}
       onRefresh={handleRefresh}
       refreshing={refreshing}
+      cooldown={cooldown}
     />
   );
 }

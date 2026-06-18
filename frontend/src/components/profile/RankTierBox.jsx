@@ -1,4 +1,5 @@
 import React from 'react';
+import { imgRank } from '../../constants/ddragon';
 
 // 티어별 색상/아이콘 색
 const TIER_COLOR = {
@@ -19,23 +20,15 @@ function getTierColor(tier) {
   return TIER_COLOR[tier?.toUpperCase()] || TIER_COLOR.UNRANKED;
 }
 
-// 티어 아이콘 (텍스트 기반 뱃지)
+// 티어 아이콘 (로컬 이미지)
 function TierEmblem({ tier, size = 64 }) {
-  const color = getTierColor(tier);
-  const label = tier?.charAt(0) || '?';
   return (
-    <div style={{
-      width: size, height: size,
-      borderRadius: '50%',
-      background: `radial-gradient(circle at 35% 35%, ${color}33, ${color}11)`,
-      border: `2px solid ${color}88`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      flexShrink: 0,
-    }}>
-      <span style={{ color, fontSize: size * 0.38, fontWeight: 900, letterSpacing: '-1px' }}>
-        {label}
-      </span>
-    </div>
+    <img
+      src={imgRank(tier)}
+      alt={tier}
+      style={{ width: size, height: size, objectFit: 'contain', flexShrink: 0 }}
+      onError={e => { e.target.style.display = 'none'; }}
+    />
   );
 }
 

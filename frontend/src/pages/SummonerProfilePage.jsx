@@ -30,7 +30,7 @@ function parseRankFromSummoner(summoner) {
 
 export default function SummonerProfilePage({
   summoner, matchList = [], champStats,
-  onRefresh, refreshing,
+  onRefresh, refreshing, cooldown = 0,
 }) {
   const [mainTab, setMainTab] = useState('챔피언');
   const [subTab, setSubTab]   = useState('전체');
@@ -43,7 +43,7 @@ export default function SummonerProfilePage({
       fontFamily: "'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif",
     }}>
       {/* 1. 유저 정보 */}
-      <UserInfo summoner={summoner} onRefresh={onRefresh} refreshing={refreshing} />
+      <UserInfo summoner={summoner} onRefresh={onRefresh} refreshing={refreshing} cooldown={cooldown} />
 
       {/* 2. 랭크 박스 — summoner에서 직접 */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
