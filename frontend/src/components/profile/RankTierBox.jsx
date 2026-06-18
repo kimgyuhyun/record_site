@@ -61,8 +61,11 @@ export default function RankTierBox({ title, rankData }) {
       </div>
 
       {isUnranked ? (
-        <div style={{ color: '#4a5568', fontSize: 15, fontWeight: 600, padding: '10px 0' }}>
-          배치 안됨
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '4px 0' }}>
+          <TierEmblem tier="UNRANKED" size={60} />
+          <div style={{ color: '#6b7a8d', fontSize: 18, fontWeight: 800 }}>
+            배치 안됨
+          </div>
         </div>
       ) : (
         <>
