@@ -6,3 +6,7 @@ export const getChampionStats = (puuid, queueType) =>
   apiClient.get('/api/champion-stats', {
     params: queueType ? { puuid, queueType } : { puuid },
   });
+
+// 챔피언 숙련도 상위 N개 조회 (Riot 라이브 데이터)
+export const getChampionMastery = (puuid, limit = 12) =>
+  apiClient.get('/api/champion-mastery', { params: { puuid, limit } });

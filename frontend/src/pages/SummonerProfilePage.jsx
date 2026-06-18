@@ -3,11 +3,12 @@ import UserInfo from '../components/profile/UserInfo';
 import RankTierBox from '../components/profile/RankTierBox';
 import RecentGamesSummary from '../components/profile/RecentGamesSummary';
 import ChampionStatTable from '../components/profile/ChampionStatTable';
+import ChampionMasterySection from '../components/profile/ChampionMasterySection';
 import TabNav from '../components/profile/TabNav';
 import MatchFilterBar from '../components/profile/MatchFilterBar';
 import MatchList from '../components/profile/MatchList';
 import useChampionMeta from '../hooks/useChampionMeta';
-import { getChampionStats } from '../api/champion';
+import { getChampionStats, getChampionMastery } from '../api/champion';
 import { filterMatchesByQueue } from '../constants/queueFilters';
 
 // summoner 객체에서 직접 solo/flex 랭크 추출
@@ -48,6 +49,9 @@ export default function SummonerProfilePage({
   const [champStats, setChampStats]     = useState([]);
   const [champLoading, setChampLoading] = useState(false);
 
+  const [mastery, setMastery]           = useState([]);
+  const [masteryLoading, setMasteryLoading] = useState(false);
+
   const { championKeyById, championNameById } = useChampionMeta();
   const { solo, flex } = parseRankFromSummoner(summoner);
 
@@ -73,6 +77,29 @@ export default function SummonerProfilePage({
     loadChampionStats();
     return () => { cancelled = true; };
   }, [summoner?.puuid, subTab, mainTab, matchList]);
+
+  // 챔피언 숙련도 조회 (puuid 변경 시 라이브 조회)
+  useEffect(() => {
+    const puuid = summoner?.puuid;
+    if (!puuid) return;
+    let cancelled = false;
+
+    const loadMastery = async () => {
+      setMasteryLoading(true);
+      try {
+        const res = await getChampionMastery(puuid);
+        if (!cancelled) setMastery(res.data || []);
+      } catch (e) {
+        console.error('챔피언 숙련도 조회 실패', e);
+        if (!cancelled) setMastery([]);
+      } finally {
+        if (!cancelled) setMasteryLoading(false);
+      }
+    };
+
+    loadMastery();
+    return () => { cancelled = true; };
+  }, [summoner?.puuid]);
 
   // 큐 필터 적용된 매치 목록
   const filteredMatches = useMemo(
@@ -126,15 +153,23 @@ export default function SummonerProfilePage({
         </div>
       )}
 
-      {/* 5. 최근 게임 요약 (챔피언 통계 아래) */}
+      {/* 5. 챔피언 숙련도 */}
       <div style={{ marginTop: 16 }}>
-        <RecentGamesSummary
-          matches={matchList}
+        <ChampionMasterySection
+          mastery={mastery}
           championKeyById={championKeyById}
-          search={champSearch}
-          onSearchChange={setChampSearch}
+          championNameById={championNameById}
+          loading={masteryLoading}
         />
       </div>
+
+      {/* 6. 최근 게임 요약 */}
+      <RecentGamesSummary
+        matches={matchList}
+        championKeyById={championKeyById}
+        search={champSearch}
+        onSearchChange={setChampSearch}
+      />
 
       {/* 6. 매치 큐 필터 (최근 전적 바로 위) */}
       <div style={{ marginTop: 8 }}>
