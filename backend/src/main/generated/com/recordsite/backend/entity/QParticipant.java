@@ -56,6 +56,8 @@ public class QParticipant extends EntityPathBase<Participant> {
 
     public final NumberPath<Integer> item6 = createNumber("item6", Integer.class);
 
+    public final NumberPath<Integer> keystoneId = createNumber("keystoneId", Integer.class);
+
     public final NumberPath<Integer> kills = createNumber("kills", Integer.class);
 
     public final QMatch match;
@@ -63,6 +65,8 @@ public class QParticipant extends EntityPathBase<Participant> {
     public final NumberPath<Integer> neutralMinionsKilled = createNumber("neutralMinionsKilled", Integer.class);
 
     public final NumberPath<Integer> participantId = createNumber("participantId", Integer.class);
+
+    public final NumberPath<Integer> primaryStyleId = createNumber("primaryStyleId", Integer.class);
 
     public final StringPath puuid = createString("puuid");
 
@@ -76,6 +80,8 @@ public class QParticipant extends EntityPathBase<Participant> {
 
     public final NumberPath<Integer> statPerkOffense = createNumber("statPerkOffense", Integer.class);
 
+    public final NumberPath<Integer> subStyleId = createNumber("subStyleId", Integer.class);
+
     public final QSummoner summoner;
 
     public final StringPath tagLine = createString("tagLine");
@@ -83,6 +89,8 @@ public class QParticipant extends EntityPathBase<Participant> {
     public final BooleanPath teamEarlySurrendered = createBoolean("teamEarlySurrendered");
 
     public final NumberPath<Integer> teamId = createNumber("teamId", Integer.class);
+
+    public final NumberPath<Integer> teamKills = createNumber("teamKills", Integer.class);
 
     public final StringPath teamPosition = createString("teamPosition");
 

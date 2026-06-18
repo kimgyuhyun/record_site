@@ -106,6 +106,10 @@ public class Participant {
     @Column(nullable = false)
     private Integer statPerkDefense;
 
+    private Integer primaryStyleId; // 주 룬 계열 (예: 8100 지배)
+    private Integer keystoneId;     // 핵심 룬 (예: 8112 감전)
+    private Integer subStyleId;     // 보조 룬 계열 (예: 8000 정밀)
+
     @Column
     private boolean gameEndedInEarlySurrender;
     @Column
@@ -132,6 +136,9 @@ public class Participant {
             defense = res.getPerks().getStatPerks().getDefense() != null
                     ? res.getPerks().getStatPerks().getDefense() : 0;
         }
+
+        // 룬 계열/핵심룬 추출 (perks.styles가 없는 봇전 등은 null 유지)
+        RuneSelection runes = RuneSelection.from(res.getPerks());
 
 
         return Participant.builder()
@@ -171,7 +178,42 @@ public class Participant {
                 .statPerkOffense(offense)
                 .statPerkFlex(flex)
                 .statPerkDefense(defense)
+                .primaryStyleId(runes.primaryStyleId())
+                .keystoneId(runes.keystoneId())
+                .subStyleId(runes.subStyleId())
                 // teamKills는 from()에서 세팅 불가 (팀 전체 합산이라 MatchSaveHelper에서 별도 세팅)
                 .build();
+    }
+
+    // Riot perks.styles → (주룬 계열, 핵심룬, 보조룬 계열) 추출 전용 값 객체
+    private record RuneSelection(Integer primaryStyleId, Integer keystoneId, Integer subStyleId) {
+
+        private static final RuneSelection EMPTY = new RuneSelection(null, null, null);
+
+        static RuneSelection from(RiotParticipantResponse.Perks perks) {
+            if (perks == null || perks.getStyles() == null) return EMPTY;
+
+            Integer primaryStyleId = null;
+            Integer keystoneId = null;
+            Integer subStyleId = null;
+
+            for (RiotParticipantResponse.Style style : perks.getStyles()) {
+                if (style == null || style.getDescription() == null) continue;
+
+                if ("primaryStyle".equals(style.getDescription())) {
+                    primaryStyleId = style.getStyle();
+                    keystoneId = firstPerk(style);
+                } else if ("subStyle".equals(style.getDescription())) {
+                    subStyleId = style.getStyle();
+                }
+            }
+            return new RuneSelection(primaryStyleId, keystoneId, subStyleId);
+        }
+
+        // selections[0] = 핵심룬(키스톤)
+        private static Integer firstPerk(RiotParticipantResponse.Style style) {
+            if (style.getSelections() == null || style.getSelections().isEmpty()) return null;
+            return style.getSelections().get(0).getPerk();
+        }
     }
 }

@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.List;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -60,6 +62,7 @@ public class RiotParticipantResponse {
     @Setter
     public static class Perks {
         private StatPerks statPerks;
+        private List<Style> styles; // primaryStyle(주룬), subStyle(보조룬) 2개
     }
 
     @Getter
@@ -68,5 +71,19 @@ public class RiotParticipantResponse {
         private Integer offense;
         private Integer flex;
         private Integer defense;
+    }
+
+    @Getter
+    @Setter
+    public static class Style {
+        private String description; // "primaryStyle" or "subStyle"
+        private Integer style;      // 룬 계열 ID (예: 8100 지배)
+        private List<Selection> selections;
+    }
+
+    @Getter
+    @Setter
+    public static class Selection {
+        private Integer perk; // 선택한 룬 ID (selections[0] = 핵심룬)
     }
 }
