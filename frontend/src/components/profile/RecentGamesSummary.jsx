@@ -153,11 +153,11 @@ export default function RecentGamesSummary({ matches = [], championKeyById = {},
         />
       </div>
 
-      {/* 본문 3분할 — 전체 폭을 채우도록 가운데(플레이한 챔피언)가 신축 */}
-      <div style={{ display: 'flex', alignItems: 'stretch', gap: 24 }}>
+      {/* 본문 3분할 — 비례 flex(1 : 1.25 : 1)로 폭을 균등 분배해 밸런스 유지 */}
+      <div style={{ display: 'flex', alignItems: 'stretch' }}>
 
         {/* ① 종합 전적 */}
-        <div style={{ flexShrink: 0, width: 250 }}>
+        <div style={{ flex: '1 1 0', minWidth: 0, paddingRight: 20 }}>
           <div style={{ color: C.sub, fontSize: 12, marginBottom: 10 }}>
             {stat.total}전 <span style={{ color: C.win, fontWeight: 700 }}>{stat.wins}승</span>{' '}
             <span style={{ color: C.loss, fontWeight: 700 }}>{stat.losses}패</span>
@@ -181,8 +181,8 @@ export default function RecentGamesSummary({ matches = [], championKeyById = {},
         </div>
 
         {/* ② 플레이한 챔피언 */}
-        <div style={{ flex: 1, minWidth: 0,
-          borderLeft: `1px solid ${C.divider}`, paddingLeft: 24 }}>
+        <div style={{ flex: '1.25 1 0', minWidth: 0,
+          borderLeft: `1px solid ${C.divider}`, paddingLeft: 24, paddingRight: 20 }}>
           <div style={{ color: C.sub, fontSize: 12, marginBottom: 12 }}>
             플레이한 챔피언 (최근 {stat.total}게임)
           </div>
@@ -214,7 +214,7 @@ export default function RecentGamesSummary({ matches = [], championKeyById = {},
         </div>
 
         {/* ③ 선호 포지션 (랭크) */}
-        <div style={{ flexShrink: 0, width: 236,
+        <div style={{ flex: '1 1 0', minWidth: 0,
           borderLeft: `1px solid ${C.divider}`, paddingLeft: 24 }}>
           <div style={{ color: C.sub, fontSize: 12, marginBottom: 12 }}>선호 포지션 (랭크)</div>
           <div style={{ display: 'flex', alignItems: 'flex-end',
