@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -38,16 +40,28 @@ public class MatchSaveHelper {
         // 2. 참가자 목록 추출
         List<RiotParticipantResponse> participants = res.getInfo().getParticipants();
 
-        // 3. Match 저장
+        // 3. 팀별 teamKills 계산 (100 = 블루, 200 = 레드)
+        Map<Integer, Integer> teamKillsMap = participants.stream()
+                .collect(Collectors.groupingBy(
+                   RiotParticipantResponse::getTeamId,
+                   Collectors.summingInt(RiotParticipantResponse::getKills)
+                ));
+
+        // 4. Match 저장
         Match match = matchRepository.save(Match.from(res));
 
-        // 4. Participant 전체 saveAll()로 한 번에 저장
+        // 5. Participant 생성 시 teamKills 주입 후 saveAll
         List<Participant> participantEntities = participants.stream()
-                .map(rp -> Participant.from(rp, match))
+                .map(rp -> {
+                    Participant p = Participant.from(rp, match);
+                    p.setTeamKills(teamKillsMap.getOrDefault(rp.getTeamId(), 0));
+                    return p;
+                })
                 .toList();
         participantRepository.saveAll(participantEntities);
 
-        // 5. 내 Participant에 Summoner 연결
+
+        // 6. 내 Participant에 Summoner 연결
         Participant me = participantRepository.findByMatchIdAndPuuid(matchId, puuid);
         if (me != null) {
             participantService.linkSummonerToParticipant(me);

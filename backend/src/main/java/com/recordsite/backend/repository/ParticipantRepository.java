@@ -43,4 +43,11 @@ public interface ParticipantRepository extends JpaRepository<Participant, Long>,
     // matchId와 puuid로 특정 참가자 한 명 조회
 
     boolean existsByMatchAndParticipantId(Match match, Integer participantId);
+
+    @Query("""
+            select p
+            from Participant p
+            where p.match.matchId in :matchIds
+            """)
+    List<Participant> findByMatch_MatchIdIn(@Param("matchIds") List<String> matchIds);
 }

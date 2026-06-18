@@ -60,10 +60,14 @@ public class ParticipantRepositoryCustomImpl implements ParticipantRepositoryCus
                         p.statPerkOffense,
                         p.statPerkFlex,
                         p.statPerkDefense,
+                        p.primaryStyleId,
+                        p.keystoneId,
+                        p.subStyleId,
                         p.gameEndedInEarlySurrender,
                         p.teamEarlySurrendered,
                         p.totalMinionsKilled,
-                        p.neutralMinionsKilled
+                        p.neutralMinionsKilled,
+                        p.teamKills
                 ))
                 .from(p)
                 .join(p.match, m)

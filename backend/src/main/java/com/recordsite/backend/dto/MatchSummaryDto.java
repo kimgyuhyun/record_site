@@ -56,6 +56,10 @@ public class MatchSummaryDto {
     private Integer statPerkFlex;
     private Integer statPerkDefense;
 
+    private Integer primaryStyleId; // 주 룬 계열
+    private Integer keystoneId;     // 핵심 룬
+    private Integer subStyleId;     // 보조 룬 계열
+
     private boolean gameEndedInEarlySurrender;
     private boolean teamEarlySurrendered;
 
@@ -111,6 +115,9 @@ public class MatchSummaryDto {
                 .statPerkOffense(p.getStatPerkOffense())
                 .statPerkFlex(p.getStatPerkFlex())
                 .statPerkDefense(p.getStatPerkDefense())
+                .primaryStyleId(p.getPrimaryStyleId())
+                .keystoneId(p.getKeystoneId())
+                .subStyleId(p.getSubStyleId())
                 .gameEndedInEarlySurrender(p.isGameEndedInEarlySurrender())
                 .teamEarlySurrendered(p.isTeamEarlySurrendered())
                 .totalMinionsKilled(p.getTotalMinionsKilled())

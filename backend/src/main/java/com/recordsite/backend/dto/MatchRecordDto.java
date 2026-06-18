@@ -28,6 +28,7 @@ public class MatchRecordDto {
             Integer myItem4, Integer myItem5, Integer myItem6,
             Integer mySpell1, Integer mySpell2,
             Integer myStatPerkOffense, Integer myStatPerkFlex, Integer myStatPerkDefense,
+            Integer myPrimaryStyleId, Integer myKeystoneId, Integer mySubStyleId,
             Boolean myGameEndedInEarlySurrender, Boolean myTeamEarlySurrendered,
             int totalMinionsKilled, int neutralMinionsKilled,
             int teamKills
@@ -67,6 +68,9 @@ public class MatchRecordDto {
         this.myStatPerkOffense = myStatPerkOffense;
         this.myStatPerkFlex = myStatPerkFlex;
         this.myStatPerkDefense = myStatPerkDefense;
+        this.myPrimaryStyleId = myPrimaryStyleId;
+        this.myKeystoneId = myKeystoneId;
+        this.mySubStyleId = mySubStyleId;
         this.gameEndedInEarlySurrender = myGameEndedInEarlySurrender;
         this.teamEarlySurrendered = myTeamEarlySurrendered;
         this.totalMinionsKilled = totalMinionsKilled;
@@ -120,6 +124,10 @@ public class MatchRecordDto {
     private Integer myStatPerkFlex;
     private Integer myStatPerkDefense;
 
+    private Integer myPrimaryStyleId; // 주 룬 계열
+    private Integer myKeystoneId;     // 핵심 룬
+    private Integer mySubStyleId;     // 보조 룬 계열
+
     private boolean gameEndedInEarlySurrender; // 다시하기 여부
     private boolean teamEarlySurrendered;
 
@@ -133,6 +141,12 @@ public class MatchRecordDto {
     private double myKillParticipation;
     @Setter
     private List<ParticipantSummaryDto> participantSummaryDtos;
+
+    // 소환사의 현재 랭크 (해당 큐 기준 - 솔로/자유) - Service에서 주입
+    @Setter
+    private String myTier; // 예: "MASTER" (랭크 없으면 null)
+    @Setter
+    private String myRank; // 예: "II" (마스터+ 또는 언랭이면 null)
 
 
     public static MatchRecordDto from(Match match, Participant me) {
@@ -172,6 +186,9 @@ public class MatchRecordDto {
                 me.getStatPerkOffense(),
                 me.getStatPerkFlex(),
                 me.getStatPerkDefense(),
+                me.getPrimaryStyleId(),
+                me.getKeystoneId(),
+                me.getSubStyleId(),
                 me.isGameEndedInEarlySurrender(),
                 me.isTeamEarlySurrendered(),
                 me.getTotalMinionsKilled(),
