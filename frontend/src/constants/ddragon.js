@@ -25,6 +25,12 @@ export const imgProfileIcon = (id)   => `${DATA_CDN}/img/profileicon/${id}.png`;
 export const imgRank = (tier) =>
   `${IMG_BASE}/img/rank/${(tier || 'unranked').toLowerCase()}.png`;
 
+// 평균 티어 엠블럼 (전적 카드 전용 - rank 폴더와 별개 이미지 세트)
+//  - 파일명: iron.png · bronze.png · silver.png · gold.png · platinum.png
+//    emerald.png · diamond.png · master.png · grandmaster.png · challenger.png · unranked.png
+export const imgTier = (tier) =>
+  `${IMG_BASE}/img/tier/${(tier || 'unranked').toLowerCase()}.png`;
+
 // 룬 이미지 (runesReforged.json의 icon 경로는 버전 없는 cdn/img/ 하위에서 서빙)
 //  - icon 예: 'perk-images/Styles/Domination/Electrocute/Electrocute.png'
 export const RUNE_IMG_BASE = 'https://ddragon.leagueoflegends.com/cdn/img/';

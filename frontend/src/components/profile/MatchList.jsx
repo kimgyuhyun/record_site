@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getMatchSummary } from '../../api/match';
-import { imgChampion, imgItem, imgSpell, imgObjective, imgRune } from '../../constants/ddragon';
+import { imgChampion, imgItem, imgSpell, imgObjective, imgRune, imgTier } from '../../constants/ddragon';
 import { getSummonerSpellData, getChampionData, getRuneData } from '../../api/ddragon';
 
 /* ═══════════════════════════════════════════════════════════════
@@ -182,21 +182,39 @@ function Badge({ type }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   티어 뱃지 (해당 큐 기준 소환사 랭크)
+   평균 티어 뱃지 (해당 큐 기준 소환사 랭크 엠블럼 + 호버 툴팁)
    - 마스터+ 는 단계(rank) 표기 없음
+   - 엠블럼은 cdn/.../img/tier 폴더의 이미지 사용 (imgTier)
+   - 호버 시 검정 배경/흰 글씨 "평균 티어" 툴팁 노출
+   - 참가자별 티어 데이터가 없어 현재는 소환사 본인 티어를 평균값으로 사용
 ════════════════════════════════════════════════════════════════ */
 const TIER_APEX = new Set(['MASTER', 'GRANDMASTER', 'CHALLENGER']);
-function TierBadge({ tier, rank }) {
+function AverageTierBadge({ tier, rank }) {
+  const [hover, setHover] = useState(false);
   if (!tier) return null;
   const name = tier.charAt(0) + tier.slice(1).toLowerCase();
   const text = TIER_APEX.has(tier) ? name : `${name} ${rank ?? ''}`.trim();
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 3,
-      marginTop: 3, fontSize: 10, fontWeight: 700,
-      color: T.gold,
-    }}>
-      <span style={{ fontSize: 9 }}>🔥</span>{text}
+    <span
+      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center',
+        gap: 4, marginTop: 3, cursor: 'default' }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
+      <img src={imgTier(tier)} alt={name}
+        style={{ width: 18, height: 18, objectFit: 'contain', flexShrink: 0 }}
+        onError={e => { e.target.style.display = 'none'; }} />
+      <span style={{ fontSize: 11, fontWeight: 700, color: T.gold }}>{text}</span>
+
+      {hover && (
+        <span style={{
+          position: 'absolute', bottom: 'calc(100% + 6px)', left: 0,
+          background: '#000', color: '#fff',
+          fontSize: 11, fontWeight: 600, lineHeight: '14px',
+          padding: '4px 8px', borderRadius: 4, whiteSpace: 'nowrap',
+          pointerEvents: 'none', zIndex: 20,
+        }}>평균 티어</span>
+      )}
     </span>
   );
 }
@@ -657,6 +675,11 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
     : match.myWin
       ? 'rgba(83,131,243,0.20)'
       : 'rgba(232,64,87,0.20)';
+  /* 토글 스트립 배경 (승/패 색의 옅은 톤) */
+  const accentSoft      = isRemake ? 'rgba(255,255,255,0.04)'
+    : match.myWin ? 'rgba(83,131,243,0.14)' : 'rgba(232,64,87,0.14)';
+  const accentSoftHover = isRemake ? 'rgba(255,255,255,0.09)'
+    : match.myWin ? 'rgba(83,131,243,0.24)' : 'rgba(232,64,87,0.24)';
 
   const items = [match.myItem0, match.myItem1, match.myItem2,
                  match.myItem3, match.myItem4, match.myItem5, match.myItem6];
@@ -761,8 +784,8 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
               </span>
             )}
           </div>
-          {/* 티어 (랭크 큐일 때만) */}
-          <div><TierBadge tier={match.myTier} rank={match.myRank} /></div>
+          {/* 평균 티어 (랭크 큐일 때만) */}
+          <div><AverageTierBadge tier={match.myTier} rank={match.myRank} /></div>
         </div>
 
         {/* 아이템 */}
@@ -800,24 +823,28 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
           </div>
         )}
 
-        {/* 토글 버튼 */}
-        <button onClick={() => onToggle(match.matchId)} style={{
-          background: 'rgba(255,255,255,0.04)',
-          border: `1px solid ${T.border}`,
-          color: T.txtSub, borderRadius: 5, padding: '6px 14px',
-          fontSize: 12, cursor: 'pointer', flexShrink: 0,
-          transition: 'border-color 0.15s, color 0.15s',
-        }}
-          onMouseEnter={e => {
-            e.currentTarget.style.borderColor = accent;
-            e.currentTarget.style.color = accent;
+        {/* 토글 버튼 — 우측 끝 전체 높이 스트립 + 승/패 색 체브론 */}
+        <button onClick={() => onToggle(match.matchId)}
+          aria-label={isExpanded ? '접기' : '상세 보기'}
+          style={{
+            alignSelf: 'stretch',
+            margin: '-10px -14px -10px 0',   // 요약 행 패딩 상쇄 → 카드 우측 끝까지 채움
+            padding: '0 14px',
+            background: accentSoft,
+            border: 'none', borderLeft: `1px solid ${T.border}`,
+            cursor: 'pointer', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'background 0.15s',
           }}
-          onMouseLeave={e => {
-            e.currentTarget.style.borderColor = T.border;
-            e.currentTarget.style.color = T.txtSub;
-          }}
+          onMouseEnter={e => { e.currentTarget.style.background = accentSoftHover; }}
+          onMouseLeave={e => { e.currentTarget.style.background = accentSoft; }}
         >
-          {isExpanded ? '접기 ▲' : '상세 ▼'}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+            style={{ transform: isExpanded ? 'rotate(180deg)' : 'none',
+              transition: 'transform 0.2s' }}>
+            <path d="M6 9l6 6 6-6" stroke={accent} strokeWidth="2.5"
+              strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
       </div>
 
