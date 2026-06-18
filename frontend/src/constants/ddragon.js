@@ -20,3 +20,22 @@ export const imgItem        = (id)   => `${IMG_BASE}/img/item/${id}.png`;
 export const imgSpell       = (file) => `${IMG_BASE}/img/spell/${file}`;
 // profileicon은 로컬에 없으므로 외부 CDN 사용
 export const imgProfileIcon = (id)   => `${DATA_CDN}/img/profileicon/${id}.png`;
+
+// 랭크 이미지 (tier: 'GOLD', 'SILVER' 등 대소문자 무관)
+export const imgRank = (tier) =>
+  `${IMG_BASE}/img/rank/${(tier || 'unranked').toLowerCase()}.png`;
+
+// 룬 이미지 (runesReforged.json의 icon 경로는 버전 없는 cdn/img/ 하위에서 서빙)
+//  - icon 예: 'perk-images/Styles/Domination/Electrocute/Electrocute.png'
+export const RUNE_IMG_BASE = 'https://ddragon.leagueoflegends.com/cdn/img/';
+export const imgRune = (icon) => (icon ? `${RUNE_IMG_BASE}${icon}` : null);
+
+// 룬 메타데이터 JSON (핵심룬/계열 아이콘 매핑용)
+export const runesReforgedUrl = (locale) =>
+  `${DATA_CDN}/data/${locale}/runesReforged.json`;
+
+// 오브젝트 이미지 (teamId: 100=블루, 200=레드)
+// key: 'dragon' | 'baron' | 'tower' | 'inhibitor' | 'herald' | 'horde'
+const OBJ_FILE_MAP = { voidGrub: 'horde', herald: 'herald', dragon: 'dragon', baron: 'baron', tower: 'tower', inhibitor: 'inhibitor' };
+export const imgObjective = (key, teamId) =>
+  `${IMG_BASE}/img/objective/${OBJ_FILE_MAP[key] ?? key}-${teamId}.png`;
