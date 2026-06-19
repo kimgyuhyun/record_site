@@ -1,7 +1,17 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { addRecentSearch } from '../../hooks/useRecentSearches';
 
 const REGIONS = ['KR', 'NA', 'EUW', 'EUNE', 'JP', 'BR', 'LAN', 'LAS', 'OCE', 'TR', 'RU'];
+
+// 네비 항목. to 가 있으면 클릭 시 해당 경로로 이동하고, 없으면 아직 미연결.
+const NAV_ITEMS = [
+  { label: '홈', to: '/' },
+  { label: '챔피언 분석', to: null },
+  { label: '랭킹', to: null },
+  { label: '장인 랭킹', to: null },
+  { label: '멀티서치', to: null },
+];
 
 function SearchIcon() {
   return (
@@ -32,13 +42,21 @@ export default function Header({ region, setRegion }) {
     if (!name) return;
     inputRef.current?.blur();
 
-    if (tagLine) {
+    const regionLower = region.toLowerCase();
+    const to = tagLine
       // 태그 있으면 → 바로 프로필 페이지
-      navigate(`/find/${region.toLowerCase()}/${encodeURIComponent(`${name}-${tagLine}`)}`);
-    } else {
+      ? `/find/${regionLower}/${encodeURIComponent(`${name}-${tagLine}`)}`
       // 태그 없으면 → 검색 결과 페이지 (DB 목록)
-      navigate(`/search?name=${encodeURIComponent(name)}&region=${region.toLowerCase()}`);
-    }
+      : `/search?name=${encodeURIComponent(name)}&region=${regionLower}`;
+
+    // 최근 검색 기록(홈 사이드바에서 사용). 항목 클릭 시 동일 경로로 재이동한다.
+    addRecentSearch({
+      to,
+      label: tagLine ? `${name}#${tagLine}` : name,
+      sub: region.toUpperCase(),
+    });
+
+    navigate(to);
   };
 
   const handleKeyDown = (e) => {
@@ -122,17 +140,19 @@ export default function Header({ region, setRegion }) {
 
         {/* 네비 */}
         <nav style={{ display: 'flex', gap: 2, marginLeft: 'auto', flexShrink: 0 }}>
-          {['홈', '챔피언 분석', '랭킹', '장인 랭킹', '멀티서치'].map(item => (
-            <button key={item} style={{
-              background: 'transparent', border: 'none', color: '#8899aa',
-              fontSize: 13, padding: '6px 10px', cursor: 'pointer',
-              borderRadius: 4, fontFamily: 'inherit', whiteSpace: 'nowrap',
-              transition: 'color 0.15s',
-            }}
-            onMouseEnter={e => e.currentTarget.style.color = '#e2e8f0'}
-            onMouseLeave={e => e.currentTarget.style.color = '#8899aa'}
+          {NAV_ITEMS.map(({ label, to }) => (
+            <button key={label}
+              onClick={to ? () => navigate(to) : undefined}
+              style={{
+                background: 'transparent', border: 'none', color: '#8899aa',
+                fontSize: 13, padding: '6px 10px', cursor: to ? 'pointer' : 'default',
+                borderRadius: 4, fontFamily: 'inherit', whiteSpace: 'nowrap',
+                transition: 'color 0.15s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = '#e2e8f0'}
+              onMouseLeave={e => e.currentTarget.style.color = '#8899aa'}
             >
-              {item}
+              {label}
             </button>
           ))}
         </nav>
