@@ -44,7 +44,7 @@ public class Item {
     @Column(nullable = false)
     private boolean purchasable; // 구매 가능 여부
 
-    @Column(nullable = true)
+    @Column(nullable = true, columnDefinition = "TEXT")
     private String tags; // 태그
 
 

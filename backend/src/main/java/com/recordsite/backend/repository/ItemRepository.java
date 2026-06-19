@@ -5,5 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ItemRepository extends JpaRepository<Item, Long> {
 
-    boolean existsByItemKey(String  itemKey);
+    Item findByItemKey(String itemKey);
 }

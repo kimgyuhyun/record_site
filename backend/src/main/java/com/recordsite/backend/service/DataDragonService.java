@@ -25,7 +25,7 @@ public class DataDragonService {
     private final RunePathRepository runePathRepository;
     private final RuneRepository runeRepository;
 
-    private static final String VERSION = "16.5.1";
+    private static final String VERSION = "16.12.1";
     private static final String BASE_URL = "https://ddragon.leagueoflegends.com/cdn/" + VERSION;
 
     // 챔피언 목록 가져와서 하나씩 상세 JSON 호출 + 저장
@@ -36,9 +36,10 @@ public class DataDragonService {
         Map<String, Object> dataMap = (Map<String, Object>) response.get("data");
 
         for (String championId : dataMap.keySet()) {
-            if (championRepository.existsByChampionId(championId)) {
-                log.info("이미 존재하는 챔피언: {}", championId);
-                continue;
+            Champion existing = championRepository.findByChampionId(championId);
+            if (existing != null) {
+                // 패치로 스탯/스킨 등이 바뀔 수 있어서 자식까지 통째로 지우고 새로 저장 (upsert)
+                championRepository.delete(existing);
             }
 
             String detailUrl = BASE_URL + "/data/ko_KR/champion/" + championId + ".json";
@@ -182,9 +183,9 @@ public class DataDragonService {
         Map<String, Object> dataMap = (Map<String, Object>) response.get("data");
 
         for (String itemKey : dataMap.keySet()) {
-            if (itemRepository.existsByItemKey(itemKey)) {
-                log.info("이미 존재하는 아이템: {}", itemKey);
-                continue;
+            Item existing = itemRepository.findByItemKey(itemKey);
+            if (existing != null) {
+                itemRepository.delete(existing); // 패치로 가격/효과가 바뀔 수 있어서 upsert
             }
 
             Map<String, Object> itemData = (Map<String, Object>) dataMap.get(itemKey);
@@ -252,8 +253,9 @@ public class DataDragonService {
 
                 for (Map<String, Object> runeData : runes) {
                     Integer runeKey = (Integer) runeData.get("id");
-                    if (runeRepository.existsByRuneKey(runeKey)) {
-                        continue;
+                    Rune existing = runeRepository.findByRuneKey(runeKey);
+                    if (existing != null) {
+                        runeRepository.delete(existing); // 패치로 설명/이름이 바뀔 수 있어서 upsert
                     }
 
                     Rune rune = new Rune();

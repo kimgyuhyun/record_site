@@ -6,10 +6,14 @@
  *
  * 버전 바꿀 때 VERSION 하나만 수정하면 됩니다.
  */
-export const DDRAGON_VERSION = '16.5.1';
+export const DDRAGON_VERSION = '16.12.1';
 
-// 이미지 (로컬 static)
+// 이미지 (로컬 static, 패치 버전에 종속)
 export const IMG_BASE = `/cdn/${DDRAGON_VERSION}`;
+
+// rank/tier/objective는 ddragon 패치 자산이 아니라 직접 받아둔 고정 이미지라서
+// 버전 폴더 밖의 경로에 둔다 (버전 올려도 깨지지 않게)
+export const STATIC_IMG_BASE = '/static';
 
 // JSON 데이터는 외부 CDN 사용 (용량 문제로 로컬 저장 X)
 export const DATA_CDN = `https://ddragon.leagueoflegends.com/cdn/${DDRAGON_VERSION}`;
@@ -23,13 +27,13 @@ export const imgProfileIcon = (id)   => `${DATA_CDN}/img/profileicon/${id}.png`;
 
 // 랭크 이미지 (tier: 'GOLD', 'SILVER' 등 대소문자 무관)
 export const imgRank = (tier) =>
-  `${IMG_BASE}/img/rank/${(tier || 'unranked').toLowerCase()}.png`;
+  `${STATIC_IMG_BASE}/rank/${(tier || 'unranked').toLowerCase()}.png`;
 
 // 평균 티어 엠블럼 (전적 카드 전용 - rank 폴더와 별개 이미지 세트, .webp)
 //  - 파일명: iron.webp · bronze.webp · silver.webp · gold.webp · platinum.webp
 //    emerald.webp · diamond.webp · master.webp · grandmaster.webp · challenger.webp
 export const imgTier = (tier) =>
-  `${IMG_BASE}/img/tier/${(tier || 'unranked').toLowerCase()}.webp`;
+  `${STATIC_IMG_BASE}/tier/${(tier || 'unranked').toLowerCase()}.webp`;
 
 // 룬 이미지 (runesReforged.json의 icon 경로는 버전 없는 cdn/img/ 하위에서 서빙)
 //  - icon 예: 'perk-images/Styles/Domination/Electrocute/Electrocute.png'
@@ -49,4 +53,4 @@ export const runesReforgedUrl = (locale) =>
 // key: 'dragon' | 'baron' | 'tower' | 'inhibitor' | 'herald' | 'horde'
 const OBJ_FILE_MAP = { voidGrub: 'horde', herald: 'herald', dragon: 'dragon', baron: 'baron', tower: 'tower', inhibitor: 'inhibitor' };
 export const imgObjective = (key, teamId) =>
-  `${IMG_BASE}/img/objective/${OBJ_FILE_MAP[key] ?? key}-${teamId}.png`;
+  `${STATIC_IMG_BASE}/objective/${OBJ_FILE_MAP[key] ?? key}-${teamId}.png`;
