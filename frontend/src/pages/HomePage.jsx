@@ -2,14 +2,13 @@ import React from 'react';
 import useChampionMeta from '../hooks/useChampionMeta';
 import PatchNotes from '../components/home/PatchNotes';
 import ChampionRotation from '../components/home/ChampionRotation';
-import ChampionSkinSale from '../components/home/ChampionSkinSale';
 import HomeSidebar from '../components/home/HomeSidebar';
 
 /*
  * 홈 랜딩.
- *  - 좌측: 주요 챔피언 / 패치노트 / 로테이션 / 세일
+ *  - 좌측: 패치노트 / 로테이션
  *  - 우측: 배너 / 즐겨찾기 / 최근 검색
- *  - 챔피언 메타(id→key/이름)는 여기서 1회 로드해 좌측 컴포넌트에 전달(중복 fetch 방지).
+ *  - 챔피언 메타(id→key/이름)는 여기서 1회 로드해 로테이션 컴포넌트에 전달.
  */
 export default function HomePage() {
   const { championKeyById, championNameById } = useChampionMeta();
@@ -22,9 +21,6 @@ export default function HomePage() {
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <PatchNotes />
           <ChampionRotation
-            championKeyById={championKeyById}
-            championNameById={championNameById} />
-          <ChampionSkinSale
             championKeyById={championKeyById}
             championNameById={championNameById} />
         </div>
