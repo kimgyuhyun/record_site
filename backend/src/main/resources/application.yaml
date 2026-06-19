@@ -8,8 +8,14 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate
     show-sql: true
+  flyway:
+    enabled: true
+    # 기존에 ddl-auto로 만들어둔 테이블이 이미 있어서, 그 시점을 베이스라인으로 잡고 그 이후 변경만 마이그레이션으로 관리
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
 
 
 riot:

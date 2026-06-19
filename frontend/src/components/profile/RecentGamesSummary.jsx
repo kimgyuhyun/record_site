@@ -153,7 +153,7 @@ export default function RecentGamesSummary({ matches = [], championKeyById = {},
         />
       </div>
 
-      {/* 본문 3분할 — 비례 flex(1 : 1.25 : 1)로 폭을 균등 분배해 밸런스 유지 */}
+      {/* 본문 3분할 — 세 영역 동일 폭(flex 1) */}
       <div style={{ display: 'flex', alignItems: 'stretch' }}>
 
         {/* ① 종합 전적 */}
@@ -181,7 +181,7 @@ export default function RecentGamesSummary({ matches = [], championKeyById = {},
         </div>
 
         {/* ② 플레이한 챔피언 */}
-        <div style={{ flex: '1.25 1 0', minWidth: 0,
+        <div style={{ flex: '1 1 0', minWidth: 0,
           borderLeft: `1px solid ${C.divider}`, paddingLeft: 24, paddingRight: 20 }}>
           <div style={{ color: C.sub, fontSize: 12, marginBottom: 12 }}>
             플레이한 챔피언 (최근 {stat.total}게임)
@@ -213,21 +213,22 @@ export default function RecentGamesSummary({ matches = [], championKeyById = {},
           })}
         </div>
 
-        {/* ③ 선호 포지션 (랭크) */}
+        {/* ③ 선호 포지션 (랭크) — 남는 세로 공간에 맞춰 막대 그룹을 수직 중앙 정렬 */}
         <div style={{ flex: '1 1 0', minWidth: 0,
-          borderLeft: `1px solid ${C.divider}`, paddingLeft: 24 }}>
+          borderLeft: `1px solid ${C.divider}`, paddingLeft: 24,
+          display: 'flex', flexDirection: 'column' }}>
           <div style={{ color: C.sub, fontSize: 12, marginBottom: 12 }}>선호 포지션 (랭크)</div>
-          <div style={{ display: 'flex', alignItems: 'flex-end',
-            justifyContent: 'space-between', height: 72, padding: '0 4px' }}>
+          <div style={{ flex: 1, minHeight: 90, display: 'flex',
+            alignItems: 'center', justifyContent: 'center', gap: 16 }}>
             {POSITIONS.map(p => {
               const count = stat.posMap.get(p.key) || 0;
               const isTop = count > 0 && count === stat.maxPos;
-              const barH = Math.max(4, Math.round((count / stat.maxPos) * 56));
+              const barH = Math.max(4, Math.round((count / stat.maxPos) * 64));
               const color = isTop ? C.win : '#33445a';
               return (
                 <div key={p.key} style={{ display: 'flex', flexDirection: 'column',
                   alignItems: 'center', gap: 7 }} title={`${p.label} ${count}게임`}>
-                  <div style={{ width: 16, height: 56, background: C.inner, borderRadius: 3,
+                  <div style={{ width: 16, height: 64, background: C.inner, borderRadius: 3,
                     display: 'flex', alignItems: 'flex-end', overflow: 'hidden' }}>
                     <div style={{ width: '100%', height: barH, background: color, borderRadius: 3,
                       transition: 'height 0.4s ease' }} />

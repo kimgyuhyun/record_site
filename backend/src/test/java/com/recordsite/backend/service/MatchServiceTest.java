@@ -32,6 +32,8 @@ class MatchServiceTest {
     @Mock RiotMatchClient riotMatchClient;
     @Mock LeagueService leagueService;
     @Mock SummonerService summonerService;
+    @Mock RankSnapshotService rankSnapshotService;
+    @Mock SummonerCrawlService summonerCrawlService;
 
     @InjectMocks MatchService matchService;
 
