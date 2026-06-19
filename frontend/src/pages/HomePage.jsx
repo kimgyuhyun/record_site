@@ -1,6 +1,5 @@
 import React from 'react';
 import useChampionMeta from '../hooks/useChampionMeta';
-import FeaturedChampions from '../components/home/FeaturedChampions';
 import PatchNotes from '../components/home/PatchNotes';
 import ChampionRotation from '../components/home/ChampionRotation';
 import ChampionSkinSale from '../components/home/ChampionSkinSale';
@@ -21,9 +20,6 @@ export default function HomePage() {
 
         {/* 좌측 메인 컬럼 */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <FeaturedChampions
-            championKeyById={championKeyById}
-            championNameById={championNameById} />
           <PatchNotes />
           <ChampionRotation
             championKeyById={championKeyById}
