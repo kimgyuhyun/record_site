@@ -20,6 +20,8 @@ public class QMatch extends EntityPathBase<Match> {
 
     public static final QMatch match = new QMatch("match");
 
+    public final ListPath<MatchBan, QMatchBan> banList = this.<MatchBan, QMatchBan>createList("banList", MatchBan.class, QMatchBan.class, PathInits.DIRECT2);
+
     public final NumberPath<Integer> blueBaronKills = createNumber("blueBaronKills", Integer.class);
 
     public final NumberPath<Integer> blueDragonKills = createNumber("blueDragonKills", Integer.class);

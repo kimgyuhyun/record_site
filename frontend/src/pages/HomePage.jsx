@@ -2,6 +2,7 @@ import React from 'react';
 import useChampionMeta from '../hooks/useChampionMeta';
 import PatchNotes from '../components/home/PatchNotes';
 import ChampionRotation from '../components/home/ChampionRotation';
+import MajorChampions from '../components/home/MajorChampions';
 import HomeSidebar from '../components/home/HomeSidebar';
 
 /*
@@ -21,6 +22,9 @@ export default function HomePage() {
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <PatchNotes />
           <ChampionRotation
+            championKeyById={championKeyById}
+            championNameById={championNameById} />
+          <MajorChampions
             championKeyById={championKeyById}
             championNameById={championNameById} />
         </div>

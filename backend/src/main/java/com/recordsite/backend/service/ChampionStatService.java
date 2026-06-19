@@ -1,9 +1,11 @@
 package com.recordsite.backend.service;
 
+import com.recordsite.backend.dto.ChampionBanCount;
 import com.recordsite.backend.dto.ChampionPositionAggregate;
 import com.recordsite.backend.dto.ChampionTierRowDto;
 import com.recordsite.backend.dto.PlayedChampionStatDto;
 import com.recordsite.backend.entity.QueueType;
+import com.recordsite.backend.repository.MatchBanRepository;
 import com.recordsite.backend.repository.ParticipantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,7 @@ public class ChampionStatService {
     private static final int PICKS_PER_MATCH = 10;
 
     private final ParticipantRepository participantRepository;
+    private final MatchBanRepository matchBanRepository;
 
     @Transactional(readOnly = true)
     public List<PlayedChampionStatDto> getPlayedChampions(String puuid, QueueType queueType) {
@@ -42,6 +45,10 @@ public class ChampionStatService {
         long totalPicks = rows.stream().mapToLong(ChampionPositionAggregate::games).sum();
         long totalMatches = totalPicks / PICKS_PER_MATCH;
 
+        // 챔피언별 밴된 매치 수(밴율 분자). 같은 큐 필터로 집계한다.
+        Map<Integer, Long> banCountByChampion = matchBanRepository.aggregateBanCounts(queueId).stream()
+                .collect(Collectors.toMap(ChampionBanCount::championId, ChampionBanCount::banCount));
+
         // 챔피언 단위로 포지션을 합산하고, 가장 많이 플레이된 포지션을 주 포지션으로 잡는다.
         Map<Integer, List<ChampionPositionAggregate>> byChampion = rows.stream()
                 .collect(Collectors.groupingBy(ChampionPositionAggregate::championId));
@@ -53,10 +60,11 @@ public class ChampionStatService {
             ChampionPositionAggregate primary = positions.stream()
                     .max(Comparator.comparingLong(ChampionPositionAggregate::games))
                     .orElse(positions.get(0));
+            long banCount = banCountByChampion.getOrDefault(primary.championId(), 0L);
 
             tierRows.add(ChampionTierRowDto.of(
                     primary.championId(), primary.championName(), primary.teamPosition(),
-                    games, wins, totalMatches));
+                    games, wins, banCount, totalMatches));
         }
 
         tierRows.sort(Comparator.comparingDouble(ChampionTierRowDto::score).reversed());

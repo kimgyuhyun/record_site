@@ -26,6 +26,10 @@ public class Match {
     @Builder.Default
     private List<Participant> participantList = new ArrayList<>(); // 참가자 10명의 puuID List
 
+    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<MatchBan> banList = new ArrayList<>(); // 이 매치에서 밴된 챔피언들 (밴율 집계용)
+
     @Column
     private Long gameCreation; // 게임 생성 시간
 
@@ -100,7 +104,7 @@ public class Match {
         String platformId = (res.getInfo() != null && res.getInfo().getPlatformId() != null)
                 ? res.getInfo().getPlatformId() : "";
 
-        return Match.builder()
+        Match match = Match.builder()
                 .matchId(res.getMetadata().getMatchId())
                 .gameCreation(res.getInfo().getGameCreation())
                 .gameDuration(res.getInfo().getGameDuration())
@@ -120,6 +124,19 @@ public class Match {
                 .redInhibitorKills(redInhibitorKills)
                 .redRiftHeraldKills(redRiftHeraldKills)
                 .build();
+
+        // 양 팀 밴 목록을 평탄화해 자식(MatchBan)으로 연결. championId <= 0 은 '밴 안 함'이라 제외한다.
+        for (RiotMatchResponse.Info.Team team : res.getInfo().getTeams()) {
+            if (team.getBans() == null) continue;
+            for (RiotMatchResponse.Info.Team.Ban ban : team.getBans()) {
+                if (ban.getChampionId() > 0) {
+                    match.getBanList().add(
+                            MatchBan.of(match, ban.getChampionId(), team.getTeamId(), ban.getPickTurn()));
+                }
+            }
+        }
+
+        return match;
     }
 }
 

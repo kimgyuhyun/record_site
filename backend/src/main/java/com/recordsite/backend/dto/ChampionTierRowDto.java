@@ -11,6 +11,7 @@ public record ChampionTierRowDto(
         double score,
         double winRate,     // 0~100 (%)
         double pickRate,    // 0~100 (%)
+        double banRate,     // 0~100 (%) — 밴된 매치 수 ÷ 전체 매치 수
         long games
 ) {
 
@@ -18,21 +19,22 @@ public record ChampionTierRowDto(
     private static final double SAMPLE_PRIOR = 20.0;
 
     public static ChampionTierRowDto of(int championId, String championName, String position,
-                                        long games, long wins, long totalMatches) {
+                                        long games, long wins, long banCount, long totalMatches) {
         double winRate = games == 0 ? 0.0 : wins * 100.0 / games;
         double pickRate = totalMatches == 0 ? 0.0 : games * 100.0 / totalMatches;
+        double banRate = totalMatches == 0 ? 0.0 : Math.min(banCount * 100.0 / totalMatches, 100.0);
 
         double adjustedWinRate = (wins + SAMPLE_PRIOR * 0.5) / (games + SAMPLE_PRIOR) * 100.0;
         double score = adjustedWinRate + Math.min(pickRate, 30.0) * 0.1;
 
         return new ChampionTierRowDto(
                 championId, championName, position, "",
-                round(score, 2), round(winRate, 1), round(pickRate, 1), games);
+                round(score, 2), round(winRate, 1), round(pickRate, 1), round(banRate, 1), games);
     }
 
     public ChampionTierRowDto withTier(String tier) {
         return new ChampionTierRowDto(
-                championId, championName, position, tier, score, winRate, pickRate, games);
+                championId, championName, position, tier, score, winRate, pickRate, banRate, games);
     }
 
     private static double round(double value, int decimals) {

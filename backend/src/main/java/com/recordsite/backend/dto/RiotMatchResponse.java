@@ -50,7 +50,17 @@ public class RiotMatchResponse {
             private int teamId;
             private boolean win;
 
+            private List<Ban> bans = new ArrayList<>(); // 이 팀이 밴한 챔피언 목록 (드래프트 없는 모드는 빈 목록)
+
             private Objectives objectives; // 팀 오브젝트 획득 정보
+
+            @Getter
+            @Setter
+            @NoArgsConstructor
+            public static class Ban {
+                private int championId; // 밴된 챔피언 id (밴 안 했으면 -1)
+                private int pickTurn;   // 밴 순번
+            }
 
             @Getter
             @Setter
