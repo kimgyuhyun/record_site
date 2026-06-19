@@ -5,6 +5,7 @@ import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import com.recordsite.backend.dto.ChampionPositionAggregate;
 import com.recordsite.backend.dto.MatchRecordDto;
 import com.recordsite.backend.dto.PlayedChampionAggregate;
 import com.recordsite.backend.entity.QMatch;
@@ -123,6 +124,37 @@ public class ParticipantRepositoryCustomImpl implements ParticipantRepositoryCus
                 .where(where)
                 .groupBy(p.championId, p.championName)
                 .orderBy(p.count().desc())
+                .fetch();
+    }
+
+    @Override
+    public List<ChampionPositionAggregate> aggregateChampionStatsByPosition(Integer queueId) {
+        QParticipant p = QParticipant.participant;
+        QMatch m = QMatch.match;
+
+        NumberExpression<Integer> winToInt = new CaseBuilder()
+                .when(p.win.isTrue()).then(1).otherwise(0);
+
+        // 포지션이 비어있는 행(리메이크/칼바람 등)은 티어 리스트 품질을 위해 제외
+        BooleanBuilder where = new BooleanBuilder()
+                .and(p.teamPosition.isNotNull())
+                .and(p.teamPosition.ne(""));
+        if (queueId != null) {
+            where.and(m.queueId.eq(queueId));
+        }
+
+        return queryFactory
+                .select(Projections.constructor(ChampionPositionAggregate.class,
+                        p.championId,
+                        p.championName,
+                        p.teamPosition,
+                        p.count(),
+                        winToInt.sum().longValue()
+                ))
+                .from(p)
+                .join(p.match, m)
+                .where(where)
+                .groupBy(p.championId, p.championName, p.teamPosition)
                 .fetch();
     }
 }

@@ -7,7 +7,7 @@ const REGIONS = ['KR', 'NA', 'EUW', 'EUNE', 'JP', 'BR', 'LAN', 'LAS', 'OCE', 'TR
 // 네비 항목. to 가 있으면 클릭 시 해당 경로로 이동하고, 없으면 아직 미연결.
 const NAV_ITEMS = [
   { label: '홈', to: '/' },
-  { label: '챔피언 분석', to: null },
+  { label: '챔피언 분석', to: '/champions' },
   { label: '랭킹', to: null },
   { label: '장인 랭킹', to: null },
   { label: '멀티서치', to: null },

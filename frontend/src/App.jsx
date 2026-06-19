@@ -4,6 +4,7 @@ import Layout from './components/layout/Layout';
 import HomePage from './pages/HomePage';
 import PlayerPage from './pages/PlayerPage';
 import SearchResultPage from './pages/SearchResultPage';
+import ChampionAnalysisPage from './pages/ChampionAnalysisPage';
 
 function App() {
   const [region, setRegion] = useState('KR');
@@ -12,6 +13,7 @@ function App() {
     <Layout region={region} setRegion={setRegion}>
       <Routes>
         <Route path="/"                      element={<HomePage />} />
+        <Route path="/champions"             element={<ChampionAnalysisPage />} />
         <Route path="/search"                element={<SearchResultPage />} />
         <Route path="/find/:region/:slug"    element={<PlayerPage />} />
       </Routes>

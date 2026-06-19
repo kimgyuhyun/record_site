@@ -14,3 +14,10 @@ export const getChampionMastery = (puuid, limit = 12) =>
 // 현재 무료 로테이션 챔피언 조회 (Riot 라이브 데이터)
 export const getChampionRotation = () =>
   apiClient.get('/api/champion-rotation');
+
+// 전역 챔피언 티어 리스트 조회 (자체 수집 매치 DB 집계)
+// queueType: undefined(전체) | 'SOLO' | 'FLEX'
+export const getChampionTierList = (queueType) =>
+  apiClient.get('/api/champion-stats/tier-list', {
+    params: queueType ? { queueType } : {},
+  });

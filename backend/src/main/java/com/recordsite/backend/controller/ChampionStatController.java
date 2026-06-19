@@ -1,5 +1,6 @@
 package com.recordsite.backend.controller;
 
+import com.recordsite.backend.dto.ChampionTierRowDto;
 import com.recordsite.backend.dto.PlayedChampionStatDto;
 import com.recordsite.backend.entity.QueueType;
 import com.recordsite.backend.service.ChampionStatService;
@@ -25,5 +26,12 @@ public class ChampionStatController {
             @RequestParam String puuid,
             @RequestParam(required = false) QueueType queueType) {
         return ResponseEntity.ok(championStatService.getPlayedChampions(puuid, queueType));
+    }
+
+    // 전역 챔피언 티어 리스트(챔피언 분석 페이지). queueType 미지정 = 전체 큐.
+    @GetMapping("/tier-list")
+    public ResponseEntity<List<ChampionTierRowDto>> getChampionTierList(
+            @RequestParam(required = false) QueueType queueType) {
+        return ResponseEntity.ok(championStatService.getChampionTierList(queueType));
     }
 }
