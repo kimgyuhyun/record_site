@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { getMatchSummary } from '../../api/match';
 import { imgChampion, imgItem, imgSpell, imgObjective, imgRune, imgTier } from '../../constants/ddragon';
 import { getSummonerSpellData, getChampionData, getRuneData } from '../../api/ddragon';
@@ -105,33 +106,6 @@ function KeystoneRunes({ keystoneId, subStyleId, runeIconById, styleIconById }) 
       {subTree
         ? <img src={imgRune(subTree)} alt="" style={{ width: 15, height: 15 }} />
         : <div style={placeholder(15)} />}
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   룬 파편 아이콘 (3개 세로)
-════════════════════════════════════════════════════════════════ */
-const PERK_ICON_MAP = {
-  5008: 'perk-images/StatMods/StatModsAdaptiveForceIcon.png',
-  5005: 'perk-images/StatMods/StatModsAttackSpeedIcon.png',
-  5007: 'perk-images/StatMods/StatModsCDRScalingIcon.png',
-  5002: 'perk-images/StatMods/StatModsArmorIcon.png',
-  5003: 'perk-images/StatMods/StatModsMagicResIcon.MagicResist_fix.png',
-  5001: 'perk-images/StatMods/StatModsHealthScalingIcon.png',
-};
-const PERK_BASE = 'https://ddragon.leagueoflegends.com/cdn/img/';
-
-function RuneIcons({ off, flex, def }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0 }}>
-      {[off, flex, def].map((id, i) =>
-        id && PERK_ICON_MAP[id]
-          ? <img key={i} src={`${PERK_BASE}${PERK_ICON_MAP[id]}`} alt=""
-              style={{ width: 15, height: 15, borderRadius: 2, opacity: 0.8 }} />
-          : <div key={i} style={{ width: 15, height: 15, borderRadius: 2,
-              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }} />
-      )}
     </div>
   );
 }
@@ -419,8 +393,8 @@ function TeamHeader({ label, accentColor, teamSide }) {
 /* ═══════════════════════════════════════════════════════════════
    플레이어 행  (min-height 62px)
 ════════════════════════════════════════════════════════════════ */
-function PlayerRow({ row, championKeyById, spellMap, maxDealt, maxTaken,
-  teamSide, isMe, gameDuration, isWin }) {
+function PlayerRow({ row, championKeyById, spellMap, runeIconById, styleIconById,
+  onSummonerClick, maxDealt, maxTaken, teamSide, isMe, gameDuration, isWin }) {
 
   const items = [row.item0, row.item1, row.item2, row.item3,
                  row.item4, row.item5, row.item6];
@@ -464,7 +438,7 @@ function PlayerRow({ row, championKeyById, spellMap, maxDealt, maxTaken,
       borderBottom: `1px solid ${T.border}`,
     }}>
 
-      {/* ① 플레이어: 챔프 + 스펠 + 파편 + 이름/챔피언명 */}
+      {/* ① 플레이어: 챔프 + 스펠 + 룬 + 이름/챔피언명 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
         {/* 챔프 + 레벨 뱃지 */}
         <div style={{ position: 'relative', flexShrink: 0 }}>
@@ -482,15 +456,27 @@ function PlayerRow({ row, championKeyById, spellMap, maxDealt, maxTaken,
         {/* 스펠 */}
         <SpellIcons spell1={row.spell1} spell2={row.spell2} spellMap={spellMap} />
 
-        {/* 파편 */}
-        <RuneIcons off={row.statPerkOffense} flex={row.statPerkFlex} def={row.statPerkDefense} />
+        {/* 룬 (spell1 옆 핵심룬=주룬, spell2 옆 보조 계열=부룬) */}
+        <KeystoneRunes
+          keystoneId={row.keystoneId}
+          subStyleId={row.subStyleId}
+          runeIconById={runeIconById}
+          styleIconById={styleIconById}
+        />
 
-        {/* 이름 + 챔피언 */}
+        {/* 이름 + 챔피언 (이름 클릭 시 해당 소환사 페이지로 이동) */}
         <div style={{ minWidth: 0 }}>
-          <div style={{
-            color: T.txtName, fontSize: 13, fontWeight: isMe ? 700 : 500,
-            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-          }}>
+          <div
+            onClick={() => onSummonerClick?.(row.gameName, row.tagLine)}
+            title={`${row.gameName}#${row.tagLine}`}
+            style={{
+              color: T.txtName, fontSize: 13, fontWeight: isMe ? 700 : 500,
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              cursor: 'pointer', display: 'inline-block', maxWidth: '100%',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.textDecoration = 'underline'; }}
+            onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none'; }}
+          >
             {row.gameName}
             <span style={{ color: T.txtMuted, fontWeight: 400, fontSize: 11 }}>
               #{row.tagLine}
@@ -564,8 +550,8 @@ function PlayerRow({ row, championKeyById, spellMap, maxDealt, maxTaken,
    팀 섹션 (헤더 + 5명)
    — MVP/ACE 뱃지: 각 팀 내 KDA 1위 → MVP, 2위 → ACE
 ════════════════════════════════════════════════════════════════ */
-function TeamSection({ rows, championKeyById, spellMap, maxDealt, maxTaken,
-  isWin, isRemake, teamSide, myPuuid, gameDuration }) {
+function TeamSection({ rows, championKeyById, spellMap, runeIconById, styleIconById,
+  onSummonerClick, maxDealt, maxTaken, isWin, isRemake, teamSide, myPuuid, gameDuration }) {
 
   /* MVP/ACE 뱃지 할당 */
   const sorted = [...rows].sort((a, b) => {
@@ -608,6 +594,9 @@ function TeamSection({ rows, championKeyById, spellMap, maxDealt, maxTaken,
           row={row}
           championKeyById={championKeyById}
           spellMap={spellMap}
+          runeIconById={runeIconById}
+          styleIconById={styleIconById}
+          onSummonerClick={onSummonerClick}
           maxDealt={maxDealt} maxTaken={maxTaken}
           teamSide={teamSide}
           isMe={row.puuid === myPuuid}
@@ -622,7 +611,7 @@ function TeamSection({ rows, championKeyById, spellMap, maxDealt, maxTaken,
 /* ═══════════════════════════════════════════════════════════════
    상세 테이블  DetailTable
 ════════════════════════════════════════════════════════════════ */
-function DetailTable({ rows, championKeyById, spellMap, myPuuid }) {
+function DetailTable({ rows, championKeyById, spellMap, runeIconById, styleIconById, onSummonerClick, myPuuid }) {
   if (!rows?.length) return (
     <div style={{ color: T.txtMuted, fontSize: 13, padding: '20px 16px' }}>
       데이터가 없습니다.
@@ -647,6 +636,8 @@ function DetailTable({ rows, championKeyById, spellMap, myPuuid }) {
     }}>
       <TeamSection
         rows={blueWin ? blue : red} championKeyById={championKeyById} spellMap={spellMap}
+        runeIconById={runeIconById} styleIconById={styleIconById}
+        onSummonerClick={onSummonerClick}
         maxDealt={maxDealt} maxTaken={maxTaken}
         isWin={true} isRemake={isRemake}
         teamSide={blueWin ? 'blue' : 'red'} myPuuid={myPuuid} gameDuration={gameDur}
@@ -659,6 +650,8 @@ function DetailTable({ rows, championKeyById, spellMap, myPuuid }) {
       />
       <TeamSection
         rows={blueWin ? red : blue} championKeyById={championKeyById} spellMap={spellMap}
+        runeIconById={runeIconById} styleIconById={styleIconById}
+        onSummonerClick={onSummonerClick}
         maxDealt={maxDealt} maxTaken={maxTaken}
         isWin={false} isRemake={isRemake}
         teamSide={blueWin ? 'red' : 'blue'} myPuuid={myPuuid} gameDuration={gameDur}
@@ -671,7 +664,7 @@ function DetailTable({ rows, championKeyById, spellMap, myPuuid }) {
    매치 카드 (요약 행 + 드롭다운)
 ════════════════════════════════════════════════════════════════ */
 function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconById,
-  onToggle, isExpanded, summaryLoading, summaryRows }) {
+  onSummonerClick, onToggle, isExpanded, summaryLoading, summaryRows }) {
 
   const isRemake    = match.gameEndedInEarlySurrender;
   const resultText  = isRemake ? '다시하기' : match.myWin ? '승리' : '패배';
@@ -828,12 +821,18 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
                       championName={r.championName}
                       size={16}
                     />
-                    <span style={{
-                      fontSize: 11, color: r.puuid === match.myPuuid ? T.txtName : T.txtSub,
-                      fontWeight: r.puuid === match.myPuuid ? 700 : 400,
-                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                      maxWidth: 66,
-                    }}>{r.gameName}</span>
+                    <span
+                      onClick={(e) => { e.stopPropagation(); onSummonerClick?.(r.gameName, r.tagLine); }}
+                      title={`${r.gameName}#${r.tagLine}`}
+                      style={{
+                        fontSize: 11, color: r.puuid === match.myPuuid ? T.txtName : T.txtSub,
+                        fontWeight: r.puuid === match.myPuuid ? 700 : 400,
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        maxWidth: 66, cursor: 'pointer',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.textDecoration = 'underline'; }}
+                      onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none'; }}
+                    >{r.gameName}</span>
                   </div>
                 ))}
               </div>
@@ -877,6 +876,9 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
                 rows={summaryRows}
                 championKeyById={championKeyById}
                 spellMap={spellMap}
+                runeIconById={runeIconById}
+                styleIconById={styleIconById}
+                onSummonerClick={onSummonerClick}
                 myPuuid={match.myPuuid}
               />
           }
@@ -890,6 +892,17 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
    메인 export
 ════════════════════════════════════════════════════════════════ */
 export default function MatchList({ matches = [] }) {
+  const navigate = useNavigate();
+  const { region } = useParams(); // 현재 소환사 페이지의 리전(/find/:region/:slug). 같은 리전으로 이동시킨다.
+  const regionLower = (region || 'kr').toLowerCase();
+
+  // 참가자 이름 클릭 → 해당 소환사 페이지로 이동. DB에 없으면 백엔드가 Riot에서 기본 정보를 받아 저장한다.
+  const goToSummoner = (gameName, tagLine) => {
+    if (!gameName) return;
+    const slug = tagLine ? `${gameName}-${tagLine}` : gameName;
+    navigate(`/find/${regionLower}/${encodeURIComponent(slug)}`);
+  };
+
   const [expandedMap,       setExpandedMap]      = useState({});
   const [summaryMap,        setSummaryMap]        = useState({});
   const [summaryLoadingMap, setSummaryLoadingMap] = useState({});
@@ -967,6 +980,7 @@ export default function MatchList({ matches = [] }) {
           key={m.matchId} match={m}
           championKeyById={championKeyById} spellMap={spellMap}
           runeIconById={runeIconById} styleIconById={styleIconById}
+          onSummonerClick={goToSummoner}
           onToggle={toggleSummary}
           isExpanded={!!expandedMap[m.matchId]}
           summaryLoading={!!summaryLoadingMap[m.matchId]}
