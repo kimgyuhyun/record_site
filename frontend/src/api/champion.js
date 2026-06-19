@@ -10,3 +10,7 @@ export const getChampionStats = (puuid, queueType) =>
 // 챔피언 숙련도 상위 N개 조회 (Riot 라이브 데이터)
 export const getChampionMastery = (puuid, limit = 12) =>
   apiClient.get('/api/champion-mastery', { params: { puuid, limit } });
+
+// 현재 무료 로테이션 챔피언 조회 (Riot 라이브 데이터)
+export const getChampionRotation = () =>
+  apiClient.get('/api/champion-rotation');

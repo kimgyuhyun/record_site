@@ -36,6 +36,11 @@ export const imgTier = (tier) =>
 export const RUNE_IMG_BASE = 'https://ddragon.leagueoflegends.com/cdn/img/';
 export const imgRune = (icon) => (icon ? `${RUNE_IMG_BASE}${icon}` : null);
 
+// 스킨 일러스트(세로 카드용 로딩 화면, 308x560) — 버전 없는 cdn/img/ 하위에서 서빙
+//  - key 는 ddragon 영문 id(예: 'Ahri'), num=0 은 기본 스킨
+export const imgSkinLoading = (key, num = 0) =>
+  `${RUNE_IMG_BASE}champion/loading/${key}_${num}.jpg`;
+
 // 룬 메타데이터 JSON (핵심룬/계열 아이콘 매핑용)
 export const runesReforgedUrl = (locale) =>
   `${DATA_CDN}/data/${locale}/runesReforged.json`;
