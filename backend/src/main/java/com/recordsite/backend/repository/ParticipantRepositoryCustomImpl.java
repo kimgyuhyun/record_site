@@ -5,6 +5,7 @@ import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import com.recordsite.backend.dto.ChampionPickCount;
 import com.recordsite.backend.dto.ChampionPositionAggregate;
 import com.recordsite.backend.dto.MatchRecordDto;
 import com.recordsite.backend.dto.PlayedChampionAggregate;
@@ -16,6 +17,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 
 @Repository
@@ -155,6 +157,25 @@ public class ParticipantRepositoryCustomImpl implements ParticipantRepositoryCus
                 .join(p.match, m)
                 .where(where)
                 .groupBy(p.championId, p.championName, p.teamPosition)
+                .fetch();
+    }
+
+    @Override
+    public List<ChampionPickCount> findChampionPickCounts(Collection<String> puuids) {
+        if (puuids.isEmpty()) {
+            return List.of();
+        }
+        QParticipant p = QParticipant.participant;
+
+        return queryFactory
+                .select(Projections.constructor(ChampionPickCount.class,
+                        p.puuid,
+                        p.championId,
+                        p.count()
+                ))
+                .from(p)
+                .where(p.puuid.in(puuids))
+                .groupBy(p.puuid, p.championId)
                 .fetch();
     }
 }

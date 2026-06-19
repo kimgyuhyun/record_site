@@ -38,6 +38,23 @@ public class RiotSummonerClient {
     private String summonerByPuuidPath;
     // puuid로 소환사 상세정보 얻을때 사용
 
+    @Value("${riot.api.account-by-puuid-path}")
+    private String accountByPuuidPath;
+    // puuid로 게임이름#태그(RiotId) 역조회할 때 사용 (랭킹 이름 해소)
+
+    // puuid 로 계정(gameName/tagLine) 조회. 실패 시 null.
+    public RiotAccountResponse getAccountByPuuid(String puuid) {
+        String url = asiaBaseUrl + accountByPuuidPath;
+
+        URI uri = UriComponentsBuilder
+                .fromHttpUrl(url)
+                .queryParam("api_key", apiKey)
+                .buildAndExpand(puuid)
+                .toUri();
+
+        return restTemplate.getForObject(uri, RiotAccountResponse.class);
+    }
+
 
     // gameName과 tagLine 으로 puuid 얻는 함수
     public RiotSummonerResponse getSummonerByRiotId(String gameName, String tagLine) {

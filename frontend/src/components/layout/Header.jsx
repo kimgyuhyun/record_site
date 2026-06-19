@@ -8,7 +8,7 @@ const REGIONS = ['KR', 'NA', 'EUW', 'EUNE', 'JP', 'BR', 'LAN', 'LAS', 'OCE', 'TR
 const NAV_ITEMS = [
   { label: '홈', to: '/' },
   { label: '챔피언 분석', to: '/champions' },
-  { label: '랭킹', to: null },
+  { label: '랭킹', to: '/ranking' },
   { label: '장인 랭킹', to: null },
   { label: '멀티서치', to: null },
 ];

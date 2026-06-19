@@ -19,6 +19,7 @@ riot:
     asia-base-url: https://asia.api.riotgames.com
 
     account-by-riot-id-path: /riot/account/v1/accounts/by-riot-id/{gameName}/{tagLine}
+    account-by-puuid-path: /riot/account/v1/accounts/by-puuid/{puuid}
     summoner-by-puuid-path: /lol/summoner/v4/summoners/by-puuid/{puuid}
 
     match-ids-by-puuid-path: /lol/match/v5/matches/by-puuid/{puuid}/ids
@@ -41,3 +42,11 @@ riot:
     max-depth: 1              # 검색 유저(0)로부터 몇 단계까지 확장할지. 1 = 직접 만난 동료까지만
     daily-limit: 300          # 하루 최대 처리 puuid 수(폭주 방지)
     matches-per-puuid: 10     # 크롤링 puuid 1명당 수집할 최근 매치 수
+
+  # 상위 티어 사다리 랭킹 주기 갱신(실시간 아님 — 30~60분마다 스냅샷)
+  ranking:
+    enabled: true
+    refresh-interval-ms: 3600000   # 갱신 주기(기본 1시간)
+    initial-delay-ms: 60000        # 기동 후 첫 갱신까지 지연(다른 초기화와 겹치지 않게)
+    top-n: 300                     # 사다리 상위 몇 명까지 적재할지(이름 해소 호출량을 이 수로 제한)
+    most-champion-count: 7         # 행마다 보여줄 모스트 챔피언 수(우리 DB 기준)
