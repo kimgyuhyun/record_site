@@ -31,6 +31,7 @@ public class MatchService {
     private final LeagueService leagueService;
     private final SummonerService summonerService;
     private final RankSnapshotService rankSnapshotService;
+    private final SummonerCrawlService summonerCrawlService;
 
 
     // ──────────────────────────────────────────
@@ -99,6 +100,9 @@ public class MatchService {
 
         // 갱신된 현재 LP를 최신 랭크 매치에 스냅샷으로 박아둠 (판당 LP 증감 계산 근거)
         rankSnapshotService.recordSnapshots(puuid);
+
+        // 이번에 만난 동료 puuid 들을 크롤러 큐에 적재 → 백그라운드로 매치망 점진 확장(챔피언 통계 표본 확보)
+        summonerCrawlService.enqueueNeighborsFromMatches(newMatchIds, 1, puuid);
 
         return newCount;
     }
