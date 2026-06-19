@@ -25,5 +25,19 @@ riot:
     match-by-id-path: /lol/match/v5/matches/{matchId}
 
     league-entries-by-puuid-path: /lol/league/v4/entries/by-puuid/{puuid}
+    league-apex-by-queue-path: /lol/league/v4/{apexTier}/by-queue/{queue}
 
     champion-mastery-by-puuid-path: /lol/champion-mastery/v4/champion-masteries/by-puuid/{puuid}
+
+    # 개발용 키 한도(20 req/s, 100 req/2분)보다 살짝 낮게 잡아 429 여유 확보. 모든 Riot 호출이 공유.
+    rate-limit:
+      requests-per-second: 18
+      requests-per-two-minutes: 95
+
+  # 매치망 점진 수집 크롤러(검색된 유저의 동료 puuid를 백그라운드로 따라가며 매치 누적)
+  crawler:
+    enabled: true
+    interval-ms: 20000        # 스케줄러 처리 간격(이전 처리 종료 후 대기). 실제 속도는 레이트리밋이 결정
+    max-depth: 1              # 검색 유저(0)로부터 몇 단계까지 확장할지. 1 = 직접 만난 동료까지만
+    daily-limit: 300          # 하루 최대 처리 puuid 수(폭주 방지)
+    matches-per-puuid: 10     # 크롤링 puuid 1명당 수집할 최근 매치 수
