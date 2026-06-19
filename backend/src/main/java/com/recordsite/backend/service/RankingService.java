@@ -38,11 +38,13 @@ import java.util.stream.Collectors;
 public class RankingService {
 
     private static final String SOLO_QUEUE = "RANKED_SOLO_5x5";
+    private static final String FLEX_QUEUE = "RANKED_FLEX_SR";
 
     private final RiotLeagueClient riotLeagueClient;
     private final RiotSummonerClient riotSummonerClient;
     private final LadderEntryRepository ladderEntryRepository;
     private final ParticipantRepository participantRepository;
+    private final LadderSnapshotWriter ladderSnapshotWriter;
 
     @Value("${riot.ranking.enabled:true}")
     private boolean enabled;
@@ -59,14 +61,20 @@ public class RankingService {
     @Scheduled(
             fixedDelayString = "${riot.ranking.refresh-interval-ms:3600000}",
             initialDelayString = "${riot.ranking.initial-delay-ms:60000}")
-    public void refreshSoloLadder() {
+    public void refreshApexLadders() {
         if (!enabled) {
             return;
         }
+        // 솔로/자유를 각각 독립적으로 갱신해, 한쪽 실패가 다른 쪽 갱신을 막지 않게 한다.
+        refreshLadderSafely(QueueType.SOLO, SOLO_QUEUE);
+        refreshLadderSafely(QueueType.FLEX, FLEX_QUEUE);
+    }
+
+    private void refreshLadderSafely(QueueType queueType, String riotQueue) {
         try {
-            refreshLadder(QueueType.SOLO, SOLO_QUEUE);
+            refreshLadder(queueType, riotQueue);
         } catch (Exception e) {
-            log.warn("랭킹 갱신 실패: queue=SOLO, error={}", e.getMessage());
+            log.warn("랭킹 갱신 실패: queue={}, error={}", queueType, e.getMessage());
         }
     }
 
@@ -109,9 +117,8 @@ public class RankingService {
                     r.leaguePoints(), r.wins(), r.losses()));
         }
 
-        // 5. 해당 큐 스냅샷 교체
-        ladderEntryRepository.deleteByQueueType(queueType);
-        ladderEntryRepository.saveAll(entries);
+        // 5. 해당 큐 스냅샷 원자적 교체 (트랜잭션 전담 빈 — 스케줄러 스레드엔 트랜잭션이 없어 명시 필요)
+        ladderSnapshotWriter.replaceSnapshot(queueType, entries);
         log.info("랭킹 갱신 완료: queue={}, {}명", queueType, entries.size());
     }
 
