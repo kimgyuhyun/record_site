@@ -1,19 +1,42 @@
 import React from 'react';
+import useChampionMeta from '../hooks/useChampionMeta';
+import FeaturedChampions from '../components/home/FeaturedChampions';
+import PatchNotes from '../components/home/PatchNotes';
+import ChampionRotation from '../components/home/ChampionRotation';
+import ChampionSkinSale from '../components/home/ChampionSkinSale';
+import HomeSidebar from '../components/home/HomeSidebar';
 
+/*
+ * 홈 랜딩.
+ *  - 좌측: 주요 챔피언 / 패치노트 / 로테이션 / 세일
+ *  - 우측: 배너 / 즐겨찾기 / 최근 검색
+ *  - 챔피언 메타(id→key/이름)는 여기서 1회 로드해 좌측 컴포넌트에 전달(중복 fetch 방지).
+ */
 export default function HomePage() {
+  const { championKeyById, championNameById } = useChampionMeta();
+
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column',
-      justifyContent: 'center', alignItems: 'center',
-      minHeight: 'calc(100vh - 52px)',
-      color: '#4a5568', gap: 14,
-    }}>
-      <div style={{ fontSize: 52, lineHeight: 1 }}>🎮</div>
-      <div style={{ fontSize: 20, fontWeight: 700, color: '#6b7a8d' }}>
-        소환사 이름을 검색하세요
-      </div>
-      <div style={{ fontSize: 13, color: '#3a4a5a' }}>
-        상단 검색창에&nbsp;<span style={{ color: '#5383e8' }}>이름#태그</span>&nbsp;형식으로 입력하세요
+    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '20px 20px 48px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+
+        {/* 좌측 메인 컬럼 */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <FeaturedChampions
+            championKeyById={championKeyById}
+            championNameById={championNameById} />
+          <PatchNotes />
+          <ChampionRotation
+            championKeyById={championKeyById}
+            championNameById={championNameById} />
+          <ChampionSkinSale
+            championKeyById={championKeyById}
+            championNameById={championNameById} />
+        </div>
+
+        {/* 우측 사이드바 */}
+        <div style={{ width: 310, flexShrink: 0 }}>
+          <HomeSidebar />
+        </div>
       </div>
     </div>
   );
