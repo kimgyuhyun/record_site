@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: backend
+  datasource:
+    url: jdbc:mysql://localhost:3307/loldb?characterEncoding=UTF-8&serverTimezone=Asia/Seoul&useServerPrepStmts=false
+    username: root
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+
+
+riot:
+  api:
+    key: ${RIOT_API_KEY}
+    base-url: https://kr.api.riotgames.com
+    asia-base-url: https://asia.api.riotgames.com
+
+    account-by-riot-id-path: /riot/account/v1/accounts/by-riot-id/{gameName}/{tagLine}
+    summoner-by-puuid-path: /lol/summoner/v4/summoners/by-puuid/{puuid}
+
+    match-ids-by-puuid-path: /lol/match/v5/matches/by-puuid/{puuid}/ids
+    match-by-id-path: /lol/match/v5/matches/{matchId}
+
+    league-entries-by-puuid-path: /lol/league/v4/entries/by-puuid/{puuid}
+
+    champion-mastery-by-puuid-path: /lol/champion-mastery/v4/champion-masteries/by-puuid/{puuid}
