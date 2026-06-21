@@ -66,6 +66,10 @@ public class QParticipant extends EntityPathBase<Participant> {
 
     public final NumberPath<Integer> participantId = createNumber("participantId", Integer.class);
 
+    public final NumberPath<Integer> placement = createNumber("placement", Integer.class);
+
+    public final NumberPath<Integer> playerSubteamId = createNumber("playerSubteamId", Integer.class);
+
     public final NumberPath<Integer> primaryStyleId = createNumber("primaryStyleId", Integer.class);
 
     public final StringPath puuid = createString("puuid");
@@ -81,6 +85,8 @@ public class QParticipant extends EntityPathBase<Participant> {
     public final NumberPath<Integer> statPerkOffense = createNumber("statPerkOffense", Integer.class);
 
     public final NumberPath<Integer> subStyleId = createNumber("subStyleId", Integer.class);
+
+    public final NumberPath<Integer> subteamPlacement = createNumber("subteamPlacement", Integer.class);
 
     public final QSummoner summoner;
 

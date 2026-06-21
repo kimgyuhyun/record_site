@@ -66,6 +66,11 @@ public class MatchSummaryDto {
     private int totalMinionsKilled;
     private int neutralMinionsKilled;
 
+    // 아레나(CHERRY) 전용 — 비-아레나 매치에서는 null
+    private Integer placement;
+    private Integer subteamPlacement;
+    private Integer playerSubteamId;
+
     private Integer blueBaronKills;
     private Integer blueDragonKills;
     private int blueTowerKills;
@@ -122,6 +127,9 @@ public class MatchSummaryDto {
                 .teamEarlySurrendered(p.isTeamEarlySurrendered())
                 .totalMinionsKilled(p.getTotalMinionsKilled())
                 .neutralMinionsKilled(p.getNeutralMinionsKilled())
+                .placement(p.getPlacement())
+                .subteamPlacement(p.getSubteamPlacement())
+                .playerSubteamId(p.getPlayerSubteamId())
                 .blueBaronKills(match.getBlueBaronKills())
                 .blueDragonKills(match.getBlueDragonKills())
                 .blueTowerKills(match.getBlueTowerKills())

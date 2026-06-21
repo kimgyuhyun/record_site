@@ -21,6 +21,10 @@ public class ParticipantSummaryDto {
     private int assists;
     private String teamPosition;
 
+    // 아레나(CHERRY) 전용 — 비-아레나 매치에서는 null
+    private Integer subteamPlacement; // 듀오의 최종 등수 = 1~4위
+    private Integer playerSubteamId;  // 듀오 식별자(같은 값이면 한 팀)
+
     public static ParticipantSummaryDto from(Participant p) {
         return ParticipantSummaryDto.builder()
                 .puuid(p.getPuuid())
@@ -34,6 +38,8 @@ public class ParticipantSummaryDto {
                 .deaths(p.getDeaths())
                 .assists(p.getAssists())
                 .teamPosition(p.getTeamPosition())
+                .subteamPlacement(p.getSubteamPlacement())
+                .playerSubteamId(p.getPlayerSubteamId())
                 .build();
     }
 }

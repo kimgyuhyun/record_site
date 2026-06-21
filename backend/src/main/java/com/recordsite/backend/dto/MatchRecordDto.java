@@ -31,7 +31,8 @@ public class MatchRecordDto {
             Integer myPrimaryStyleId, Integer myKeystoneId, Integer mySubStyleId,
             Boolean myGameEndedInEarlySurrender, Boolean myTeamEarlySurrendered,
             int myTotalMinionsKilled, int myNeutralMinionsKilled,
-            int teamKills
+            int teamKills,
+            Integer myPlacement, Integer mySubteamPlacement
     ) {
         this.matchId = matchId;
         this.gameCreation = gameCreation;
@@ -76,6 +77,8 @@ public class MatchRecordDto {
         this.myTotalMinionsKilled = myTotalMinionsKilled;
         this.myNeutralMinionsKilled = myNeutralMinionsKilled;
         this.teamKills = teamKills;
+        this.myPlacement = myPlacement;
+        this.mySubteamPlacement = mySubteamPlacement;
     }
 
     // 매치 메타데이터 정보
@@ -135,6 +138,10 @@ public class MatchRecordDto {
     private int myNeutralMinionsKilled;
 
     private int teamKills;
+
+    // 아레나(CHERRY) 전용 — 카드 좌측에 "N위" 표시용. 비-아레나 매치에서는 null
+    private Integer myPlacement;
+    private Integer mySubteamPlacement;
 
     // Service 레이어에서 주입하는 파생/조합 필드 (Setter만 열어둠)
     @Setter
@@ -197,7 +204,9 @@ public class MatchRecordDto {
                 me.isTeamEarlySurrendered(),
                 me.getTotalMinionsKilled(),
                 me.getNeutralMinionsKilled(),
-                me.getTeamKills()
+                me.getTeamKills(),
+                me.getPlacement(),
+                me.getSubteamPlacement()
         );
     }
 }

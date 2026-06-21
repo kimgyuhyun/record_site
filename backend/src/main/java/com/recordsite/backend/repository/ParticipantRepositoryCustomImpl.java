@@ -74,7 +74,9 @@ public class ParticipantRepositoryCustomImpl implements ParticipantRepositoryCus
                         p.teamEarlySurrendered,
                         p.totalMinionsKilled,
                         p.neutralMinionsKilled,
-                        p.teamKills
+                        p.teamKills,
+                        p.placement,
+                        p.subteamPlacement
                 ))
                 .from(p)
                 .join(p.match, m)

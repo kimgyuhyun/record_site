@@ -57,6 +57,11 @@ public class RiotParticipantResponse {
     private int totalMinionsKilled;
     private int neutralMinionsKilled;
 
+    // 아레나(CHERRY) 전용 필드. 협곡 등 다른 모드에서는 Riot이 0/미포함으로 내려준다 → 래퍼로 받아 null 허용.
+    private Integer placement;         // 개인 최종 등수
+    private Integer subteamPlacement;  // 소속 듀오(2인 팀)의 최종 등수 = 1~4위
+    private Integer playerSubteamId;   // 어느 듀오인지 식별(같은 값이면 한 팀)
+
 
     @Getter
     @Setter

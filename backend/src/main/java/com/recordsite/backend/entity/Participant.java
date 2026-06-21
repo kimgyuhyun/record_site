@@ -123,6 +123,11 @@ public class Participant {
     @Column(nullable = false)
     private int teamKills; // 소속 팀 전체 킬 합산(킬관여율 계산용)
 
+    // 아레나(CHERRY) 전용. 다른 모드 매치에서는 null(래퍼 타입으로 비-아레나 구분).
+    private Integer placement;         // 개인 최종 등수
+    private Integer subteamPlacement;  // 듀오(2인 팀)의 최종 등수 = 1~4위
+    private Integer playerSubteamId;   // 듀오 식별자(같은 값이면 한 팀)
+
     public static Participant from(RiotParticipantResponse res, Match match) {
         // 빌더 체이닝 안에서 null 체크 로직은 불가 -> 미리 추출
         int offense = 0;
@@ -175,6 +180,9 @@ public class Participant {
                 .teamEarlySurrendered(res.isTeamEarlySurrendered())
                 .totalMinionsKilled(res.getTotalMinionsKilled())
                 .neutralMinionsKilled(res.getNeutralMinionsKilled())
+                .placement(res.getPlacement())
+                .subteamPlacement(res.getSubteamPlacement())
+                .playerSubteamId(res.getPlayerSubteamId())
                 .statPerkOffense(offense)
                 .statPerkFlex(flex)
                 .statPerkDefense(defense)
