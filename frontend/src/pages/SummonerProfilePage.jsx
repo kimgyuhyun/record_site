@@ -7,6 +7,7 @@ import ChampionMasterySection from '../components/profile/ChampionMasterySection
 import TabNav from '../components/profile/TabNav';
 import MatchFilterBar from '../components/profile/MatchFilterBar';
 import MatchList from '../components/profile/MatchList';
+import LiveGamePanel from '../components/profile/LiveGamePanel';
 import useChampionMeta from '../hooks/useChampionMeta';
 import { getChampionStats, getChampionMastery } from '../api/champion';
 import { filterMatchesByQueue } from '../constants/queueFilters';
@@ -144,13 +145,7 @@ export default function SummonerProfilePage({
         )
       )}
       {mainTab === '게임 관전하기 - 인게임 정보' && (
-        <div style={{
-          background: '#111c27', border: '1px solid #2a3a4a',
-          borderRadius: 10, padding: '48px 0',
-          textAlign: 'center', color: '#4a5568', fontSize: 15,
-        }}>
-          현재 인게임 중이 아닙니다.
-        </div>
+        <LiveGamePanel puuid={summoner?.puuid} championKeyById={championKeyById} />
       )}
 
       {/* 5. 챔피언 숙련도 */}
