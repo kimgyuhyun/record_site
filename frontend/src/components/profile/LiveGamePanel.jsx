@@ -15,7 +15,19 @@ const QUEUE_NAME = {
   400: '일반(드래프트)', 430: '일반(블라인드)', 490: '빠른 대전',
   700: '격전', 900: 'URF', 1700: '아레나', 1710: '아레나', 1900: 'URF',
 };
-const queueName = (id, mode) => QUEUE_NAME[id] || mode || '게임';
+// queueId가 매핑에 없을 때 gameMode로 보정 (예: 아레나는 CHERRY로 내려오는 경우가 있음)
+const MODE_NAME = {
+  CHERRY: '아레나', ARAM: '칼바람 나락', CLASSIC: '일반', URF: 'URF', ARURF: 'URF',
+  NEXUSBLITZ: '돌격! 넥서스', ONEFORALL: '단일 챔피언', ULTBOOK: '궁극기 주문서',
+};
+const queueName = (id, mode) => QUEUE_NAME[id] || MODE_NAME[mode] || mode || '게임';
+
+// mapId → 한국어 맵 이름 (아레나=30 '번개 고리')
+const MAP_NAME = { 11: '소환사의 협곡', 12: '칼바람 나락', 21: '발로란 도시 공원', 30: '번개 고리' };
+const mapName = (id) => MAP_NAME[id] || '소환사의 협곡';
+
+// 헤더 구분점 (모드 · 맵 · 시간)
+const Sep = () => <span style={{ color: '#3e4a5a', margin: '0 7px', fontWeight: 400 }}>·</span>;
 
 const cardStyle = {
   background: '#111c27', border: '1px solid #2a3a4a',
@@ -132,11 +144,15 @@ export default function LiveGamePanel({ puuid, championKeyById = {} }) {
           width: 8, height: 8, borderRadius: '50%', background: '#2bb673',
           boxShadow: '0 0 8px #2bb673',
         }} />
-        <span style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 700 }}>
-          {queueName(game.gameQueueConfigId, game.gameMode)} 진행 중
+        <span style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center' }}>
+          {queueName(game.gameQueueConfigId, game.gameMode)}
+          <Sep />
+          {mapName(game.mapId)}
+          <Sep />
+          {elapsedStr}
         </span>
-        <span style={{ color: '#6b7a8d', fontSize: 12.5, marginLeft: 'auto' }}>
-          {elapsedStr} 경과
+        <span style={{ color: '#2bb673', fontSize: 12, fontWeight: 700, marginLeft: 'auto' }}>
+          진행 중
         </span>
       </div>
 
