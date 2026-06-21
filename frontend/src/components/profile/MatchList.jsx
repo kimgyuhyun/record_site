@@ -267,6 +267,14 @@ const isArenaMatch = (queueId, gameMode) =>
 const PLACEMENT_COLORS = { 1: '#f0a800', 2: '#9aa7b4', 3: '#c0845a' };
 const placementColor = (p) => PLACEMENT_COLORS[p] || '#6b7a8d';
 
+// playerSubteamId → 아레나 팀 마스코트(한국어). 마스코트는 듀오 슬롯마다 고정이라 id로 역산한다.
+// (CommunityDragon 표준 순서 기준 — 실제 게임에서 이름이 어긋나면 이 표만 고치면 됨)
+const ARENA_TEAM_NAMES = {
+  1: '포로', 2: '미니언', 3: '집게발', 4: '돌거북',
+  5: '칼날부리', 6: '파수꾼', 7: '늑대', 8: '두꺼비',
+};
+const arenaTeamName = (subteamId) => ARENA_TEAM_NAMES[subteamId] || null;
+
 // 참가자들을 듀오(playerSubteamId)로 묶고 등수(subteamPlacement) 오름차순 정렬
 function groupArenaSubteams(parts) {
   const byTeam = new Map();
@@ -654,17 +662,19 @@ function ArenaDetail({ rows, championKeyById, spellMap, runeIconById, styleIconB
       <TeamHeader label="순위" />
       {subteams.map((duo, i) => {
         const placement = duo[0].subteamPlacement ?? duo[0].placement;
+        const teamName  = arenaTeamName(duo[0].playerSubteamId);
         const mine  = duo.some(r => r.puuid === myPuuid);
         const color = placementColor(placement);
         return (
           <div key={duo[0].playerSubteamId ?? i}>
-            {/* 등수 라벨 바 */}
+            {/* 등수 + 팀 이름 라벨 바 (예: #1 돌거북팀) */}
             <div style={{
               padding: '5px 16px', background: `${color}1a`,
               borderBottom: `1px solid ${T.border}`,
               display: 'flex', alignItems: 'center', gap: 8,
             }}>
-              <span style={{ color, fontWeight: 800, fontSize: 13 }}>{placement}위</span>
+              <span style={{ color, fontWeight: 800, fontSize: 13 }}>#{placement}</span>
+              {teamName && <span style={{ color: '#c8d0e0', fontWeight: 700, fontSize: 13 }}>{teamName}팀</span>}
               {mine && <span style={{ color: T.txtSub, fontSize: 11, fontWeight: 600 }}>내 팀</span>}
             </div>
             {duo.map(row => (
@@ -769,7 +779,7 @@ function ArenaMiniList({ parts, championKeyById, myPuuid }) {
           <div key={duo[0].playerSubteamId ?? i}
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
             <span style={{ fontSize: 10, fontWeight: 800, color: placementColor(placement),
-              opacity: mine ? 1 : 0.8 }}>{placement}위</span>
+              opacity: mine ? 1 : 0.8 }}>#{placement}</span>
             <div style={{ display: 'flex', gap: 2 }}>
               {duo.map(r => (
                 <ChampionIcon key={r.puuid} championId={r.championId}
@@ -794,6 +804,10 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
   const arenaPlacement = match.mySubteamPlacement ?? match.myPlacement;
   const isArena     = isArenaMatch(match.queueId, match.gameMode) && arenaPlacement != null;
   const arenaColor  = placementColor(arenaPlacement);
+  // 내 듀오 팀 이름 — 미니 목록(participantSummaryDtos)에서 내 playerSubteamId로 역산
+  const myArenaTeam = isArena
+    ? arenaTeamName(match.participantSummaryDtos?.find(r => r.puuid === match.myPuuid)?.playerSubteamId)
+    : null;
 
   const resultText  = isRemake ? '다시하기'
     : isArena ? `${arenaPlacement}위`
@@ -873,6 +887,9 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
           </div>
           <div style={{ color: T.txtMuted, fontSize: 10, marginBottom: 4 }}>{dateStr}</div>
           <div style={{ color: accent, fontWeight: 800, fontSize: 15 }}>{resultText}</div>
+          {isArena && myArenaTeam && (
+            <div style={{ color: arenaColor, fontSize: 10, fontWeight: 700, marginTop: 1 }}>{myArenaTeam}팀</div>
+          )}
           {hasLp && (
             <div style={{ color: lpColor, fontSize: 11, fontWeight: 700, marginTop: 2 }}>
               {lpText}
