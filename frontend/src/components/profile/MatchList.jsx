@@ -252,6 +252,34 @@ const GAME_MODE_NAME = {
 };
 const getQueueName = (queueId, gameMode) =>
   QUEUE_NAME[queueId] || GAME_MODE_NAME[gameMode] || gameMode || '일반';
+
+/* ═══════════════════════════════════════════════════════════════
+   아레나(CHERRY) 등수 헬퍼
+   - 아레나는 블루/레드 2팀이 아니라 2인 듀오 4팀 → 등수(1~4위)로 표시한다.
+   - subteamPlacement = 듀오 등수, playerSubteamId = 듀오 식별자(같으면 한 팀).
+   - 등수 데이터가 없는(마이그레이션 이전 수집) 옛 매치는 기존 팀 표시로 폴백한다.
+════════════════════════════════════════════════════════════════ */
+const ARENA_QUEUE_IDS = new Set([1700, 1701, 1710]);
+const isArenaMatch = (queueId, gameMode) =>
+  ARENA_QUEUE_IDS.has(queueId) || gameMode === 'CHERRY';
+
+// 1위 금 / 2위 은 / 3위 동 / 그 외 뮤트
+const PLACEMENT_COLORS = { 1: '#f0a800', 2: '#9aa7b4', 3: '#c0845a' };
+const placementColor = (p) => PLACEMENT_COLORS[p] || '#6b7a8d';
+
+// 참가자들을 듀오(playerSubteamId)로 묶고 등수(subteamPlacement) 오름차순 정렬
+function groupArenaSubteams(parts) {
+  const byTeam = new Map();
+  for (const r of parts) {
+    const key = r.playerSubteamId ?? r.teamId ?? 0;
+    if (!byTeam.has(key)) byTeam.set(key, []);
+    byTeam.get(key).push(r);
+  }
+  return [...byTeam.values()].sort(
+    (a, b) => (a[0].subteamPlacement ?? 99) - (b[0].subteamPlacement ?? 99),
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════
    팀 구분선 — 이미지 기준: 승리팀(좌) vs 패배팀(우) 오브젝트 + 양방향 바
    winRows = 승리팀 rows, loseRows = 패배팀 rows
@@ -609,6 +637,60 @@ function TeamSection({ rows, championKeyById, spellMap, runeIconById, styleIconB
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   아레나 상세 — 듀오 4팀을 등수(1~4위) 순으로 쌓아 보여준다.
+════════════════════════════════════════════════════════════════ */
+function ArenaDetail({ rows, championKeyById, spellMap, runeIconById, styleIconById, onSummonerClick, myPuuid }) {
+  const maxDealt = Math.max(1, ...rows.map(r => r.totalDamageDealtToChampions ?? 0));
+  const maxTaken = Math.max(1, ...rows.map(r => r.totalDamageTaken ?? 0));
+  const gameDur  = rows[0]?.gameDuration ?? 0;
+  const subteams = groupArenaSubteams(rows);
+
+  return (
+    <div style={{
+      overflowX: 'auto', minWidth: 820,
+      fontFamily: 'Pretendard, "Apple SD Gothic Neo", -apple-system, sans-serif',
+      background: T.bg,
+    }}>
+      <TeamHeader label="순위" />
+      {subteams.map((duo, i) => {
+        const placement = duo[0].subteamPlacement ?? duo[0].placement;
+        const mine  = duo.some(r => r.puuid === myPuuid);
+        const color = placementColor(placement);
+        return (
+          <div key={duo[0].playerSubteamId ?? i}>
+            {/* 등수 라벨 바 */}
+            <div style={{
+              padding: '5px 16px', background: `${color}1a`,
+              borderBottom: `1px solid ${T.border}`,
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+              <span style={{ color, fontWeight: 800, fontSize: 13 }}>{placement}위</span>
+              {mine && <span style={{ color: T.txtSub, fontSize: 11, fontWeight: 600 }}>내 팀</span>}
+            </div>
+            {duo.map(row => (
+              <PlayerRow
+                key={row.puuid + (row.participantId ?? '')}
+                row={row}
+                championKeyById={championKeyById}
+                spellMap={spellMap}
+                runeIconById={runeIconById}
+                styleIconById={styleIconById}
+                onSummonerClick={onSummonerClick}
+                maxDealt={maxDealt} maxTaken={maxTaken}
+                teamSide={placement <= 2 ? 'blue' : 'red'}
+                isMe={row.puuid === myPuuid}
+                gameDuration={gameDur}
+                isWin={placement <= 2}
+              />
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    상세 테이블  DetailTable
 ════════════════════════════════════════════════════════════════ */
 function DetailTable({ rows, championKeyById, spellMap, runeIconById, styleIconById, onSummonerClick, myPuuid }) {
@@ -617,6 +699,19 @@ function DetailTable({ rows, championKeyById, spellMap, runeIconById, styleIconB
       데이터가 없습니다.
     </div>
   );
+
+  // 아레나는 듀오 4팀을 등수로 표시한다. 등수 데이터가 있을 때만 전용 레이아웃 사용.
+  const arenaByMode  = isArenaMatch(rows[0].queueId, rows[0].gameMode);
+  const hasPlacement = rows.some(r => r.subteamPlacement != null);
+  if (arenaByMode && hasPlacement) {
+    return (
+      <ArenaDetail
+        rows={rows} championKeyById={championKeyById} spellMap={spellMap}
+        runeIconById={runeIconById} styleIconById={styleIconById}
+        onSummonerClick={onSummonerClick} myPuuid={myPuuid}
+      />
+    );
+  }
 
   const blue = rows.filter(r => r.teamId === 100);
   const red  = rows.filter(r => r.teamId === 200);
@@ -661,23 +756,60 @@ function DetailTable({ rows, championKeyById, spellMap, runeIconById, styleIconB
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   아레나 미니 목록 (요약 행 우측) — 등수별 듀오 4팀을 아이콘으로 압축 표시
+════════════════════════════════════════════════════════════════ */
+function ArenaMiniList({ parts, championKeyById, myPuuid }) {
+  const subteams = groupArenaSubteams(parts);
+  return (
+    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+      {subteams.map((duo, i) => {
+        const placement = duo[0].subteamPlacement ?? duo[0].placement;
+        const mine = duo.some(r => r.puuid === myPuuid);
+        return (
+          <div key={duo[0].playerSubteamId ?? i}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: placementColor(placement),
+              opacity: mine ? 1 : 0.8 }}>{placement}위</span>
+            <div style={{ display: 'flex', gap: 2 }}>
+              {duo.map(r => (
+                <ChampionIcon key={r.puuid} championId={r.championId}
+                  championKeyById={championKeyById} championName={r.championName} size={18} />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    매치 카드 (요약 행 + 드롭다운)
 ════════════════════════════════════════════════════════════════ */
 function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconById,
   onSummonerClick, onToggle, isExpanded, summaryLoading, summaryRows }) {
 
   const isRemake    = match.gameEndedInEarlySurrender;
-  const resultText  = isRemake ? '다시하기' : match.myWin ? '승리' : '패배';
-  const accent      = isRemake ? '#5a6270' : match.myWin ? T.blue : T.red;
-  const cardBg      = isRemake
-    ? 'rgba(255,255,255,0.04)'
-    : match.myWin
-      ? 'rgba(83,131,243,0.20)'
-      : 'rgba(232,64,87,0.20)';
-  /* 토글 스트립 배경 (승/패 색의 옅은 톤) */
+  /* 아레나면 승/패 대신 등수(N위)로 표시 */
+  const arenaPlacement = match.mySubteamPlacement ?? match.myPlacement;
+  const isArena     = isArenaMatch(match.queueId, match.gameMode) && arenaPlacement != null;
+  const arenaColor  = placementColor(arenaPlacement);
+
+  const resultText  = isRemake ? '다시하기'
+    : isArena ? `${arenaPlacement}위`
+    : match.myWin ? '승리' : '패배';
+  const accent      = isRemake ? '#5a6270'
+    : isArena ? arenaColor
+    : match.myWin ? T.blue : T.red;
+  const cardBg      = isRemake ? 'rgba(255,255,255,0.04)'
+    : isArena ? `${arenaColor}22`
+    : match.myWin ? 'rgba(83,131,243,0.20)' : 'rgba(232,64,87,0.20)';
+  /* 토글 스트립 배경 (승/패·등수 색의 옅은 톤) */
   const accentSoft      = isRemake ? 'rgba(255,255,255,0.04)'
+    : isArena ? `${arenaColor}24`
     : match.myWin ? 'rgba(83,131,243,0.14)' : 'rgba(232,64,87,0.14)';
   const accentSoftHover = isRemake ? 'rgba(255,255,255,0.09)'
+    : isArena ? `${arenaColor}3a`
     : match.myWin ? 'rgba(83,131,243,0.24)' : 'rgba(232,64,87,0.24)';
 
   const items = [match.myItem0, match.myItem1, match.myItem2,
@@ -808,8 +940,15 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
         {/* 신축 스페이서 — 내 정보(좌)와 팀 목록/버튼(우) 사이 잔여 공간만 흡수(작게) */}
         <div style={{ flex: 1, minWidth: 16 }} />
 
-        {/* 블루팀 / 레드팀 미니 참가자 목록 — participantSummaryDtos 직접 사용 */}
+        {/* 미니 참가자 목록 — 아레나는 등수별 듀오, 그 외는 블루/레드 */}
         {match.participantSummaryDtos?.length > 0 && (
+          isArena ? (
+            <ArenaMiniList
+              parts={match.participantSummaryDtos}
+              championKeyById={championKeyById}
+              myPuuid={match.myPuuid}
+            />
+          ) : (
           <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
             {[100, 200].map(teamId => (
               <div key={teamId} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -838,6 +977,7 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
               </div>
             ))}
           </div>
+          )
         )}
 
         {/* 토글 버튼 — 우측 끝 전체 높이 스트립 + 승/패 색 체브론 */}
