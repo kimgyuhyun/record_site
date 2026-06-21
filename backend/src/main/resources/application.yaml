@@ -36,6 +36,9 @@ riot:
 
     champion-mastery-by-puuid-path: /lol/champion-mastery/v4/champion-masteries/by-puuid/{puuid}
 
+    # 인게임(실시간) 정보 — 게임 중이 아니면 Riot이 404를 반환한다.
+    active-game-by-puuid-path: /lol/spectator/v5/active-games/by-summoner/{puuid}
+
     # 개발용 키 한도(20 req/s, 100 req/2분)보다 살짝 낮게 잡아 429 여유 확보. 모든 Riot 호출이 공유.
     rate-limit:
       requests-per-second: 18
