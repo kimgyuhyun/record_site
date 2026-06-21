@@ -4,7 +4,7 @@ import RankTierBox from '../components/profile/RankTierBox';
 import RecentGamesSummary from '../components/profile/RecentGamesSummary';
 import ChampionStatTable from '../components/profile/ChampionStatTable';
 import ChampionMasterySection from '../components/profile/ChampionMasterySection';
-import TabNav from '../components/profile/TabNav';
+import { MainTabNav, SubTabNav } from '../components/profile/TabNav';
 import MatchFilterBar from '../components/profile/MatchFilterBar';
 import MatchList from '../components/profile/MatchList';
 import LiveGamePanel from '../components/profile/LiveGamePanel';
@@ -116,33 +116,37 @@ export default function SummonerProfilePage({
       {/* 1. 유저 정보 */}
       <UserInfo summoner={summoner} onRefresh={onRefresh} refreshing={refreshing} cooldown={cooldown} />
 
-      {/* 2. 랭크 박스 */}
+      {/* 2. 메인 탭 — 티어 박스 윗줄 가운데 */}
+      <MainTabNav mainTab={mainTab} setMainTab={setMainTab} />
+
+      {/* 3. 랭크 박스 */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
         <RankTierBox title="개인 / 2인전"   rankData={solo} />
         <RankTierBox title="자유 5대5 대전" rankData={flex} />
       </div>
 
-      {/* 3. 탭 */}
-      <TabNav mainTab={mainTab} setMainTab={setMainTab} subTab={subTab} setSubTab={setSubTab} />
-
-      {/* 4. 탭 콘텐츠 (챔피언 통계) */}
+      {/* 4. 탭 콘텐츠 */}
       {mainTab === '챔피언' && (
-        champLoading && champStats.length === 0 ? (
-          <div style={{
-            background: '#111c27', border: '1px solid #2a3a4a', borderTop: 'none',
-            borderRadius: '0 0 10px 10px', padding: '32px 0',
-            textAlign: 'center', color: '#4a5568', fontSize: 14,
-          }}>
-            챔피언 통계 조회 중...
-          </div>
-        ) : (
-          <ChampionStatTable
-            stats={champStats}
-            championKeyById={championKeyById}
-            championNameById={championNameById}
-            search={champSearch}
-          />
-        )
+        <>
+          {/* 서브 탭 (전체/솔로/자유) — 챔피언 통계 표 바로 위 */}
+          <SubTabNav subTab={subTab} setSubTab={setSubTab} />
+          {champLoading && champStats.length === 0 ? (
+            <div style={{
+              background: '#111c27', border: '1px solid #2a3a4a', borderTop: 'none',
+              borderRadius: '0 0 10px 10px', padding: '32px 0',
+              textAlign: 'center', color: '#4a5568', fontSize: 14,
+            }}>
+              챔피언 통계 조회 중...
+            </div>
+          ) : (
+            <ChampionStatTable
+              stats={champStats}
+              championKeyById={championKeyById}
+              championNameById={championNameById}
+              search={champSearch}
+            />
+          )}
+        </>
       )}
       {mainTab === '게임 관전하기 - 인게임 정보' && (
         <LiveGamePanel puuid={summoner?.puuid} championKeyById={championKeyById} />
