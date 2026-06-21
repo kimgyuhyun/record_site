@@ -23,8 +23,8 @@ const TIER_STYLE = {
 };
 
 const QUEUE_TABS = [
-  { key: 'SOLO', label: 'Solo' },
-  { key: 'FLEX', label: 'Flex' },
+  { key: 'SOLO', label: '개인/2인 랭크 게임' },
+  { key: 'FLEX', label: '자유 랭크 게임' },
 ];
 
 export default function RankingPage() {
