@@ -1,5 +1,6 @@
 package com.recordsite.backend.service;
 
+import com.recordsite.backend.config.CacheConfig;
 import com.recordsite.backend.dto.ChampionBanCount;
 import com.recordsite.backend.dto.ChampionPositionAggregate;
 import com.recordsite.backend.dto.ChampionTierRowDto;
@@ -8,6 +9,7 @@ import com.recordsite.backend.entity.QueueType;
 import com.recordsite.backend.repository.MatchBanRepository;
 import com.recordsite.backend.repository.ParticipantRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +30,9 @@ public class ChampionStatService {
     private final ParticipantRepository participantRepository;
     private final MatchBanRepository matchBanRepository;
 
+    // 소환사별 플레이 챔피언 집계. puuid+큐 단위로 5분 캐싱(전적 갱신 주기를 고려한 신선도).
+    @Cacheable(value = CacheConfig.PLAYED_CHAMPIONS,
+            key = "#puuid + ':' + (#queueType == null ? 'ALL' : #queueType)")
     @Transactional(readOnly = true)
     public List<PlayedChampionStatDto> getPlayedChampions(String puuid, QueueType queueType) {
         Integer queueId = queueType == null ? null : queueType.queueId();
@@ -37,6 +42,9 @@ public class ChampionStatService {
     }
 
     // 전역 챔피언 티어 리스트. 자체 수집한 매치 DB를 챔피언 단위로 집계해 승률/픽률/티어를 만든다.
+    // 전체 participant 를 스캔하는 무거운 집계라 큐 단위로 10분 캐싱한다.
+    @Cacheable(value = CacheConfig.CHAMPION_TIER_LIST,
+            key = "#queueType == null ? 'ALL' : #queueType")
     @Transactional(readOnly = true)
     public List<ChampionTierRowDto> getChampionTierList(QueueType queueType) {
         Integer queueId = queueType == null ? null : queueType.queueId();

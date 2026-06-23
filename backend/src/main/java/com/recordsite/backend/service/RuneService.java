@@ -1,5 +1,6 @@
 package com.recordsite.backend.service;
 
+import com.recordsite.backend.config.CacheConfig;
 import com.recordsite.backend.dto.RuneDto;
 import com.recordsite.backend.dto.RunePathDto;
 import com.recordsite.backend.entity.Rune;
@@ -7,6 +8,7 @@ import com.recordsite.backend.entity.RunePath;
 import com.recordsite.backend.repository.RunePathRepository;
 import com.recordsite.backend.repository.RuneRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -20,6 +22,8 @@ public class RuneService {
     private final RuneRepository runeRepository;
 
 
+    // 정적 룬 계열/룬 목록 — 패치 단위로만 바뀌므로 길게 캐싱(12h).
+    @Cacheable(CacheConfig.STATIC_RUNE_PATHS)
     public List<RunePathDto> findAllRunePathList() {
         List<RunePathDto> runePathDtoList = new ArrayList<>();
         List<RunePath> runePathList = runePathRepository.findAll();
@@ -29,6 +33,7 @@ public class RuneService {
         return runePathDtoList;
     }
 
+    @Cacheable(CacheConfig.STATIC_RUNES)
     public List<RuneDto> findAllRuneList() {
         List<RuneDto> runeDtoList = new ArrayList<>();
         List<Rune> runeList = runeRepository.findAll();
