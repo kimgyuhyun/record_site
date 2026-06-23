@@ -1,8 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext, createContext, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getMatchSummary } from '../../api/match';
 import { imgChampion, imgItem, imgSpell, imgObjective, imgRune, imgTier } from '../../constants/ddragon';
-import { getSummonerSpellData, getChampionData, getRuneData } from '../../api/ddragon';
+import { getSummonerSpellData, getChampionData, getRuneData, getItemData } from '../../api/ddragon';
+
+/* ═══════════════════════════════════════════════════════════════
+   DDragon 메타(이름) 컨텍스트
+   - 스펠/룬/아이템의 "이름"을 말단 아이콘 컴포넌트에서 툴팁으로 쓰기 위해
+     중간 컴포넌트마다 prop을 내리지 않고 컨텍스트로 공급한다.
+   - spellNameById: 스펠 id → 이름(점멸 등)
+   - runeNameById:  핵심룬 perk id → 이름(감전 등)
+   - styleNameById: 룬 계열 style id → 이름(마법/정밀 등)
+   - itemNameById:  아이템 id → 이름
+════════════════════════════════════════════════════════════════ */
+const MetaContext = createContext({
+  spellNameById: {}, runeNameById: {}, styleNameById: {}, itemNameById: {},
+  spellDescById: {}, runeDescById: {}, itemDescById: {},
+});
+
+/* DDragon 설명 텍스트는 <br>/<stats> 등 HTML 태그를 포함 → 툴팁용 평문으로 정리 */
+const stripHtml = (s) => (s || '')
+  .replace(/<br\s*\/?>/gi, '\n')
+  .replace(/<\/?(li|p)>/gi, '\n')
+  .replace(/<[^>]+>/g, '')
+  .replace(/\n{2,}/g, '\n')
+  .trim();
 
 /* ═══════════════════════════════════════════════════════════════
    디자인 토큰
@@ -41,6 +64,52 @@ const T = {
 };
 
 /* ═══════════════════════════════════════════════════════════════
+   호버 툴팁 — 검은 배경 + 흰 글씨 (스펠/룬/아이템 공용)
+   - label이 없으면 children만 그대로 렌더(빈 슬롯 등)
+   - 매치 카드는 overflow:hidden(둥근 모서리)이라 일반 absolute 툴팁은
+     카드 경계에서 잘린다 → position:fixed + 포털(body)로 띄워 잘림을 피한다.
+════════════════════════════════════════════════════════════════ */
+function Tooltip({ label, desc, children }) {
+  const [pos, setPos] = useState(null); // 뷰포트 기준 {x: 대상 가로중앙, y: 대상 상단}
+  const ref = useRef(null);
+  if (!label) return children;
+  const show = () => {
+    const r = ref.current?.getBoundingClientRect();
+    if (r) setPos({ x: r.left + r.width / 2, y: r.top });
+  };
+  return (
+    <span
+      ref={ref}
+      style={{ display: 'inline-flex', flexShrink: 0 }}
+      onMouseEnter={show}
+      onMouseLeave={() => setPos(null)}
+    >
+      {children}
+      {pos && createPortal(
+        <span style={{
+          position: 'fixed', left: pos.x, top: pos.y - 6,
+          transform: 'translate(-50%, -100%)',
+          background: '#000', color: '#fff',
+          fontSize: 11, lineHeight: '15px',
+          padding: '6px 9px', borderRadius: 5,
+          maxWidth: desc ? 280 : undefined,
+          whiteSpace: desc ? 'pre-wrap' : 'nowrap',
+          pointerEvents: 'none', zIndex: 9999,
+          boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
+        }}>
+          <span style={{ fontWeight: 700, display: 'block' }}>{label}</span>
+          {desc && (
+            <span style={{ display: 'block', marginTop: 4, fontWeight: 400,
+              color: '#cfd6e4', fontSize: 11 }}>{desc}</span>
+          )}
+        </span>,
+        document.body,
+      )}
+    </span>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    챔피언 아이콘
 ════════════════════════════════════════════════════════════════ */
 function ChampionIcon({ championId, championKeyById, championName, size = 40 }) {
@@ -61,13 +130,16 @@ function ChampionIcon({ championId, championKeyById, championName, size = 40 }) 
    소환사 주문 아이콘 (2개 세로)
 ════════════════════════════════════════════════════════════════ */
 function SpellIcons({ spell1, spell2, spellMap }) {
+  const { spellNameById, spellDescById } = useContext(MetaContext);
   const sz = { width: 20, height: 20, borderRadius: 4, flexShrink: 0,
     border: '1px solid rgba(255,255,255,0.1)' };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0 }}>
       {[spell1, spell2].map((sid, i) =>
         sid && spellMap[sid]
-          ? <img key={i} src={imgSpell(spellMap[sid])} alt="" style={sz} />
+          ? <Tooltip key={i} label={spellNameById[sid]} desc={spellDescById[sid]}>
+              <img src={imgSpell(spellMap[sid])} alt={spellNameById[sid] || ''} style={sz} />
+            </Tooltip>
           : <div key={i} style={{ ...sz, background: '#1a2030' }} />
       )}
     </div>
@@ -82,16 +154,26 @@ function SpellIcons({ spell1, spell2, spellMap }) {
 function buildRuneMaps(reforged) {
   const styleIconById = {};
   const runeIconById = {};
+  const styleNameById = {};
+  const runeNameById = {};
+  const runeDescById = {};
   (reforged || []).forEach(path => {
     styleIconById[path.id] = path.icon;
+    styleNameById[path.id] = path.name;
     (path.slots || []).forEach(slot =>
-      (slot.runes || []).forEach(r => { runeIconById[r.id] = r.icon; })
+      (slot.runes || []).forEach(r => {
+        runeIconById[r.id] = r.icon;
+        runeNameById[r.id] = r.name;
+        runeDescById[r.id] = stripHtml(r.shortDesc || r.longDesc);
+      })
     );
   });
-  return { styleIconById, runeIconById };
+  return { styleIconById, runeIconById, styleNameById, runeNameById, runeDescById };
 }
 
+/* 주룬(핵심룬)은 호버 시 룬 이름+설명, 부룬(보조 계열)은 계열 이름(마법/정밀 등)만 노출 */
 function KeystoneRunes({ keystoneId, subStyleId, runeIconById, styleIconById }) {
+  const { runeNameById, styleNameById, runeDescById } = useContext(MetaContext);
   const keystone = runeIconById[keystoneId];
   const subTree = styleIconById[subStyleId];
   const placeholder = (size) => ({
@@ -101,10 +183,15 @@ function KeystoneRunes({ keystoneId, subStyleId, runeIconById, styleIconById }) 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center', flexShrink: 0 }}>
       {keystone
-        ? <img src={imgRune(keystone)} alt="" style={{ width: 24, height: 24, borderRadius: '50%', background: '#0a0c14' }} />
+        ? <Tooltip label={runeNameById[keystoneId]} desc={runeDescById[keystoneId]}>
+            <img src={imgRune(keystone)} alt={runeNameById[keystoneId] || ''}
+              style={{ width: 24, height: 24, borderRadius: '50%', background: '#0a0c14' }} />
+          </Tooltip>
         : <div style={placeholder(24)} />}
       {subTree
-        ? <img src={imgRune(subTree)} alt="" style={{ width: 15, height: 15 }} />
+        ? <Tooltip label={styleNameById[subStyleId]}>
+            <img src={imgRune(subTree)} alt={styleNameById[subStyleId] || ''} style={{ width: 15, height: 15 }} />
+          </Tooltip>
         : <div style={placeholder(15)} />}
     </div>
   );
@@ -114,6 +201,7 @@ function KeystoneRunes({ keystoneId, subStyleId, runeIconById, styleIconById }) 
    아이템 슬롯: 32×32, border rgba(255,255,255,0.08)
 ════════════════════════════════════════════════════════════════ */
 function ItemSlots({ itemIds = [] }) {
+  const { itemNameById, itemDescById } = useContext(MetaContext);
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'nowrap' }}>
       {itemIds.map((id, i) => {
@@ -123,7 +211,9 @@ function ItemSlots({ itemIds = [] }) {
           objectFit: 'cover',
         };
         return id > 0
-          ? <img key={i} src={imgItem(id)} alt="" title={`item ${id}`} style={slotStyle} />
+          ? <Tooltip key={i} label={itemNameById[id]} desc={itemDescById[id]}>
+              <img src={imgItem(id)} alt={itemNameById[id] || ''} style={slotStyle} />
+            </Tooltip>
           : <div key={i} style={{ ...slotStyle, background: 'rgba(255,255,255,0.03)' }} />;
       })}
     </div>
@@ -430,7 +520,7 @@ function TeamHeader({ label, accentColor, teamSide }) {
    플레이어 행  (min-height 62px)
 ════════════════════════════════════════════════════════════════ */
 function PlayerRow({ row, championKeyById, spellMap, runeIconById, styleIconById,
-  onSummonerClick, maxDealt, maxTaken, teamSide, isMe, gameDuration, isWin }) {
+  onSummonerClick, maxDealt, maxTaken, teamSide, isMe, gameDuration, isWin, isArena }) {
 
   const items = [row.item0, row.item1, row.item2, row.item3,
                  row.item4, row.item5, row.item6];
@@ -492,13 +582,16 @@ function PlayerRow({ row, championKeyById, spellMap, runeIconById, styleIconById
         {/* 스펠 */}
         <SpellIcons spell1={row.spell1} spell2={row.spell2} spellMap={spellMap} />
 
-        {/* 룬 (spell1 옆 핵심룬=주룬, spell2 옆 보조 계열=부룬) */}
-        <KeystoneRunes
-          keystoneId={row.keystoneId}
-          subStyleId={row.subStyleId}
-          runeIconById={runeIconById}
-          styleIconById={styleIconById}
-        />
+        {/* 룬 (spell1 옆 핵심룬=주룬, spell2 옆 보조 계열=부룬)
+            — 아레나는 룬 개념이 없어 빈 동그라미가 떠서 숨긴다 */}
+        {!isArena && (
+          <KeystoneRunes
+            keystoneId={row.keystoneId}
+            subStyleId={row.subStyleId}
+            runeIconById={runeIconById}
+            styleIconById={styleIconById}
+          />
+        )}
 
         {/* 이름 + 챔피언 (이름 클릭 시 해당 소환사 페이지로 이동) */}
         <div style={{ minWidth: 0 }}>
@@ -687,10 +780,11 @@ function ArenaDetail({ rows, championKeyById, spellMap, runeIconById, styleIconB
                 styleIconById={styleIconById}
                 onSummonerClick={onSummonerClick}
                 maxDealt={maxDealt} maxTaken={maxTaken}
-                teamSide={placement <= 2 ? 'blue' : 'red'}
+                teamSide={placement <= 3 ? 'blue' : 'red'}
                 isMe={row.puuid === myPuuid}
                 gameDuration={gameDur}
-                isWin={placement <= 2}
+                isWin={placement <= 3}
+                isArena
               />
             ))}
           </div>
@@ -766,29 +860,35 @@ function DetailTable({ rows, championKeyById, spellMap, runeIconById, styleIconB
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   아레나 미니 목록 (요약 행 우측) — 등수별 듀오 4팀을 아이콘으로 압축 표시
+   아레나 미니 목록 (요약 행 우측)
+   - 16명(8듀오) 전체를 늘어놓으면 가로로 잘려 보이므로,
+     요약 행에서는 "내 듀오" 같은 팀 2명만 이름과 함께 보여준다.
+   - 전체 등수(1~8위)는 카드를 펼친 상세보기(ArenaDetail)에서 확인한다.
 ════════════════════════════════════════════════════════════════ */
-function ArenaMiniList({ parts, championKeyById, myPuuid }) {
-  const subteams = groupArenaSubteams(parts);
+function ArenaMiniList({ parts, championKeyById, myPuuid, onSummonerClick }) {
+  const mySubteamId = parts.find(r => r.puuid === myPuuid)?.playerSubteamId;
+  const myDuo = parts.filter(r => r.playerSubteamId === mySubteamId);
+  if (!myDuo.length) return null;
   return (
-    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-      {subteams.map((duo, i) => {
-        const placement = duo[0].subteamPlacement ?? duo[0].placement;
-        const mine = duo.some(r => r.puuid === myPuuid);
-        return (
-          <div key={duo[0].playerSubteamId ?? i}
-            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-            <span style={{ fontSize: 10, fontWeight: 800, color: placementColor(placement),
-              opacity: mine ? 1 : 0.8 }}>#{placement}</span>
-            <div style={{ display: 'flex', gap: 2 }}>
-              {duo.map(r => (
-                <ChampionIcon key={r.puuid} championId={r.championId}
-                  championKeyById={championKeyById} championName={r.championName} size={18} />
-              ))}
-            </div>
-          </div>
-        );
-      })}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0 }}>
+      {myDuo.map(r => (
+        <div key={r.puuid} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <ChampionIcon championId={r.championId} championKeyById={championKeyById}
+            championName={r.championName} size={16} />
+          <span
+            onClick={(e) => { e.stopPropagation(); onSummonerClick?.(r.gameName, r.tagLine); }}
+            title={`${r.gameName}#${r.tagLine}`}
+            style={{
+              fontSize: 11, color: r.puuid === myPuuid ? T.txtName : T.txtSub,
+              fontWeight: r.puuid === myPuuid ? 700 : 400,
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              maxWidth: 66, cursor: 'pointer',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.textDecoration = 'underline'; }}
+            onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none'; }}
+          >{r.gameName}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -803,7 +903,10 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
   /* 아레나면 승/패 대신 등수(N위)로 표시 */
   const arenaPlacement = match.mySubteamPlacement ?? match.myPlacement;
   const isArena     = isArenaMatch(match.queueId, match.gameMode) && arenaPlacement != null;
-  const arenaColor  = placementColor(arenaPlacement);
+  /* 아레나는 1~3위를 승리, 4위 이하를 패배 스타일로 표시한다 */
+  const arenaWin    = isArena && arenaPlacement <= 3;
+  /* 승/패 스타일 공통 플래그 (아레나는 등수 기준, 그 외는 myWin) */
+  const win         = isArena ? arenaWin : match.myWin;
   // 내 듀오 팀 이름 — 미니 목록(participantSummaryDtos)에서 내 playerSubteamId로 역산
   const myArenaTeam = isArena
     ? arenaTeamName(match.participantSummaryDtos?.find(r => r.puuid === match.myPuuid)?.playerSubteamId)
@@ -813,18 +916,14 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
     : isArena ? `${arenaPlacement}위`
     : match.myWin ? '승리' : '패배';
   const accent      = isRemake ? '#5a6270'
-    : isArena ? arenaColor
-    : match.myWin ? T.blue : T.red;
+    : win ? T.blue : T.red;
   const cardBg      = isRemake ? 'rgba(255,255,255,0.04)'
-    : isArena ? `${arenaColor}22`
-    : match.myWin ? 'rgba(83,131,243,0.20)' : 'rgba(232,64,87,0.20)';
-  /* 토글 스트립 배경 (승/패·등수 색의 옅은 톤) */
+    : win ? 'rgba(83,131,243,0.20)' : 'rgba(232,64,87,0.20)';
+  /* 토글 스트립 배경 (승/패 색의 옅은 톤) */
   const accentSoft      = isRemake ? 'rgba(255,255,255,0.04)'
-    : isArena ? `${arenaColor}24`
-    : match.myWin ? 'rgba(83,131,243,0.14)' : 'rgba(232,64,87,0.14)';
+    : win ? 'rgba(83,131,243,0.14)' : 'rgba(232,64,87,0.14)';
   const accentSoftHover = isRemake ? 'rgba(255,255,255,0.09)'
-    : isArena ? `${arenaColor}3a`
-    : match.myWin ? 'rgba(83,131,243,0.24)' : 'rgba(232,64,87,0.24)';
+    : win ? 'rgba(83,131,243,0.24)' : 'rgba(232,64,87,0.24)';
 
   const items = [match.myItem0, match.myItem1, match.myItem2,
                  match.myItem3, match.myItem4, match.myItem5, match.myItem6];
@@ -888,7 +987,7 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
           <div style={{ color: T.txtMuted, fontSize: 10, marginBottom: 4 }}>{dateStr}</div>
           <div style={{ color: accent, fontWeight: 800, fontSize: 15 }}>{resultText}</div>
           {isArena && myArenaTeam && (
-            <div style={{ color: arenaColor, fontSize: 10, fontWeight: 700, marginTop: 1 }}>{myArenaTeam}팀</div>
+            <div style={{ color: accent, fontSize: 10, fontWeight: 700, marginTop: 1 }}>{myArenaTeam}팀</div>
           )}
           {hasLp && (
             <div style={{ color: lpColor, fontSize: 11, fontWeight: 700, marginTop: 2 }}>
@@ -914,13 +1013,15 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
         {/* 스펠 */}
         <SpellIcons spell1={match.mySpell1} spell2={match.mySpell2} spellMap={spellMap} />
 
-        {/* 룬 (핵심룬 + 보조 계열) */}
-        <KeystoneRunes
-          keystoneId={match.myKeystoneId}
-          subStyleId={match.mySubStyleId}
-          runeIconById={runeIconById}
-          styleIconById={styleIconById}
-        />
+        {/* 룬 (핵심룬 + 보조 계열) — 아레나는 룬이 없어 빈 동그라미가 떠서 숨긴다 */}
+        {!isArena && (
+          <KeystoneRunes
+            keystoneId={match.myKeystoneId}
+            subStyleId={match.mySubStyleId}
+            runeIconById={runeIconById}
+            styleIconById={styleIconById}
+          />
+        )}
 
         {/* KDA (가운데 정렬, 좁은 컬럼) */}
         <div style={{ flexShrink: 0, width: 96, textAlign: 'center' }}>
@@ -964,6 +1065,7 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
               parts={match.participantSummaryDtos}
               championKeyById={championKeyById}
               myPuuid={match.myPuuid}
+              onSummonerClick={onSummonerClick}
             />
           ) : (
           <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
@@ -1067,33 +1169,64 @@ export default function MatchList({ matches = [] }) {
   const [championKeyById,   setChampionKeyById]   = useState({});
   const [runeIconById,      setRuneIconById]       = useState({});
   const [styleIconById,     setStyleIconById]      = useState({});
+  /* 툴팁용 이름 맵 (스펠/룬/계열/아이템 → 이름) */
+  const [spellNameById,     setSpellNameById]      = useState({});
+  const [runeNameById,      setRuneNameById]       = useState({});
+  const [styleNameById,     setStyleNameById]      = useState({});
+  const [itemNameById,      setItemNameById]       = useState({});
+  /* 툴팁용 설명 맵 (스펠/룬/아이템 → 설명, 부룬 계열은 이름만이라 제외) */
+  const [spellDescById,     setSpellDescById]      = useState({});
+  const [runeDescById,      setRuneDescById]       = useState({});
+  const [itemDescById,      setItemDescById]       = useState({});
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const loadLocale = async (locale) => {
-        const [s, c, r] = await Promise.all([
+        const [s, c, r, it] = await Promise.all([
           getSummonerSpellData(locale),
           getChampionData(locale),
           getRuneData(locale),
+          getItemData(locale),
         ]);
-        return [s.data, c.data, r.data];
+        return [s.data, c.data, r.data, it.data];
       };
       try {
-        const [sj, cj, rj] = await loadLocale('ko_KR').catch(() => loadLocale('en_US'));
+        const [sj, cj, rj, ij] = await loadLocale('ko_KR').catch(() => loadLocale('en_US'));
         const spells = {};
+        const spellNames = {};
+        const spellDescs = {};
         Object.values(sj.data).forEach(s => {
           const sid = Number(s.key);
-          if (!isNaN(sid)) spells[sid] = s.image.full;
+          if (!isNaN(sid)) {
+            spells[sid] = s.image.full;
+            spellNames[sid] = s.name;
+            spellDescs[sid] = stripHtml(s.description);
+          }
         });
         const champs = {};
         Object.values(cj.data).forEach(c => { champs[Number(c.key)] = c.id; });
-        const { runeIconById: runeMap, styleIconById: styleMap } = buildRuneMaps(rj);
+        const { runeIconById: runeMap, styleIconById: styleMap,
+          runeNameById: runeNames, styleNameById: styleNames,
+          runeDescById: runeDescs } = buildRuneMaps(rj);
+        const itemNames = {};
+        const itemDescs = {};
+        Object.entries(ij.data).forEach(([id, item]) => {
+          itemNames[Number(id)] = item.name;
+          itemDescs[Number(id)] = stripHtml(item.description) || item.plaintext || '';
+        });
         if (!cancelled) {
           setSpellMap(spells);
           setChampionKeyById(champs);
           setRuneIconById(runeMap);
           setStyleIconById(styleMap);
+          setSpellNameById(spellNames);
+          setRuneNameById(runeNames);
+          setStyleNameById(styleNames);
+          setItemNameById(itemNames);
+          setSpellDescById(spellDescs);
+          setRuneDescById(runeDescs);
+          setItemDescById(itemDescs);
         }
       } catch (e) { console.error('DDragon 로드 실패', e); }
     })();
@@ -1129,21 +1262,26 @@ export default function MatchList({ matches = [] }) {
   );
 
   return (
-    <div style={{
-      fontFamily: 'Pretendard, "Apple SD Gothic Neo", -apple-system, sans-serif',
+    <MetaContext.Provider value={{
+      spellNameById, runeNameById, styleNameById, itemNameById,
+      spellDescById, runeDescById, itemDescById,
     }}>
-      {matches.map(m => (
-        <MatchCard
-          key={m.matchId} match={m}
-          championKeyById={championKeyById} spellMap={spellMap}
-          runeIconById={runeIconById} styleIconById={styleIconById}
-          onSummonerClick={goToSummoner}
-          onToggle={toggleSummary}
-          isExpanded={!!expandedMap[m.matchId]}
-          summaryLoading={!!summaryLoadingMap[m.matchId]}
-          summaryRows={summaryMap[m.matchId] ?? []}
-        />
-      ))}
-    </div>
+      <div style={{
+        fontFamily: 'Pretendard, "Apple SD Gothic Neo", -apple-system, sans-serif',
+      }}>
+        {matches.map(m => (
+          <MatchCard
+            key={m.matchId} match={m}
+            championKeyById={championKeyById} spellMap={spellMap}
+            runeIconById={runeIconById} styleIconById={styleIconById}
+            onSummonerClick={goToSummoner}
+            onToggle={toggleSummary}
+            isExpanded={!!expandedMap[m.matchId]}
+            summaryLoading={!!summaryLoadingMap[m.matchId]}
+            summaryRows={summaryMap[m.matchId] ?? []}
+          />
+        ))}
+      </div>
+    </MetaContext.Provider>
   );
 }

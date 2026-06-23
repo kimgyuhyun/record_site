@@ -15,3 +15,7 @@ export const getChampionData = (locale) =>
 // 룬 메타데이터 (핵심룬/계열 아이콘 매핑용)
 export const getRuneData = (locale) =>
   apiClient.get(runesReforgedUrl(locale));
+
+// 아이템 메타데이터 (itemId → 이름 매핑용, 툴팁 표시에 사용)
+export const getItemData = (locale) =>
+  apiClient.get(`${DATA_CDN}/data/${locale}/item.json`);
