@@ -77,7 +77,7 @@ function Tooltip({ label, desc, gold, children }) {
     const r = ref.current?.getBoundingClientRect();
     if (r) setPos({ x: r.left + r.width / 2, y: r.top });
   };
-  const hasGold = gold && (gold.total > 0 || gold.sell > 0);
+  const hasGold = gold && gold.total > 0;
   return (
     <span
       ref={ref}
@@ -107,9 +107,6 @@ function Tooltip({ label, desc, gold, children }) {
             <span style={{ display: 'block', marginTop: 5, fontWeight: 700,
               color: T.gold, fontSize: 11 }}>
               가격 {gold.total.toLocaleString()}
-              <span style={{ color: '#9aa7b4', fontWeight: 500 }}>
-                {' '}(되팔기 {gold.sell.toLocaleString()})
-              </span>
             </span>
           )}
         </span>,
