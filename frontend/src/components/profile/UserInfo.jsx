@@ -1,5 +1,7 @@
 import React from 'react';
+import { useParams } from 'react-router-dom';
 import { imgProfileIcon } from '../../constants/ddragon';
+import useFavorites, { toggleFavorite, isFavorite } from '../../hooks/useFavorites';
 
 // 시즌 배지 색상 매핑
 const TIER_BADGE = {
@@ -24,10 +26,23 @@ function getTierStyle(tierStr) {
 }
 
 export default function UserInfo({ summoner, onRefresh, refreshing, cooldown = 0 }) {
+  const { region } = useParams(); // /find/:region/:slug — 즐겨찾기 링크를 같은 리전으로 만든다.
+  const favorites = useFavorites();
+
   if (!summoner) return null;
 
   const isCooldown  = cooldown > 0;
   const isDisabled  = refreshing || isCooldown;
+
+  // 즐겨찾기 항목(localStorage). to 를 고유 키로 쓰고, 사이드바/최근검색과 같은 구조를 따른다.
+  const regionLower = (region || 'kr').toLowerCase();
+  const favoriteSlug = summoner.tagLine ? `${summoner.name}-${summoner.tagLine}` : summoner.name;
+  const favoriteEntry = {
+    to: `/find/${regionLower}/${encodeURIComponent(favoriteSlug)}`,
+    label: `${summoner.name} #${summoner.tagLine}`,
+    sub: summoner.soloTier ? `${summoner.soloTier} ${summoner.soloRank ?? ''}`.trim() : undefined,
+  };
+  const favored = isFavorite(favorites, favoriteEntry.to);
 
   const mins = Math.floor(cooldown / 60);
   const secs = String(cooldown % 60).padStart(2, '0');
@@ -111,6 +126,31 @@ export default function UserInfo({ summoner, onRefresh, refreshing, cooldown = 0
               onMouseLeave={e => { e.target.style.transform = 'translateY(0)'; }}
             >
               {refreshing ? '갱신 중...' : '전적 갱신'}
+            </button>
+
+            {/* 즐겨찾기 토글 — 로그인 없이 localStorage 에 저장(사이드바 즐겨찾기와 동일 저장소) */}
+            <button
+              onClick={() => toggleFavorite(favoriteEntry)}
+              title={favored ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+              aria-pressed={favored}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '6px 14px',
+                background: favored ? '#3a2e10' : '#1f2a38',
+                color: favored ? '#ffb454' : '#9aa7b4',
+                border: `1px solid ${favored ? '#c89b3c' : '#2a3a4a'}`,
+                borderRadius: 6,
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                flexShrink: 0,
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
+            >
+              <span style={{ fontSize: 14, lineHeight: 1 }}>{favored ? '★' : '☆'}</span>
+              {favored ? '즐겨찾기됨' : '즐겨찾기'}
             </button>
           </div>
 
