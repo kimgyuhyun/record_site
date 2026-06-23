@@ -80,7 +80,7 @@ export default function Header({ region, setRegion }) {
             fontSize: 22, fontWeight: 900, letterSpacing: '-0.5px', color: '#ffffff',
             fontFamily: "'Arial Black', 'Pretendard', system-ui, sans-serif",
           }}>
-            FOW<span style={{ color: '#5383e8' }}>.LOL</span>
+            KDA<span style={{ color: '#5383e8' }}>.gg</span>
           </span>
         </a>
 

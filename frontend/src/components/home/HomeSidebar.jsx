@@ -81,7 +81,7 @@ function Banner() {
       padding: '18px 16px',
     }}>
       <div style={{ color: '#5383e8', fontSize: 12, fontWeight: 700, letterSpacing: 0.5 }}>
-        FOW.LOL
+        KDA.gg
       </div>
       <div style={{ color: '#e2e8f0', fontSize: 16, fontWeight: 800, marginTop: 6, lineHeight: 1.3 }}>
         소환사 전적을<br />빠르게 검색하세요
