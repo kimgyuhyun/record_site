@@ -1,0 +1,13 @@
+# 개발용 override — 인프라(mysql/redis)만 컨테이너로 띄우고 호스트 포트를 연다.
+# backend 는 IDE 에서, frontend 는 `npm run dev` 로 실행하며 localhost 로 이 인프라에 붙는다.
+# (application.yaml 기본값이 localhost:3307 / localhost:6379 라 추가 설정 없이 그대로 붙음)
+#
+#   기동: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#   종료: docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+services:
+  mysql:
+    ports:
+      - "3307:3306"   # 호스트 3307 → 컨테이너 3306 (IDE 백엔드 접속용)
+  redis:
+    ports:
+      - "6379:6379"
