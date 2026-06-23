@@ -16,7 +16,7 @@ import { getSummonerSpellData, getChampionData, getRuneData, getItemData } from 
 ════════════════════════════════════════════════════════════════ */
 const MetaContext = createContext({
   spellNameById: {}, runeNameById: {}, styleNameById: {}, itemNameById: {},
-  spellDescById: {}, runeDescById: {}, itemDescById: {},
+  spellDescById: {}, runeDescById: {}, itemDescById: {}, itemGoldById: {},
 });
 
 /* DDragon 설명 텍스트는 <br>/<stats> 등 HTML 태그를 포함 → 툴팁용 평문으로 정리 */
@@ -69,7 +69,7 @@ const T = {
    - 매치 카드는 overflow:hidden(둥근 모서리)이라 일반 absolute 툴팁은
      카드 경계에서 잘린다 → position:fixed + 포털(body)로 띄워 잘림을 피한다.
 ════════════════════════════════════════════════════════════════ */
-function Tooltip({ label, desc, children }) {
+function Tooltip({ label, desc, gold, children }) {
   const [pos, setPos] = useState(null); // 뷰포트 기준 {x: 대상 가로중앙, y: 대상 상단}
   const ref = useRef(null);
   if (!label) return children;
@@ -77,6 +77,7 @@ function Tooltip({ label, desc, children }) {
     const r = ref.current?.getBoundingClientRect();
     if (r) setPos({ x: r.left + r.width / 2, y: r.top });
   };
+  const hasGold = gold && (gold.total > 0 || gold.sell > 0);
   return (
     <span
       ref={ref}
@@ -92,8 +93,8 @@ function Tooltip({ label, desc, children }) {
           background: '#000', color: '#fff',
           fontSize: 11, lineHeight: '15px',
           padding: '6px 9px', borderRadius: 5,
-          maxWidth: desc ? 280 : undefined,
-          whiteSpace: desc ? 'pre-wrap' : 'nowrap',
+          maxWidth: (desc || hasGold) ? 280 : undefined,
+          whiteSpace: (desc || hasGold) ? 'pre-wrap' : 'nowrap',
           pointerEvents: 'none', zIndex: 9999,
           boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
         }}>
@@ -101,6 +102,15 @@ function Tooltip({ label, desc, children }) {
           {desc && (
             <span style={{ display: 'block', marginTop: 4, fontWeight: 400,
               color: '#cfd6e4', fontSize: 11 }}>{desc}</span>
+          )}
+          {hasGold && (
+            <span style={{ display: 'block', marginTop: 5, fontWeight: 700,
+              color: T.gold, fontSize: 11 }}>
+              가격 {gold.total.toLocaleString()}
+              <span style={{ color: '#9aa7b4', fontWeight: 500 }}>
+                {' '}(되팔기 {gold.sell.toLocaleString()})
+              </span>
+            </span>
           )}
         </span>,
         document.body,
@@ -201,7 +211,7 @@ function KeystoneRunes({ keystoneId, subStyleId, runeIconById, styleIconById }) 
    아이템 슬롯: 32×32, border rgba(255,255,255,0.08)
 ════════════════════════════════════════════════════════════════ */
 function ItemSlots({ itemIds = [] }) {
-  const { itemNameById, itemDescById } = useContext(MetaContext);
+  const { itemNameById, itemDescById, itemGoldById } = useContext(MetaContext);
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'nowrap' }}>
       {itemIds.map((id, i) => {
@@ -211,7 +221,7 @@ function ItemSlots({ itemIds = [] }) {
           objectFit: 'cover',
         };
         return id > 0
-          ? <Tooltip key={i} label={itemNameById[id]} desc={itemDescById[id]}>
+          ? <Tooltip key={i} label={itemNameById[id]} desc={itemDescById[id]} gold={itemGoldById[id]}>
               <img src={imgItem(id)} alt={itemNameById[id] || ''} style={slotStyle} />
             </Tooltip>
           : <div key={i} style={{ ...slotStyle, background: 'rgba(255,255,255,0.03)' }} />;
@@ -1178,6 +1188,8 @@ export default function MatchList({ matches = [] }) {
   const [spellDescById,     setSpellDescById]      = useState({});
   const [runeDescById,      setRuneDescById]       = useState({});
   const [itemDescById,      setItemDescById]       = useState({});
+  /* 아이템 가격 맵 (id → { total: 구매가, sell: 되팔기가 }) */
+  const [itemGoldById,      setItemGoldById]       = useState({});
 
   useEffect(() => {
     let cancelled = false;
@@ -1211,9 +1223,13 @@ export default function MatchList({ matches = [] }) {
           runeDescById: runeDescs } = buildRuneMaps(rj);
         const itemNames = {};
         const itemDescs = {};
+        const itemGolds = {};
         Object.entries(ij.data).forEach(([id, item]) => {
           itemNames[Number(id)] = item.name;
           itemDescs[Number(id)] = stripHtml(item.description) || item.plaintext || '';
+          if (item.gold) {
+            itemGolds[Number(id)] = { total: item.gold.total ?? 0, sell: item.gold.sell ?? 0 };
+          }
         });
         if (!cancelled) {
           setSpellMap(spells);
@@ -1227,6 +1243,7 @@ export default function MatchList({ matches = [] }) {
           setSpellDescById(spellDescs);
           setRuneDescById(runeDescs);
           setItemDescById(itemDescs);
+          setItemGoldById(itemGolds);
         }
       } catch (e) { console.error('DDragon 로드 실패', e); }
     })();
@@ -1264,7 +1281,7 @@ export default function MatchList({ matches = [] }) {
   return (
     <MetaContext.Provider value={{
       spellNameById, runeNameById, styleNameById, itemNameById,
-      spellDescById, runeDescById, itemDescById,
+      spellDescById, runeDescById, itemDescById, itemGoldById,
     }}>
       <div style={{
         fontFamily: 'Pretendard, "Apple SD Gothic Neo", -apple-system, sans-serif',
