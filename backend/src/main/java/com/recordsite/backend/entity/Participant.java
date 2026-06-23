@@ -4,6 +4,8 @@ import com.recordsite.backend.dto.RiotParticipantResponse;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.List;
+
 @Entity
 @Table(
         name = "participant",
@@ -128,6 +130,60 @@ public class Participant {
     private Integer subteamPlacement;  // 듀오(2인 팀)의 최종 등수 = 1~4위
     private Integer playerSubteamId;   // 듀오 식별자(같은 값이면 한 팀)
 
+    // ── 멀티킬/연속킬 ── (구버전 적재분은 0으로 채워짐 → 원시 타입 + DEFAULT 0)
+    @Column(nullable = false) private int doubleKills;
+    @Column(nullable = false) private int tripleKills;
+    @Column(nullable = false) private int quadraKills;
+    @Column(nullable = false) private int pentaKills;
+    @Column(nullable = false) private int largestMultiKill;
+    @Column(nullable = false) private int largestKillingSpree;
+
+    // ── 퍼스트(개인) ──
+    @Column(nullable = false) private boolean firstBloodKill;
+    @Column(nullable = false) private boolean firstTowerKill;
+
+    // ── 시야/와드 상세 ──
+    @Column(nullable = false) private int wardsPlaced;
+    @Column(nullable = false) private int wardsKilled;
+    @Column(name = "vision_wards_bought", nullable = false) private int visionWardsBoughtInGame; // 제어 와드 구매 수
+    @Column(nullable = false) private int detectorWardsPlaced;
+
+    // ── 힐/실드(유틸 평가) ──
+    @Column(nullable = false) private long totalHeal;
+    @Column(nullable = false) private long totalHealsOnTeammates;
+    @Column(nullable = false) private long totalDamageShieldedOnTeammates;
+
+    // ── CC ──
+    @Column(name = "time_ccing_others", nullable = false) private int timeCCingOthers;
+    @Column(name = "total_time_cc_dealt", nullable = false) private int totalTimeCCDealt;
+
+    // ── 골드/생존 ──
+    @Column(nullable = false) private int goldSpent;
+    @Column(nullable = false) private int longestTimeSpentLiving;
+    @Column(nullable = false) private int totalTimeSpentDead;
+
+    // ── 스킬/스펠 사용 횟수 ── (숫자+대문자 경계라 스네이크 변환이 모호 → 컬럼명 명시)
+    @Column(name = "spell1_casts", nullable = false) private int spell1Casts;
+    @Column(name = "spell2_casts", nullable = false) private int spell2Casts;
+    @Column(name = "spell3_casts", nullable = false) private int spell3Casts;
+    @Column(name = "spell4_casts", nullable = false) private int spell4Casts;
+
+    // ── Riot 파생 지표(challenges). 모드/구버전에 따라 없을 수 있어 nullable 래퍼. ──
+    private Double kda;
+    private Double killParticipation;     // 킬관여율 0~1
+    private Double teamDamagePercentage;  // 팀 내 딜 비중 0~1
+    private Double damagePerMinute;
+    private Double goldPerMinute;
+    private Double visionScorePerMinute;
+    private Integer soloKills;
+
+    // ── 룬 페이지 전체(키스톤/보조계열 외 나머지). 룬 없는 모드는 null 유지. ──
+    private Integer primaryRune1; // 주룬 트리 2번째(키스톤 다음)
+    private Integer primaryRune2;
+    private Integer primaryRune3;
+    private Integer subRune1;      // 보조 트리 1번째
+    private Integer subRune2;
+
     public static Participant from(RiotParticipantResponse res, Match match) {
         // 빌더 체이닝 안에서 null 체크 로직은 불가 -> 미리 추출
         int offense = 0;
@@ -142,9 +198,11 @@ public class Participant {
                     ? res.getPerks().getStatPerks().getDefense() : 0;
         }
 
-        // 룬 계열/핵심룬 추출 (perks.styles가 없는 봇전 등은 null 유지)
+        // 룬 페이지 추출 (perks.styles가 없는 봇전 등은 null 유지)
         RuneSelection runes = RuneSelection.from(res.getPerks());
 
+        // challenges 블록은 모드/구버전에 따라 통째로 없을 수 있음 → null 가드
+        RiotParticipantResponse.Challenges ch = res.getChallenges();
 
         return Participant.builder()
                 .match(match)
@@ -188,40 +246,95 @@ public class Participant {
                 .statPerkDefense(defense)
                 .primaryStyleId(runes.primaryStyleId())
                 .keystoneId(runes.keystoneId())
+                .primaryRune1(runes.primaryRune1())
+                .primaryRune2(runes.primaryRune2())
+                .primaryRune3(runes.primaryRune3())
                 .subStyleId(runes.subStyleId())
+                .subRune1(runes.subRune1())
+                .subRune2(runes.subRune2())
+                // 멀티킬/연속킬
+                .doubleKills(res.getDoubleKills())
+                .tripleKills(res.getTripleKills())
+                .quadraKills(res.getQuadraKills())
+                .pentaKills(res.getPentaKills())
+                .largestMultiKill(res.getLargestMultiKill())
+                .largestKillingSpree(res.getLargestKillingSpree())
+                // 퍼스트
+                .firstBloodKill(res.isFirstBloodKill())
+                .firstTowerKill(res.isFirstTowerKill())
+                // 시야/와드
+                .wardsPlaced(res.getWardsPlaced())
+                .wardsKilled(res.getWardsKilled())
+                .visionWardsBoughtInGame(res.getVisionWardsBoughtInGame())
+                .detectorWardsPlaced(res.getDetectorWardsPlaced())
+                // 힐/실드
+                .totalHeal(res.getTotalHeal())
+                .totalHealsOnTeammates(res.getTotalHealsOnTeammates())
+                .totalDamageShieldedOnTeammates(res.getTotalDamageShieldedOnTeammates())
+                // CC
+                .timeCCingOthers(res.getTimeCCingOthers())
+                .totalTimeCCDealt(res.getTotalTimeCCDealt())
+                // 골드/생존
+                .goldSpent(res.getGoldSpent())
+                .longestTimeSpentLiving(res.getLongestTimeSpentLiving())
+                .totalTimeSpentDead(res.getTotalTimeSpentDead())
+                // 스킬/스펠 사용 횟수
+                .spell1Casts(res.getSpell1Casts())
+                .spell2Casts(res.getSpell2Casts())
+                .spell3Casts(res.getSpell3Casts())
+                .spell4Casts(res.getSpell4Casts())
+                // Riot 파생 지표(없으면 null)
+                .kda(ch == null ? null : ch.getKda())
+                .killParticipation(ch == null ? null : ch.getKillParticipation())
+                .teamDamagePercentage(ch == null ? null : ch.getTeamDamagePercentage())
+                .damagePerMinute(ch == null ? null : ch.getDamagePerMinute())
+                .goldPerMinute(ch == null ? null : ch.getGoldPerMinute())
+                .visionScorePerMinute(ch == null ? null : ch.getVisionScorePerMinute())
+                .soloKills(ch == null ? null : ch.getSoloKills())
                 // teamKills는 from()에서 세팅 불가 (팀 전체 합산이라 MatchSaveHelper에서 별도 세팅)
                 .build();
     }
 
-    // Riot perks.styles → (주룬 계열, 핵심룬, 보조룬 계열) 추출 전용 값 객체
-    private record RuneSelection(Integer primaryStyleId, Integer keystoneId, Integer subStyleId) {
+    // Riot perks.styles → 룬 페이지 전체(주룬 계열/키스톤+3, 보조 계열/2) 추출 전용 값 객체
+    private record RuneSelection(
+            Integer primaryStyleId, Integer keystoneId,
+            Integer primaryRune1, Integer primaryRune2, Integer primaryRune3,
+            Integer subStyleId, Integer subRune1, Integer subRune2) {
 
-        private static final RuneSelection EMPTY = new RuneSelection(null, null, null);
+        private static final RuneSelection EMPTY =
+                new RuneSelection(null, null, null, null, null, null, null, null);
 
         static RuneSelection from(RiotParticipantResponse.Perks perks) {
             if (perks == null || perks.getStyles() == null) return EMPTY;
 
-            Integer primaryStyleId = null;
-            Integer keystoneId = null;
-            Integer subStyleId = null;
+            Integer primaryStyleId = null, keystoneId = null;
+            Integer primaryRune1 = null, primaryRune2 = null, primaryRune3 = null;
+            Integer subStyleId = null, subRune1 = null, subRune2 = null;
 
             for (RiotParticipantResponse.Style style : perks.getStyles()) {
                 if (style == null || style.getDescription() == null) continue;
 
                 if ("primaryStyle".equals(style.getDescription())) {
                     primaryStyleId = style.getStyle();
-                    keystoneId = firstPerk(style);
+                    keystoneId   = perk(style, 0); // selections[0] = 핵심룬(키스톤)
+                    primaryRune1 = perk(style, 1);
+                    primaryRune2 = perk(style, 2);
+                    primaryRune3 = perk(style, 3);
                 } else if ("subStyle".equals(style.getDescription())) {
                     subStyleId = style.getStyle();
+                    subRune1 = perk(style, 0); // 보조 트리는 2개 선택
+                    subRune2 = perk(style, 1);
                 }
             }
-            return new RuneSelection(primaryStyleId, keystoneId, subStyleId);
+            return new RuneSelection(primaryStyleId, keystoneId,
+                    primaryRune1, primaryRune2, primaryRune3, subStyleId, subRune1, subRune2);
         }
 
-        // selections[0] = 핵심룬(키스톤)
-        private static Integer firstPerk(RiotParticipantResponse.Style style) {
-            if (style.getSelections() == null || style.getSelections().isEmpty()) return null;
-            return style.getSelections().get(0).getPerk();
+        // selections[idx]의 perk id (없으면 null)
+        private static Integer perk(RiotParticipantResponse.Style style, int idx) {
+            List<RiotParticipantResponse.Selection> sel = style.getSelections();
+            if (sel == null || sel.size() <= idx) return null;
+            return sel.get(idx).getPerk();
         }
     }
 }

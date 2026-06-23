@@ -38,6 +38,7 @@ public class RiotMatchResponse {
         private String gameMode;
         private String gameType;
         private String platformId;
+        private String gameVersion; // 패치 버전(예: "14.12.123.4567") — 패치별 통계/필터용
 
         private List<RiotParticipantResponse> participants = new ArrayList<>();
 
