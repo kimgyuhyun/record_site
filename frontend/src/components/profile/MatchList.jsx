@@ -131,9 +131,9 @@ function ChampionIcon({ championId, championKeyById, championName, size = 40 }) 
     width: size, height: size, borderRadius: '50%', flexShrink: 0,
     objectFit: 'cover', border: '2px solid rgba(255,255,255,0.15)',
   };
-  if (!key) return <div style={{ ...baseStyle, background: '#1e2535' }} />;
+  if (!key) return <div style={{ ...baseStyle, background: '#1e2535' }} title={championName || ''} />;
   return (
-    <img src={imgChampion(key)} alt={championName || key} style={baseStyle}
+    <img src={imgChampion(key)} alt={championName || key} title={championName || key} style={baseStyle}
       onError={e => { e.target.style.visibility = 'hidden'; }} />
   );
 }
@@ -314,7 +314,7 @@ function DamageGraph({ dealt, taken, maxDealt, maxTaken }) {
         }}>{value.toLocaleString()}</div>
       </Tooltip>
       <div style={{ height: 5, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden', marginTop: 3 }}>
-        <div style={{ width: `${pct}%`, height: '100%', marginLeft: 'auto', background: barColor, borderRadius: 3 }} />
+        <div style={{ width: `${pct}%`, height: '100%', background: barColor, borderRadius: 3 }} />
       </div>
     </div>
   );
@@ -506,7 +506,9 @@ function TeamHeader({ label, accentColor, teamSide }) {
     <div style={{
       display: 'grid', gridTemplateColumns: GRID,
       alignItems: 'center', padding: '8px 16px',
-      background: 'transparent',
+      // 헤더 밴드에 배경색을 줘서 본문 행과 경계가 또렷하게 (빌드 섹션 밴드와 동일 톤)
+      background: '#1a1f2b',
+      borderTop: `1px solid ${T.border}`,
       borderBottom: `1px solid ${T.border}`,
     }}>
       <div style={{ color: '#ffffff', fontWeight: 800, fontSize: 13 }}>{label}</div>
@@ -653,18 +655,19 @@ function PlayerRow({ row, championKeyById, spellMap, runeIconById, styleIconById
         />
       </div>
 
-      {/* ④ 와드 — 위: 제어와드 구매 / 아래: 와드설치 / 와드제거 (각각 호버 툴팁) */}
-      <div style={{ textAlign: 'center', lineHeight: 1.35 }}>
-        <Tooltip label="제어 와드 구매">
-          <span style={{ color: T.txtPrimary, fontSize: 12, fontWeight: 700 }}>
-            {row.visionWardsBoughtInGame ?? 0}
+      {/* ④ 와드 — 셀 전체에 하나의 호버 툴팁(제어/설치/제거를 줄바꿈으로 한번에) */}
+      <div style={{ textAlign: 'center' }}>
+        <Tooltip label="와드"
+          desc={`제어 와드: ${row.visionWardsBoughtInGame ?? 0}\n와드 설치: ${row.wardsPlaced ?? 0}\n와드 제거: ${row.wardsKilled ?? 0}`}>
+          <span style={{ display: 'inline-block', lineHeight: 1.35, cursor: 'default' }}>
+            <span style={{ display: 'block', color: T.txtPrimary, fontSize: 12, fontWeight: 700 }}>
+              {row.visionWardsBoughtInGame ?? 0}
+            </span>
+            <span style={{ display: 'block', fontSize: 11, marginTop: 1, color: T.txtSub }}>
+              {row.wardsPlaced ?? 0} <span style={{ color: T.txtMuted }}>/</span> {row.wardsKilled ?? 0}
+            </span>
           </span>
         </Tooltip>
-        <div style={{ fontSize: 11, marginTop: 1, color: T.txtSub }}>
-          <Tooltip label="와드 설치"><span>{row.wardsPlaced ?? 0}</span></Tooltip>
-          <span style={{ color: T.txtMuted }}> / </span>
-          <Tooltip label="와드 제거"><span>{row.wardsKilled ?? 0}</span></Tooltip>
-        </div>
       </div>
 
       {/* ⑤ CS */}
