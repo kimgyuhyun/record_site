@@ -454,7 +454,7 @@ function TeamDivider({ winRows, loseRows, matchObj, blueIsWin }) {
   );
 
   return (
-    <div style={{ background:'#26282d', padding:'10px 16px',
+    <div style={{ background:'#1e2024', padding:'10px 16px',
       borderTop:`1px solid ${T.sectionLine}`, borderBottom:`1px solid ${T.sectionLine}` }}>
 
       {/* 오브젝트 행 */}
@@ -1283,6 +1283,126 @@ function DetailPlaceholder({ label }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   팀 분석 탭 — 지표별 양 팀 비교 (승리팀=파랑 / 패배팀=빨강)
+   - 6개 지표: 챔피언 처치 / 골드 / 가한 피해 / 와드 설치 / 받은 피해 / CS
+   - 각 패널: 좌(승리팀 5명 막대) + 중앙 도넛(팀 합계 비율) + 우(패배팀 5명 막대)
+════════════════════════════════════════════════════════════════ */
+const TEAM_STATS = [
+  { title: '챔피언 처치',           valueOf: r => r.kills ?? 0 },
+  { title: '골드 획득량',           valueOf: r => r.goldEarned ?? 0 },
+  { title: '챔피언에게 가한 피해량', valueOf: r => r.totalDamageDealtToChampions ?? 0 },
+  { title: '와드 설치',             valueOf: r => r.wardsPlaced ?? 0 },
+  { title: '받은 피해량',           valueOf: r => r.totalDamageTaken ?? 0 },
+  { title: 'CS',                   valueOf: r => (r.totalMinionsKilled ?? 0) + (r.neutralMinionsKilled ?? 0) },
+];
+
+function StatComparePanel({ title, valueOf, winRows, loseRows, championKeyById }) {
+  const winVals = winRows.map(valueOf);
+  const loseVals = loseRows.map(valueOf);
+  const winTotal = winVals.reduce((a, b) => a + Number(b || 0), 0);
+  const loseTotal = loseVals.reduce((a, b) => a + Number(b || 0), 0);
+  const maxVal = Math.max(1, ...winVals, ...loseVals);
+  const grand = winTotal + loseTotal;
+  const winPct = grand > 0 ? (winTotal / grand) * 100 : 50;
+
+  const teamBars = (rows, color) => (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7, minWidth: 0 }}>
+      {rows.map((r, i) => {
+        const v = Number(valueOf(r) || 0);
+        const w = Math.max(2, Math.round((v / maxVal) * 100));
+        return (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <ChampionIcon championId={r.championId} championKeyById={championKeyById}
+              championName={r.championName} size={22} />
+            <div style={{ flex: 1, height: 13, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ width: `${w}%`, height: '100%', background: color, borderRadius: 3 }} />
+            </div>
+            <span style={{ width: 58, textAlign: 'right', fontSize: 12, color: T.txtPrimary,
+              fontVariantNumeric: 'tabular-nums' }}>{v.toLocaleString()}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{ textAlign: 'center', color: T.txtSub, fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{title}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {teamBars(winRows, T.blue)}
+        {/* 중앙 도넛 — 팀 합계 비율 */}
+        <div style={{
+          flexShrink: 0, width: 84, height: 84, borderRadius: '50%',
+          background: `conic-gradient(${T.blue} 0 ${winPct}%, ${T.red} ${winPct}% 100%)`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{
+            width: 60, height: 60, borderRadius: '50%', background: T.bg,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <span style={{ color: T.blue, fontWeight: 800, fontSize: 13 }}>{winTotal.toLocaleString()}</span>
+            <div style={{ width: 26, height: 1, background: T.border, margin: '2px 0' }} />
+            <span style={{ color: T.red, fontWeight: 800, fontSize: 13 }}>{loseTotal.toLocaleString()}</span>
+          </div>
+        </div>
+        {teamBars(loseRows, T.red)}
+      </div>
+    </div>
+  );
+}
+
+function TeamAnalysis({ rows, championKeyById }) {
+  const [subTab, setSubTab] = useState('경기 분석');
+  const winRows = rows.filter(r => r.win);
+  const loseRows = rows.filter(r => !r.win);
+
+  const subTabBtn = (label) => {
+    const on = subTab === label;
+    return (
+      <button key={label} onClick={() => setSubTab(label)}
+        style={{
+          flex: 1, padding: '10px 4px', border: 'none', cursor: 'pointer', background: 'transparent',
+          color: on ? T.blue : T.txtSub, fontWeight: on ? 700 : 500, fontSize: 13,
+          borderBottom: on ? `2px solid ${T.blue}` : '2px solid transparent', fontFamily: 'inherit',
+        }}>{label}</button>
+    );
+  };
+
+  return (
+    <div style={{ background: T.bg }}>
+      <div style={{ display: 'flex', borderBottom: `1px solid ${T.sectionLine}` }}>
+        {['경기 분석', '타임라인'].map(subTabBtn)}
+      </div>
+
+      {subTab === '경기 분석' ? (
+        <div style={{ padding: '16px' }}>
+          {/* 범례 */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginBottom: 18, fontSize: 12 }}>
+            <span style={{ color: T.txtSub }}>
+              <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: T.blue, marginRight: 5 }} />승리팀
+            </span>
+            <span style={{ color: T.txtSub }}>
+              <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: T.red, marginRight: 5 }} />패배팀
+            </span>
+          </div>
+          {/* 2열 패널 그리드 */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(430px, 1fr))', gap: '26px 34px' }}>
+            {TEAM_STATS.map(s => (
+              <StatComparePanel key={s.title} title={s.title} valueOf={s.valueOf}
+                winRows={winRows} loseRows={loseRows} championKeyById={championKeyById} />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div style={{ color: T.txtMuted, fontSize: 13, padding: '28px 16px', textAlign: 'center' }}>
+          타임라인 분석(분당 골드/경험치 그래프)은 준비 중입니다.
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    매치 카드 (요약 행 + 드롭다운)
 ════════════════════════════════════════════════════════════════ */
 function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconById, runeTree,
@@ -1556,7 +1676,10 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
                       runeTree={runeTree}
                     />
                   )}
-                  {(detailTab === 'OP 스코어' || detailTab === '팀 분석' || detailTab === '기타') && (
+                  {detailTab === '팀 분석' && (
+                    <TeamAnalysis rows={summaryRows} championKeyById={championKeyById} />
+                  )}
+                  {(detailTab === 'OP 스코어' || detailTab === '기타') && (
                     <DetailPlaceholder label={detailTab} />
                   )}
                 </>

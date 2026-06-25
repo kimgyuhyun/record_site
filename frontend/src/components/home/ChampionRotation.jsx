@@ -1,6 +1,7 @@
 import React from 'react';
 import { imgChampion } from '../../constants/ddragon';
 import useChampionRotation from '../../hooks/useChampionRotation';
+import HoverTip from '../common/HoverTip';
 
 /*
  * 무료 로테이션 챔피언 그리드 (백엔드 Riot 프록시 실데이터).
@@ -36,10 +37,11 @@ export default function ChampionRotation({ championKeyById = {}, championNameByI
               const key = championKeyById[id];
               if (!key) return null;
               return (
-                <div key={id} style={{ textAlign: 'center' }}
-                  title={championNameById[id] ?? key}>
-                  <img src={imgChampion(key)} alt={key} width={48} height={48}
-                    style={{ borderRadius: 7, background: '#0d1520', display: 'block', margin: '0 auto' }} />
+                <div key={id} style={{ textAlign: 'center' }}>
+                  <HoverTip label={championNameById[id] ?? key}>
+                    <img src={imgChampion(key)} alt={key} width={48} height={48}
+                      style={{ borderRadius: 7, background: '#0d1520', display: 'block', margin: '0 auto' }} />
+                  </HoverTip>
                   <div style={{
                     marginTop: 4, color: '#8899aa', fontSize: 11,
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',

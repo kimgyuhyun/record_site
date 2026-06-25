@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { imgChampion, DDRAGON_VERSION } from '../../constants/ddragon';
 import useChampionTierList from '../../hooks/useChampionTierList';
+import HoverTip from '../common/HoverTip';
 
 /*
  * 주요 챔피언 위젯 (홈) — 자체 수집한 매치 DB 집계 기반 승률/픽률/밴율.
@@ -49,8 +50,12 @@ export default function MajorChampions({ championKeyById = {}, championNameById 
           <div key={row.championId} style={rowStyle}>
             <span style={rankColStyle}>{i + 1}</span>
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-              {key && <img src={imgChampion(key)} alt={name} width={24} height={24}
-                style={{ borderRadius: 5, background: '#0d1520', flexShrink: 0 }} />}
+              {key && (
+                <HoverTip label={name}>
+                  <img src={imgChampion(key)} alt={name} width={24} height={24}
+                    style={{ borderRadius: 5, background: '#0d1520', flexShrink: 0 }} />
+                </HoverTip>
+              )}
               <span style={{ color: '#cdd6e2', fontSize: 12.5, overflow: 'hidden',
                 textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
             </div>
