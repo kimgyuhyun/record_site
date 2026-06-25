@@ -39,6 +39,9 @@ public class MatchSummaryDto {
     private Long totalDamageTaken;
 
     private int visionScore;
+    private int wardsPlaced;             // 와드 설치 수
+    private int wardsKilled;             // 와드 제거 수
+    private int visionWardsBoughtInGame; // 제어 와드 구매 수
 
     // 아이템/스펠/파편
     private int item0;
@@ -119,6 +122,9 @@ public class MatchSummaryDto {
                 .totalDamageDealtToChampions(p.getTotalDamageDealtToChampions())
                 .totalDamageTaken(p.getTotalDamageTaken())
                 .visionScore(p.getVisionScore())
+                .wardsPlaced(p.getWardsPlaced())
+                .wardsKilled(p.getWardsKilled())
+                .visionWardsBoughtInGame(p.getVisionWardsBoughtInGame())
                 .item0(p.getItem0())
                 .item1(p.getItem1())
                 .item2(p.getItem2())
