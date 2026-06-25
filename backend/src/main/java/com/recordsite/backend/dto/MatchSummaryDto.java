@@ -58,7 +58,16 @@ public class MatchSummaryDto {
 
     private Integer primaryStyleId; // 주 룬 계열
     private Integer keystoneId;     // 핵심 룬
+    private Integer primaryRune1;   // 주 룬 트리 2번째(키스톤 다음)
+    private Integer primaryRune2;
+    private Integer primaryRune3;
     private Integer subStyleId;     // 보조 룬 계열
+    private Integer subRune1;       // 보조 트리 1번째
+    private Integer subRune2;
+
+    // 타임라인 추출 빌드 순서(타임라인 실패/구버전 적재분은 null)
+    private String skillBuildOrder; // 예: "QWEQQR..." (Q/W/E/R)
+    private String itemBuildOrder;  // "아이템id:구매초" CSV (예: "1055:8,2003:8,...")
 
     private boolean gameEndedInEarlySurrender;
     private boolean teamEarlySurrendered;
@@ -124,7 +133,14 @@ public class MatchSummaryDto {
                 .statPerkDefense(p.getStatPerkDefense())
                 .primaryStyleId(p.getPrimaryStyleId())
                 .keystoneId(p.getKeystoneId())
+                .primaryRune1(p.getPrimaryRune1())
+                .primaryRune2(p.getPrimaryRune2())
+                .primaryRune3(p.getPrimaryRune3())
                 .subStyleId(p.getSubStyleId())
+                .subRune1(p.getSubRune1())
+                .subRune2(p.getSubRune2())
+                .skillBuildOrder(p.getSkillBuildOrder())
+                .itemBuildOrder(p.getItemBuildOrder())
                 .gameEndedInEarlySurrender(p.isGameEndedInEarlySurrender())
                 .teamEarlySurrendered(p.isTeamEarlySurrendered())
                 .totalMinionsKilled(p.getTotalMinionsKilled())

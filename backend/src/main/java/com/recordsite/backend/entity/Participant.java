@@ -188,7 +188,7 @@ public class Participant {
     // skillBuildOrder: 레벨업 순서를 Q/W/E/R 로 이어 붙인 문자열(예: "QWEQQR...") — 진화 제외
     @Column(name = "skill_build_order", length = 32)
     private String skillBuildOrder;
-    // itemBuildOrder: 구매 아이템 id 를 구매 순서대로 콤마로 이어 붙인 문자열(소모품/장신구 포함)
+    // itemBuildOrder: "아이템id:구매초" 를 구매 순서대로 콤마로 이어 붙인 문자열(예: "1055:8,2003:8,...")
     @Column(name = "item_build_order", length = 1024)
     private String itemBuildOrder;
 

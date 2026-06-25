@@ -8,7 +8,8 @@ import java.util.Map;
 
 // 타임라인 이벤트에서 참가자별 "스킬 선마 순서" 와 "아이템 구매 순서" 를 뽑아낸 도메인 값 객체.
 //  - skillBuildOrder: 레벨업 순서를 Q/W/E/R 문자로 이어 붙인 문자열 (예: "QWEQQRQ...") — 진화(EVOLVE)는 제외
-//  - itemBuildOrder : 구매한 아이템 id 를 구매 순서대로 콤마로 이어 붙인 문자열 (소모품·장신구 포함, 가공은 프론트에 위임)
+//  - itemBuildOrder : "아이템id:구매초" 를 구매 순서대로 콤마로 이어 붙인 문자열 (예: "1055:8,2003:8,3070:185...")
+//                     구매 시점(초)을 함께 담아 프론트가 분 단위로 묶을 수 있게 한다(소모품·장신구 포함).
 // 둘 다 추출된 이벤트가 없으면 null (= 데이터 없음, 빈 문자열과 구분).
 public record ParticipantBuildOrder(String skillBuildOrder, String itemBuildOrder) {
 
@@ -57,9 +58,10 @@ public record ParticipantBuildOrder(String skillBuildOrder, String itemBuildOrde
                 } else if (ITEM_PURCHASED.equals(type)) {
                     Integer itemId = event.getItemId();
                     if (itemId == null || itemId <= 0) continue;
+                    long seconds = event.getTimestamp() == null ? 0 : event.getTimestamp() / 1000;
                     StringBuilder sb = itemByPid.computeIfAbsent(pid, k -> new StringBuilder());
                     if (sb.length() > 0) sb.append(',');
-                    sb.append(itemId);
+                    sb.append(itemId).append(':').append(seconds);
                 }
             }
         }

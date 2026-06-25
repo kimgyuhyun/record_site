@@ -37,6 +37,7 @@ public class RiotMatchTimelineResponse {
     @NoArgsConstructor
     public static class Event {
         private String type;            // "ITEM_PURCHASED", "SKILL_LEVEL_UP" 등
+        private Long timestamp;         // 게임 시작 후 경과 시간(ms) — 아이템 구매 시점(분 단위 묶음)용
         private Integer participantId;  // 이벤트 주체(1~10). 일부 글로벌 이벤트는 없을 수 있어 래퍼.
         private Integer itemId;         // ITEM_PURCHASED 시 구매한 아이템 id
         private Integer skillSlot;      // SKILL_LEVEL_UP 시 올린 스킬 슬롯(1=Q,2=W,3=E,4=R)
