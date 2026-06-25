@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, createContext, useRef } from 'r
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getMatchSummary } from '../../api/match';
-import { imgChampion, imgItem, imgSpell, imgObjective, imgRune, imgTier } from '../../constants/ddragon';
+import { imgChampion, imgItem, imgSpell, imgChampionSpell, imgObjective, imgRune, imgTier } from '../../constants/ddragon';
 import { getSummonerSpellData, getChampionData, getRuneData, getItemData, getChampionDetail } from '../../api/ddragon';
 
 /* ═══════════════════════════════════════════════════════════════
@@ -912,15 +912,16 @@ const DETAIL_TABS = ['종합', 'OP 스코어', '팀 분석', '빌드', '기타']
 
 function DetailTabs({ tabs = DETAIL_TABS, active, onChange }) {
   return (
-    <div style={{ display: 'flex', borderBottom: `1px solid ${T.border}`, background: '#12161f' }}>
+    // 탭 바는 본문(#13131b)보다 확실히 어두운 톤으로 깔아 경계가 드러나게 한다.
+    <div style={{ display: 'flex', background: '#0b0d13', borderBottom: `1px solid ${T.borderStrong}` }}>
       {tabs.map(tab => {
         const on = tab === active;
         return (
           <button key={tab} onClick={() => onChange(tab)}
             style={{
-              flex: 1, padding: '9px 4px', border: 'none', cursor: 'pointer',
+              flex: 1, padding: '10px 4px', border: 'none', cursor: 'pointer',
               background: on ? T.bg : 'transparent',
-              color: on ? T.txtPrimary : T.txtSub,
+              color: on ? T.txtName : T.txtSub,
               fontWeight: on ? 700 : 500, fontSize: 13,
               borderBottom: on ? `2px solid ${T.blue}` : '2px solid transparent',
               fontFamily: 'inherit',
@@ -1043,11 +1044,12 @@ function SkillMasterStep({ letter, spell }) {
   return (
     <Tooltip label={spell.name} desc={desc}>
       <span style={{ position: 'relative', display: 'inline-block' }}>
-        <img src={imgSpell(spell.image.full)} alt={spell.name}
-          style={{ width: 42, height: 42, borderRadius: 6, border: `2px solid ${color}` }} />
+        <img src={imgChampionSpell(spell.image.full)} alt={spell.name}
+          style={{ width: 42, height: 42, borderRadius: 6, border: '1px solid rgba(255,255,255,0.12)' }} />
         <span style={{
-          position: 'absolute', right: -4, bottom: -4, background: color, color: '#fff',
+          position: 'absolute', right: -3, bottom: -3, background: color, color: '#fff',
           fontSize: 10, fontWeight: 800, padding: '0 4px', borderRadius: 3, lineHeight: '15px',
+          border: '1px solid #0a0c14',
         }}>{letter}</span>
       </span>
     </Tooltip>
@@ -1058,13 +1060,16 @@ function BuildArrow({ centered }) {
   return <span style={{ color: T.txtMuted, fontSize: 16, alignSelf: centered ? 'center' : 'flex-start', marginTop: centered ? 0 : 12 }}>›</span>;
 }
 
-// 어두운 헤더 바 형태의 섹션 제목 (이미지와 동일하게 좌측 정렬)
-function BuildSectionTitle({ children }) {
+// 전폭(full-width) 어두운 헤더 바 + 본문. 섹션마다 밴드로 나뉘어 경계가 또렷하게 보인다.
+function BuildSection({ title, children }) {
   return (
-    <div style={{
-      color: T.txtSub, fontSize: 13, fontWeight: 700, padding: '8px 14px',
-      background: 'rgba(255,255,255,0.03)', borderRadius: 4, margin: '0 0 16px',
-    }}>{children}</div>
+    <>
+      <div style={{
+        color: T.txtSub, fontSize: 13, fontWeight: 700, padding: '9px 16px',
+        background: '#1a1f2b', borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`,
+      }}>{title}</div>
+      <div style={{ padding: '18px 16px' }}>{children}</div>
+    </>
   );
 }
 
@@ -1075,7 +1080,9 @@ function RuneCircle({ icon, name, desc, selected, size }) {
       {icon
         ? <img src={imgRune(icon)} alt={name || ''} style={{
             width: size, height: size, borderRadius: '50%', background: '#0a0c14',
-            opacity: selected ? 1 : 0.3,
+            // 미선택 룬은 회색(흑백) + 흐리게 처리해 선택 룬과 확실히 구분
+            opacity: selected ? 1 : 0.45,
+            filter: selected ? 'none' : 'grayscale(100%) brightness(0.7)',
             border: selected ? '2px solid #c8aa6e' : '2px solid transparent',
           }} />
         : <span style={{ width: size, height: size, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'inline-block' }} />}
@@ -1169,13 +1176,13 @@ function BuildView({ row, championKeyById, runeIconById, styleIconById, runeTree
   const hasRunes = (runeTree.length > 0) && (row.primaryStyleId || row.subStyleId);
 
   return (
-    <div style={{ padding: '18px 16px', background: T.bg }}>
+    <div style={{ background: T.bg }}>
       {/* ── 아이템 빌드 (좌측 정렬, 분 단위 묶음) ── */}
-      <BuildSectionTitle>아이템 빌드</BuildSectionTitle>
+      <BuildSection title="아이템 빌드">
       {itemGroups.length === 0
-        ? <div style={{ color: T.txtMuted, fontSize: 12, marginBottom: 26 }}>아이템 구매 기록이 없습니다.</div>
+        ? <div style={{ color: T.txtMuted, fontSize: 12 }}>아이템 구매 기록이 없습니다.</div>
         : (
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 6, rowGap: 16, marginBottom: 30 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 6, rowGap: 16 }}>
             {itemGroups.map((g, gi) => (
               <React.Fragment key={gi}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
@@ -1208,13 +1215,14 @@ function BuildView({ row, championKeyById, runeIconById, styleIconById, runeTree
             ))}
           </div>
         )}
+      </BuildSection>
 
       {/* ── 스킬 빌드 (가운데 정렬) ── */}
-      <BuildSectionTitle>스킬 빌드</BuildSectionTitle>
+      <BuildSection title="스킬 빌드">
       {skillSeq.length === 0
-        ? <div style={{ color: T.txtMuted, fontSize: 12, marginBottom: 26 }}>스킬 레벨업 기록이 없습니다.</div>
+        ? <div style={{ color: T.txtMuted, fontSize: 12 }}>스킬 레벨업 기록이 없습니다.</div>
         : (
-          <div style={{ marginBottom: 30 }}>
+          <div>
             {master.length > 0 && (
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                 {master.map((s, i) => (
@@ -1230,12 +1238,14 @@ function BuildView({ row, championKeyById, runeIconById, styleIconById, runeTree
             </div>
           </div>
         )}
+      </BuildSection>
 
       {/* ── 룬 (가운데 정렬, 전체 트리) ── */}
-      <BuildSectionTitle>룬</BuildSectionTitle>
+      <BuildSection title="룬">
       {hasRunes
         ? <RunePage row={row} runeTree={runeTree} />
         : <div style={{ color: T.txtMuted, fontSize: 12 }}>룬 정보가 없습니다.</div>}
+      </BuildSection>
     </div>
   );
 }
@@ -1488,39 +1498,45 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
             ? <div style={{ color: T.txtMuted, fontSize: 13, padding: '18px 16px' }}>
                 조회 중...
               </div>
-            : (() => {
-                // 아레나는 표준 팀 스코어보드/지표가 맞지 않아 종합·OP 스코어·팀 분석 탭을 숨긴다.
-                const availableTabs = isArena ? ['빌드', '기타'] : DETAIL_TABS;
-                const activeTab = availableTabs.includes(detailTab) ? detailTab : availableTabs[0];
-                return (
-                  <>
-                    <DetailTabs tabs={availableTabs} active={activeTab} onChange={setDetailTab} />
-                    {activeTab === '종합' && (
-                      <DetailTable
-                        rows={summaryRows}
-                        championKeyById={championKeyById}
-                        spellMap={spellMap}
-                        runeIconById={runeIconById}
-                        styleIconById={styleIconById}
-                        onSummonerClick={onSummonerClick}
-                        myPuuid={match.myPuuid}
-                      />
-                    )}
-                    {activeTab === '빌드' && (
-                      <BuildView
-                        row={summaryRows.find(r => r.puuid === match.myPuuid)}
-                        championKeyById={championKeyById}
-                        runeIconById={runeIconById}
-                        styleIconById={styleIconById}
-                        runeTree={runeTree}
-                      />
-                    )}
-                    {(activeTab === 'OP 스코어' || activeTab === '팀 분석' || activeTab === '기타') && (
-                      <DetailPlaceholder label={activeTab} />
-                    )}
-                  </>
-                );
-              })()
+            : isArena
+              // 아레나는 표준 탭(종합/OP 스코어/팀 분석/빌드/기타)이 맞지 않아 탭 없이 스코어보드만 보여준다.
+              ? <DetailTable
+                  rows={summaryRows}
+                  championKeyById={championKeyById}
+                  spellMap={spellMap}
+                  runeIconById={runeIconById}
+                  styleIconById={styleIconById}
+                  onSummonerClick={onSummonerClick}
+                  myPuuid={match.myPuuid}
+                />
+              : (
+                <>
+                  <DetailTabs active={detailTab} onChange={setDetailTab} />
+                  {detailTab === '종합' && (
+                    <DetailTable
+                      rows={summaryRows}
+                      championKeyById={championKeyById}
+                      spellMap={spellMap}
+                      runeIconById={runeIconById}
+                      styleIconById={styleIconById}
+                      onSummonerClick={onSummonerClick}
+                      myPuuid={match.myPuuid}
+                    />
+                  )}
+                  {detailTab === '빌드' && (
+                    <BuildView
+                      row={summaryRows.find(r => r.puuid === match.myPuuid)}
+                      championKeyById={championKeyById}
+                      runeIconById={runeIconById}
+                      styleIconById={styleIconById}
+                      runeTree={runeTree}
+                    />
+                  )}
+                  {(detailTab === 'OP 스코어' || detailTab === '팀 분석' || detailTab === '기타') && (
+                    <DetailPlaceholder label={detailTab} />
+                  )}
+                </>
+              )
           }
         </div>
       )}

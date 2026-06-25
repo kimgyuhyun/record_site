@@ -22,6 +22,8 @@ export const DATA_CDN = `https://ddragon.leagueoflegends.com/cdn/${DDRAGON_VERSI
 export const imgChampion    = (key)  => `${IMG_BASE}/img/champion/${key}.png`;
 export const imgItem        = (id)   => `${IMG_BASE}/img/item/${id}.png`;
 export const imgSpell       = (file) => `${IMG_BASE}/img/spell/${file}`;
+// 챔피언 스킬(Q/W/E/R) 아이콘은 로컬 static에 받아두지 않아 외부 CDN에서 직접 받는다
+export const imgChampionSpell = (file) => `${DATA_CDN}/img/spell/${file}`;
 // profileicon은 로컬에 없으므로 외부 CDN 사용
 export const imgProfileIcon = (id)   => `${DATA_CDN}/img/profileicon/${id}.png`;
 
