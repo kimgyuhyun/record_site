@@ -906,10 +906,259 @@ function ArenaMiniList({ parts, championKeyById, myPuuid, onSummonerClick }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   상세 탭 바 (종합 / OP 스코어 / 팀 분석 / 빌드 / 기타)
+════════════════════════════════════════════════════════════════ */
+const DETAIL_TABS = ['종합', 'OP 스코어', '팀 분석', '빌드', '기타'];
+
+function DetailTabs({ active, onChange }) {
+  return (
+    <div style={{ display: 'flex', borderBottom: `1px solid ${T.border}`, background: '#12161f' }}>
+      {DETAIL_TABS.map(tab => {
+        const on = tab === active;
+        return (
+          <button key={tab} onClick={() => onChange(tab)}
+            style={{
+              flex: 1, padding: '9px 4px', border: 'none', cursor: 'pointer',
+              background: on ? T.bg : 'transparent',
+              color: on ? T.txtPrimary : T.txtSub,
+              fontWeight: on ? 700 : 500, fontSize: 13,
+              borderBottom: on ? `2px solid ${T.blue}` : '2px solid transparent',
+              fontFamily: 'inherit',
+            }}>
+            {tab}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   빌드 탭 — 내 챔피언의 아이템 빌드(분 단위 묶음) / 스킬 빌드 / 룬
+   - itemBuildOrder: "아이템id:구매초,..." → 분 단위 묶음 + 같은 묶음 내 동일 아이템 개수 누적
+   - skillBuildOrder: "QWEQ..." → 선마 순서(5레벨 도달 순) + 레벨별 시퀀스
+════════════════════════════════════════════════════════════════ */
+const SKILL_COLOR = { Q: '#3b7dd8', W: '#1f9e63', E: '#9b46d6', R: '#d9a514' };
+
+// 능력치 파편 id → DDragon StatMods 아이콘 경로 (perk-images 하위, 버전 무관)
+const STAT_SHARD_ICON = {
+  5008: 'perk-images/StatMods/StatModsAdaptiveForceIcon.png',
+  5005: 'perk-images/StatMods/StatModsAttackSpeedIcon.png',
+  5007: 'perk-images/StatMods/StatModsCDRScalingIcon.png',
+  5002: 'perk-images/StatMods/StatModsArmorIcon.png',
+  5003: 'perk-images/StatMods/StatModsMagicResIcon.png',
+  5001: 'perk-images/StatMods/StatModsHealthScalingIcon.png',
+  5011: 'perk-images/StatMods/StatModsHealthPlusIcon.png',
+  5013: 'perk-images/StatMods/StatModsTenacityIcon.png',
+  5010: 'perk-images/StatMods/StatModsMovementSpeedIcon.png',
+};
+
+// "id:sec,id:sec" → [{ minute, items: [{ id, count }] }] (분이 바뀌면 새 묶음)
+function parseItemBuild(itemBuildOrder) {
+  if (!itemBuildOrder) return [];
+  const groups = [];
+  itemBuildOrder.split(',').forEach(tok => {
+    const [idStr, secStr] = tok.split(':');
+    const id = Number(idStr);
+    if (!id || id <= 0) return;
+    const minute = Math.floor((Number(secStr) || 0) / 60);
+    let g = groups[groups.length - 1];
+    if (!g || g.minute !== minute) { g = { minute, items: [] }; groups.push(g); }
+    const last = g.items[g.items.length - 1];
+    if (last && last.id === id) last.count += 1;   // 같은 묶음의 연속 동일 아이템 누적(예: 물약 ×2)
+    else g.items.push({ id, count: 1 });
+  });
+  return groups;
+}
+
+// "QWEQ..." → Q/W/E 가 5레벨에 먼저 도달한 순서(선마 순서). 5레벨 미도달은 현재 레벨 높은 순으로 뒤에.
+function masterSkillOrder(skillBuildOrder) {
+  if (!skillBuildOrder) return [];
+  const count = { Q: 0, W: 0, E: 0 };
+  const order = [];
+  for (const ch of skillBuildOrder) {
+    if (count[ch] === undefined) continue; // R 등 무시
+    count[ch] += 1;
+    if (count[ch] === 5 && !order.includes(ch)) order.push(ch);
+  }
+  ['Q', 'W', 'E'].sort((a, b) => count[b] - count[a])
+    .forEach(s => { if (!order.includes(s)) order.push(s); });
+  return order;
+}
+
+function SkillBadge({ letter, size = 24 }) {
+  const color = SKILL_COLOR[letter] || '#3e4a5a';
+  return (
+    <span style={{
+      width: size, height: size, borderRadius: 4,
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      background: color, color: '#fff', fontWeight: 800,
+      fontSize: size <= 22 ? 11 : 13, flexShrink: 0,
+      border: letter === 'R' ? '1px solid #f5d97a' : '1px solid rgba(0,0,0,0.25)',
+    }}>{letter}</span>
+  );
+}
+
+function BuildArrow() {
+  return <span style={{ color: T.txtMuted, fontSize: 16, alignSelf: 'flex-start', marginTop: 12 }}>›</span>;
+}
+
+function BuildSectionTitle({ children }) {
+  return (
+    <div style={{ color: T.txtSub, fontSize: 13, fontWeight: 700, margin: '0 0 12px' }}>{children}</div>
+  );
+}
+
+function RuneIcon({ icon, size, dim, round = true }) {
+  if (!icon) return <div style={{ width: size, height: size, borderRadius: round ? '50%' : 4, background: 'rgba(255,255,255,0.05)' }} />;
+  return (
+    <img src={imgRune(icon)} alt="" style={{
+      width: size, height: size, borderRadius: round ? '50%' : 4,
+      background: '#0a0c14', opacity: dim ? 0.35 : 1,
+    }} />
+  );
+}
+
+function BuildView({ row, runeIconById, styleIconById }) {
+  const { itemNameById, itemDescById, itemGoldById, runeNameById, styleNameById } = useContext(MetaContext);
+
+  if (!row) {
+    return <div style={{ color: T.txtMuted, fontSize: 13, padding: '20px 16px' }}>데이터가 없습니다.</div>;
+  }
+
+  const itemGroups = parseItemBuild(row.itemBuildOrder);
+  const skillSeq = row.skillBuildOrder || '';
+  const master = masterSkillOrder(skillSeq);
+  const hasBuild = itemGroups.length > 0 || skillSeq.length > 0;
+
+  if (!hasBuild) {
+    return (
+      <div style={{ color: T.txtMuted, fontSize: 13, padding: '20px 16px' }}>
+        빌드 데이터가 없습니다. (타임라인 미수집 매치 — 갱신 후 새로 적재된 매치부터 표시됩니다.)
+      </div>
+    );
+  }
+
+  const primaryRunes = [row.keystoneId, row.primaryRune1, row.primaryRune2, row.primaryRune3].filter(Boolean);
+  const subRunes = [row.subRune1, row.subRune2].filter(Boolean);
+  const shards = [row.statPerkOffense, row.statPerkFlex, row.statPerkDefense].filter(Boolean);
+
+  return (
+    <div style={{ padding: '18px 16px', background: T.bg }}>
+      {/* ── 아이템 빌드 ── */}
+      <BuildSectionTitle>아이템 빌드</BuildSectionTitle>
+      {itemGroups.length === 0
+        ? <div style={{ color: T.txtMuted, fontSize: 12, marginBottom: 22 }}>아이템 구매 기록이 없습니다.</div>
+        : (
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 6, rowGap: 16, marginBottom: 26 }}>
+            {itemGroups.map((g, gi) => (
+              <React.Fragment key={gi}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+                  <div style={{
+                    display: 'flex', gap: 3, padding: '5px 6px',
+                    background: 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${T.border}`, borderRadius: 6,
+                  }}>
+                    {g.items.map((it, ii) => (
+                      <Tooltip key={ii} label={itemNameById[it.id]} desc={itemDescById[it.id]} gold={itemGoldById[it.id]}>
+                        <span style={{ position: 'relative', display: 'inline-block' }}>
+                          <img src={imgItem(it.id)} alt={itemNameById[it.id] || ''}
+                            style={{ width: 36, height: 36, borderRadius: 4, border: '1px solid rgba(255,255,255,0.08)' }} />
+                          {it.count > 1 && (
+                            <span style={{
+                              position: 'absolute', right: -3, bottom: -3,
+                              background: '#0a0c14', color: '#fff', fontSize: 10, fontWeight: 800,
+                              padding: '0 3px', borderRadius: 3, border: '1px solid rgba(255,255,255,0.2)',
+                              lineHeight: '14px',
+                            }}>{it.count}</span>
+                          )}
+                        </span>
+                      </Tooltip>
+                    ))}
+                  </div>
+                  <span style={{ fontSize: 11, color: T.txtMuted }}>{g.minute}분</span>
+                </div>
+                {gi < itemGroups.length - 1 && <BuildArrow />}
+              </React.Fragment>
+            ))}
+          </div>
+        )}
+
+      {/* ── 스킬 빌드 ── */}
+      <BuildSectionTitle>스킬 빌드</BuildSectionTitle>
+      {skillSeq.length === 0
+        ? <div style={{ color: T.txtMuted, fontSize: 12, marginBottom: 22 }}>스킬 레벨업 기록이 없습니다.</div>
+        : (
+          <div style={{ marginBottom: 26 }}>
+            {master.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                {master.map((s, i) => (
+                  <React.Fragment key={s}>
+                    <SkillBadge letter={s} size={30} />
+                    {i < master.length - 1 && <span style={{ color: T.txtMuted, fontSize: 15 }}>›</span>}
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+              {[...skillSeq].map((ch, i) => <SkillBadge key={i} letter={ch} size={24} />)}
+            </div>
+          </div>
+        )}
+
+      {/* ── 룬 ── (선택한 룬 + 능력치 파편) */}
+      <BuildSectionTitle>룬</BuildSectionTitle>
+      <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }}>
+        {/* 주 룬 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+          <RuneIcon icon={styleIconById[row.primaryStyleId]} size={20} />
+          <RuneIcon icon={runeIconById[row.keystoneId]} size={40} />
+          <div style={{ display: 'flex', gap: 8 }}>
+            {[row.primaryRune1, row.primaryRune2, row.primaryRune3].map((id, i) => (
+              <RuneIcon key={i} icon={runeIconById[id]} size={26} />
+            ))}
+          </div>
+        </div>
+        {/* 보조 룬 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+          <RuneIcon icon={styleIconById[row.subStyleId]} size={20} />
+          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+            {[row.subRune1, row.subRune2].map((id, i) => (
+              <RuneIcon key={i} icon={runeIconById[id]} size={26} />
+            ))}
+          </div>
+        </div>
+        {/* 능력치 파편 */}
+        {shards.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+            <span style={{ color: T.txtMuted, fontSize: 11 }}>능력치 파편</span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {shards.map((id, i) => (
+                <RuneIcon key={i} icon={STAT_SHARD_ICON[id]} size={22} />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DetailPlaceholder({ label }) {
+  return (
+    <div style={{ color: T.txtMuted, fontSize: 13, padding: '28px 16px', textAlign: 'center', background: T.bg }}>
+      {label} 탭은 준비 중입니다.
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    매치 카드 (요약 행 + 드롭다운)
 ════════════════════════════════════════════════════════════════ */
 function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconById,
   onSummonerClick, onToggle, isExpanded, summaryLoading, summaryRows }) {
+
+  const [detailTab, setDetailTab] = useState('종합');
 
   const isRemake    = match.gameEndedInEarlySurrender;
   /* 아레나면 승/패 대신 등수(N위)로 표시 */
@@ -1143,15 +1392,32 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
             ? <div style={{ color: T.txtMuted, fontSize: 13, padding: '18px 16px' }}>
                 조회 중...
               </div>
-            : <DetailTable
-                rows={summaryRows}
-                championKeyById={championKeyById}
-                spellMap={spellMap}
-                runeIconById={runeIconById}
-                styleIconById={styleIconById}
-                onSummonerClick={onSummonerClick}
-                myPuuid={match.myPuuid}
-              />
+            : (
+              <>
+                <DetailTabs active={detailTab} onChange={setDetailTab} />
+                {detailTab === '종합' && (
+                  <DetailTable
+                    rows={summaryRows}
+                    championKeyById={championKeyById}
+                    spellMap={spellMap}
+                    runeIconById={runeIconById}
+                    styleIconById={styleIconById}
+                    onSummonerClick={onSummonerClick}
+                    myPuuid={match.myPuuid}
+                  />
+                )}
+                {detailTab === '빌드' && (
+                  <BuildView
+                    row={summaryRows.find(r => r.puuid === match.myPuuid)}
+                    runeIconById={runeIconById}
+                    styleIconById={styleIconById}
+                  />
+                )}
+                {(detailTab === 'OP 스코어' || detailTab === '팀 분석' || detailTab === '기타') && (
+                  <DetailPlaceholder label={detailTab} />
+                )}
+              </>
+            )
           }
         </div>
       )}
