@@ -8,6 +8,10 @@ export const getMatches = (puuid) =>
 export const getMatchSummary = (matchId) =>
   apiClient.get(`/api/matches/${matchId}/summary`);
 
+// 매치 타임라인(맵/이벤트/골드 그래프)
+export const getMatchTimeline = (matchId) =>
+  apiClient.get(`/api/matches/${matchId}/timeline`);
+
 // 전적 갱신
 export const refreshMatches = (puuid) =>
   apiClient.post('/api/matches/refresh', null, { params: { puuid } });

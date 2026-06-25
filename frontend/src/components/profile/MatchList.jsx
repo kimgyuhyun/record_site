@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { getMatchSummary } from '../../api/match';
 import { imgChampion, imgItem, imgSpell, imgChampionSpell, imgObjective, imgRune, imgTier } from '../../constants/ddragon';
 import { getSummonerSpellData, getChampionData, getRuneData, getItemData, getChampionDetail } from '../../api/ddragon';
+import TimelineModal from './TimelineModal';
 
 /* ═══════════════════════════════════════════════════════════════
    DDragon 메타(이름) 컨텍스트
@@ -1359,10 +1360,12 @@ function StatComparePanel({ title, valueOf, winRows, loseRows, championKeyById }
   );
 }
 
-function TeamAnalysis({ rows, championKeyById }) {
+function TeamAnalysis({ rows, championKeyById, championNameById, matchId }) {
   const [subTab, setSubTab] = useState('경기 분석');
+  const [timelineOpen, setTimelineOpen] = useState(false);
   const winRows = rows.filter(r => r.win);
   const loseRows = rows.filter(r => !r.win);
+  const winTeamId = winRows[0]?.teamId ?? null;
 
   const SUBS = ['경기 분석', '타임라인'];
 
@@ -1371,9 +1374,10 @@ function TeamAnalysis({ rows, championKeyById }) {
       {/* 서브탭도 메인 탭과 동일하게 구분선 + 활성 배경 강조 */}
       <div style={{ display: 'flex', background: T.tabBg, borderBottom: `1px solid ${T.sectionLine}` }}>
         {SUBS.map((label, i) => {
-          const on = subTab === label;
+          const on = subTab === label && !(label === '타임라인');
           return (
-            <button key={label} onClick={() => setSubTab(label)}
+            <button key={label}
+              onClick={() => (label === '타임라인' ? setTimelineOpen(true) : setSubTab(label))}
               style={{
                 flex: 1, padding: '10px 4px', cursor: 'pointer', border: 'none',
                 borderRight: i < SUBS.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
@@ -1404,10 +1408,16 @@ function TeamAnalysis({ rows, championKeyById }) {
             ))}
           </div>
         </div>
-      ) : (
-        <div style={{ color: T.txtMuted, fontSize: 13, padding: '28px 16px', textAlign: 'center' }}>
-          타임라인 분석(분당 골드/경험치 그래프)은 준비 중입니다.
-        </div>
+      ) : null}
+
+      {timelineOpen && (
+        <TimelineModal
+          matchId={matchId}
+          winTeamId={winTeamId}
+          championKeyById={championKeyById}
+          championNameById={championNameById}
+          onClose={() => setTimelineOpen(false)}
+        />
       )}
     </div>
   );
@@ -1416,7 +1426,7 @@ function TeamAnalysis({ rows, championKeyById }) {
 /* ═══════════════════════════════════════════════════════════════
    매치 카드 (요약 행 + 드롭다운)
 ════════════════════════════════════════════════════════════════ */
-function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconById, runeTree,
+function MatchCard({ match, championKeyById, championNameById, spellMap, runeIconById, styleIconById, runeTree,
   onSummonerClick, onToggle, isExpanded, summaryLoading, summaryRows }) {
 
   const [detailTab, setDetailTab] = useState('종합');
@@ -1688,7 +1698,8 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
                     />
                   )}
                   {detailTab === '팀 분석' && (
-                    <TeamAnalysis rows={summaryRows} championKeyById={championKeyById} />
+                    <TeamAnalysis rows={summaryRows} championKeyById={championKeyById}
+                      championNameById={championNameById} matchId={match.matchId} />
                   )}
                   {(detailTab === 'OP 스코어' || detailTab === '기타') && (
                     <DetailPlaceholder label={detailTab} />
@@ -1844,7 +1855,7 @@ export default function MatchList({ matches = [] }) {
         {matches.map(m => (
           <MatchCard
             key={m.matchId} match={m}
-            championKeyById={championKeyById} spellMap={spellMap}
+            championKeyById={championKeyById} championNameById={championNameById} spellMap={spellMap}
             runeIconById={runeIconById} styleIconById={styleIconById}
             runeTree={runeTree}
             onSummonerClick={goToSummoner}
