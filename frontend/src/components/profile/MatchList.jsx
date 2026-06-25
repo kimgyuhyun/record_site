@@ -48,6 +48,8 @@ const T = {
   border:       'rgba(255,255,255,0.07)',
   borderStrong: 'rgba(255,255,255,0.13)',
   sectionLine:  '#39414f', // 상세보기 섹션(헤더/구분바) 경계선 — 확실히 보이는 회색
+  tabBg:        '#1e2024', // 상세보기 탭/탭 내용 공통 배경
+  tabActive:    '#2c3340', // 활성 탭 강조 배경 (탭 바 위에서 또렷하게)
 
   /* 텍스트 */
   txtName:      '#ffffff',
@@ -775,7 +777,7 @@ function ArenaDetail({ rows, championKeyById, spellMap, runeIconById, styleIconB
     <div style={{
       overflowX: 'auto', minWidth: 820,
       fontFamily: 'Pretendard, "Apple SD Gothic Neo", -apple-system, sans-serif',
-      background: T.bg,
+      background: T.tabBg,
     }}>
       <TeamHeader label="순위" />
       {subteams.map((duo, i) => {
@@ -856,7 +858,7 @@ function DetailTable({ rows, championKeyById, spellMap, runeIconById, styleIconB
     <div style={{
       overflowX: 'auto', minWidth: 820,
       fontFamily: 'Pretendard, "Apple SD Gothic Neo", -apple-system, sans-serif',
-      background: T.bg,
+      background: T.tabBg,
     }}>
       <TeamSection
         rows={blueWin ? blue : red} championKeyById={championKeyById} spellMap={spellMap}
@@ -926,7 +928,7 @@ const DETAIL_TABS = ['종합', 'OP 스코어', '팀 분석', '빌드', '기타']
 function DetailTabs({ tabs = DETAIL_TABS, active, onChange }) {
   return (
     // 탭 바는 본문(#13131b)보다 어두운 톤 + 탭 사이 구분선. 활성 탭은 배경 강조 + 파란 밑줄.
-    <div style={{ display: 'flex', background: '#0b0d13', borderBottom: `1px solid ${T.borderStrong}` }}>
+    <div style={{ display: 'flex', background: T.tabBg, borderBottom: `1px solid ${T.borderStrong}` }}>
       {tabs.map((tab, i) => {
         const on = tab === active;
         return (
@@ -934,7 +936,7 @@ function DetailTabs({ tabs = DETAIL_TABS, active, onChange }) {
             style={{
               flex: 1, padding: '10px 4px', cursor: 'pointer', border: 'none',
               borderRight: i < tabs.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
-              background: on ? '#1c2433' : 'transparent',
+              background: on ? T.tabActive : 'transparent',
               color: on ? T.txtName : T.txtSub,
               fontWeight: on ? 700 : 500, fontSize: 13,
               borderBottom: on ? `2px solid ${T.blue}` : '2px solid transparent',
@@ -1201,7 +1203,7 @@ function BuildView({ row, championKeyById, runeIconById, styleIconById, runeTree
   const hasRunes = (runeTree.length > 0) && (row.primaryStyleId || row.subStyleId);
 
   return (
-    <div style={{ background: T.bg }}>
+    <div style={{ background: T.tabBg }}>
       {/* ── 아이템 빌드 (좌측 정렬, 분 단위 묶음) ── */}
       <BuildSection title="아이템 빌드">
       {itemGroups.length === 0
@@ -1277,7 +1279,7 @@ function BuildView({ row, championKeyById, runeIconById, styleIconById, runeTree
 
 function DetailPlaceholder({ label }) {
   return (
-    <div style={{ color: T.txtMuted, fontSize: 13, padding: '28px 16px', textAlign: 'center', background: T.bg }}>
+    <div style={{ color: T.txtMuted, fontSize: 13, padding: '28px 16px', textAlign: 'center', background: T.tabBg }}>
       {label} 탭은 준비 중입니다.
     </div>
   );
@@ -1364,9 +1366,9 @@ function TeamAnalysis({ rows, championKeyById }) {
   const SUBS = ['경기 분석', '타임라인'];
 
   return (
-    <div style={{ background: T.bg }}>
+    <div style={{ background: T.tabBg }}>
       {/* 서브탭도 메인 탭과 동일하게 구분선 + 활성 배경 강조 */}
-      <div style={{ display: 'flex', background: '#0e1119', borderBottom: `1px solid ${T.sectionLine}` }}>
+      <div style={{ display: 'flex', background: T.tabBg, borderBottom: `1px solid ${T.sectionLine}` }}>
         {SUBS.map((label, i) => {
           const on = subTab === label;
           return (
@@ -1374,7 +1376,7 @@ function TeamAnalysis({ rows, championKeyById }) {
               style={{
                 flex: 1, padding: '10px 4px', cursor: 'pointer', border: 'none',
                 borderRight: i < SUBS.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
-                background: on ? '#1c2433' : 'transparent',
+                background: on ? T.tabActive : 'transparent',
                 color: on ? T.blue : T.txtSub, fontWeight: on ? 700 : 500, fontSize: 13,
                 borderBottom: on ? `2px solid ${T.blue}` : '2px solid transparent', fontFamily: 'inherit',
               }}>{label}</button>
