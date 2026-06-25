@@ -72,6 +72,7 @@ public class RiotMatchResponse {
                 private Objective dragon; // 드래곤 획득 정보
                 private Objective inhibitor; // 억제기 파괴 정보
                 private Objective riftHerald; // 전령 획득 정보
+                private Objective horde; // 공허 유충(void grub) 처치 정보
                 private Objective tower; // 타워 파괴 정보
 
                 @Getter

@@ -76,12 +76,14 @@ public class MatchSummaryDto {
     private int blueTowerKills;
     private int blueInhibitorKills; // 억제기
     private Integer blueRiftHeraldKills; // 전령
+    private Integer blueHordeKills; // 공허 유충
 
     private Integer redBaronKills;
     private Integer redDragonKills;
     private int redTowerKills;
     private int redInhibitorKills;
     private Integer redRiftHeraldKills;
+    private Integer redHordeKills; // 공허 유충
 
     public static MatchSummaryDto from(Match match, Participant p) {
         return MatchSummaryDto.builder()
@@ -135,11 +137,13 @@ public class MatchSummaryDto {
                 .blueTowerKills(match.getBlueTowerKills())
                 .blueInhibitorKills(match.getBlueInhibitorKills())
                 .blueRiftHeraldKills(match.getBlueRiftHeraldKills())
+                .blueHordeKills(match.getBlueHordeKills())
                 .redBaronKills(match.getRedBaronKills())
                 .redDragonKills(match.getRedDragonKills())
                 .redTowerKills(match.getRedTowerKills())
                 .redInhibitorKills(match.getRedInhibitorKills())
                 .redRiftHeraldKills(match.getRedRiftHeraldKills())
+                .redHordeKills(match.getRedHordeKills())
                 .build();
     }
 }

@@ -64,6 +64,8 @@ public class Match {
     private int blueInhibitorKills; // 억제기
     @Column
     private int blueRiftHeraldKills; // 전령
+    @Column
+    private int blueHordeKills; // 공허 유충 처치 수
 
     @Column
     private int redBaronKills;
@@ -75,6 +77,8 @@ public class Match {
     private int redInhibitorKills;
     @Column
     private int redRiftHeraldKills;
+    @Column
+    private int redHordeKills; // 공허 유충 처치 수
 
     // ── 팀별 퍼스트 오브젝트 플래그(먼저 차지했는지). 구버전 적재분은 false. ──
     @Column(nullable = false) private boolean blueFirstBlood;
@@ -94,9 +98,9 @@ public class Match {
     public static Match from(RiotMatchResponse res) {
         // 루프 결과를 먼저 변수로 추출 (빌더 체이닝 안에서는 for loop 불가)
         int blueBaronKills = 0, blueDragonKills = 0, blueTowerKills = 0;
-        int blueInhibitorKills = 0, blueRiftHeraldKills = 0;
+        int blueInhibitorKills = 0, blueRiftHeraldKills = 0, blueHordeKills = 0;
         int redBaronKills = 0, redDragonKills = 0, redTowerKills = 0;
-        int redInhibitorKills = 0, redRiftHeraldKills = 0;
+        int redInhibitorKills = 0, redRiftHeraldKills = 0, redHordeKills = 0;
 
         boolean blueFirstBlood = false, blueFirstTower = false, blueFirstDragon = false;
         boolean blueFirstBaron = false, blueFirstRiftHerald = false, blueFirstInhibitor = false;
@@ -114,6 +118,7 @@ public class Match {
                 blueTowerKills = obj.getTower() != null ? obj.getTower().getKills()      : 0;
                 blueInhibitorKills = obj.getInhibitor() != null ? obj.getInhibitor().getKills()  : 0;
                 blueRiftHeraldKills = obj.getRiftHerald() != null ? obj.getRiftHerald().getKills() : 0;
+                blueHordeKills = obj.getHorde() != null ? obj.getHorde().getKills() : 0;
                 blueFirstBlood = obj.getChampion() != null && obj.getChampion().isFirst();
                 blueFirstTower = obj.getTower() != null && obj.getTower().isFirst();
                 blueFirstDragon = obj.getDragon() != null && obj.getDragon().isFirst();
@@ -126,6 +131,7 @@ public class Match {
                 redTowerKills = obj.getTower() != null ? obj.getTower().getKills()      : 0;
                 redInhibitorKills = obj.getInhibitor() != null ? obj.getInhibitor().getKills()  : 0;
                 redRiftHeraldKills = obj.getRiftHerald() != null ? obj.getRiftHerald().getKills() : 0;
+                redHordeKills = obj.getHorde() != null ? obj.getHorde().getKills() : 0;
                 redFirstBlood = obj.getChampion() != null && obj.getChampion().isFirst();
                 redFirstTower = obj.getTower() != null && obj.getTower().isFirst();
                 redFirstDragon = obj.getDragon() != null && obj.getDragon().isFirst();
@@ -154,11 +160,13 @@ public class Match {
                 .blueTowerKills(blueTowerKills)
                 .blueInhibitorKills(blueInhibitorKills)
                 .blueRiftHeraldKills(blueRiftHeraldKills)
+                .blueHordeKills(blueHordeKills)
                 .redBaronKills(redBaronKills)
                 .redDragonKills(redDragonKills)
                 .redTowerKills(redTowerKills)
                 .redInhibitorKills(redInhibitorKills)
                 .redRiftHeraldKills(redRiftHeraldKills)
+                .redHordeKills(redHordeKills)
                 .blueFirstBlood(blueFirstBlood)
                 .blueFirstTower(blueFirstTower)
                 .blueFirstDragon(blueFirstDragon)
