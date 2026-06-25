@@ -109,7 +109,7 @@ function Tooltip({ label, desc, gold, children }) {
               가격 {gold.total.toLocaleString()}
               {gold.sell > 0 && (
                 <span style={{ fontWeight: 400, color: '#cfd6e4' }}>
-                  {' '}({gold.sell.toLocaleString()} 되팔기 가격)
+                  {' '}({gold.sell.toLocaleString()})
                 </span>
               )}
             </span>
@@ -301,38 +301,28 @@ function AverageTierBadge({ tier, rank }) {
    - 수치: 좌측 수치 표시, 바는 flex 비율
 ════════════════════════════════════════════════════════════════ */
 function DamageGraph({ dealt, taken, maxDealt, maxTaken }) {
+  // 한 행에 좌(가한 피해=빨강) / 우(받은 피해=회색)를 나란히. 각 숫자 아래 비율 바.
   const dp = maxDealt > 0 ? Math.max(3, Math.round((dealt / maxDealt) * 100)) : 0;
   const tp = maxTaken > 0 ? Math.max(3, Math.round((taken / maxTaken) * 100)) : 0;
-  const fmtK = v => v >= 1000 ? Math.round(v / 100) / 10 + 'k' : String(v);
+
+  const half = (value, pct, barColor, textColor, alignRight) => (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <Tooltip label={alignRight ? '챔피언에게 가한 피해량' : '챔피언에게 받은 피해량'}>
+        <div style={{
+          fontSize: 12, fontWeight: alignRight ? 700 : 500, color: textColor,
+          textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
+        }}>{value.toLocaleString()}</div>
+      </Tooltip>
+      <div style={{ height: 5, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden', marginTop: 3 }}>
+        <div style={{ width: `${pct}%`, height: '100%', marginLeft: 'auto', background: barColor, borderRadius: 3 }} />
+      </div>
+    </div>
+  );
 
   return (
-    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 4 }}>
-      {/* 딜 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{
-          width: 34, textAlign: 'right', flexShrink: 0,
-          fontSize: 11, fontWeight: 700, color: T.txtPrimary,
-          fontVariantNumeric: 'tabular-nums',
-        }}>{fmtK(dealt)}</span>
-        <div style={{ flex: 1, height: 7, background: 'rgba(255,255,255,0.05)',
-          borderRadius: 3, overflow: 'hidden' }}>
-          <div style={{ width: `${dp}%`, height: '100%',
-            background: 'linear-gradient(90deg,#c8203a,#e84057)', borderRadius: 3 }} />
-        </div>
-      </div>
-      {/* 탱 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{
-          width: 34, textAlign: 'right', flexShrink: 0,
-          fontSize: 11, color: T.txtSub,
-          fontVariantNumeric: 'tabular-nums',
-        }}>{fmtK(taken)}</span>
-        <div style={{ flex: 1, height: 7, background: 'rgba(255,255,255,0.05)',
-          borderRadius: 3, overflow: 'hidden' }}>
-          <div style={{ width: `${tp}%`, height: '100%',
-            background: 'linear-gradient(90deg,#2a4a9e,#5383f3)', borderRadius: 3 }} />
-        </div>
-      </div>
+    <div style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+      {half(dealt, dp, 'linear-gradient(90deg,#c8203a,#e84057)', T.txtPrimary, true)}
+      {half(taken, tp, '#5a6678', T.txtSub, false)}
     </div>
   );
 }
@@ -663,12 +653,18 @@ function PlayerRow({ row, championKeyById, spellMap, runeIconById, styleIconById
         />
       </div>
 
-      {/* ④ 와드 */}
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ color: T.txtPrimary, fontSize: 13, fontWeight: 700 }}>
-          {row.visionScore}
+      {/* ④ 와드 — 위: 제어와드 구매 / 아래: 와드설치 / 와드제거 (각각 호버 툴팁) */}
+      <div style={{ textAlign: 'center', lineHeight: 1.35 }}>
+        <Tooltip label="제어 와드 구매">
+          <span style={{ color: T.txtPrimary, fontSize: 12, fontWeight: 700 }}>
+            {row.visionWardsBoughtInGame ?? 0}
+          </span>
+        </Tooltip>
+        <div style={{ fontSize: 11, marginTop: 1, color: T.txtSub }}>
+          <Tooltip label="와드 설치"><span>{row.wardsPlaced ?? 0}</span></Tooltip>
+          <span style={{ color: T.txtMuted }}> / </span>
+          <Tooltip label="와드 제거"><span>{row.wardsKilled ?? 0}</span></Tooltip>
         </div>
-        <div style={{ color: T.txtMuted, fontSize: 10, marginTop: 2 }}>와드점수</div>
       </div>
 
       {/* ⑤ CS */}
@@ -960,6 +956,17 @@ const STAT_SHARDS = [
   [{ id: 5011, n: '체력' }, { id: 5013, n: '강인함 및 둔화 저항' }, { id: 5001, n: '체력(레벨 비례)' }],
 ];
 
+// 능력치 파편 설명 — 룬과 달리 DDragon이 설명을 안 줘서 직접 명시(툴팁용)
+const STAT_SHARD_DESC = {
+  5008: '+5.4 공격력 또는 +9 주문력 (적응형)',
+  5005: '+10% 공격 속도',
+  5007: '+8 스킬 가속',
+  5010: '+2% 이동 속도',
+  5001: '레벨에 비례해 최대 +15~140 체력',
+  5011: '+65 체력',
+  5013: '+10% 강인함 및 둔화 저항',
+};
+
 // 챔피언 스킬 상세는 매치 펼칠 때마다 다시 받지 않도록 모듈 캐시에 보관 (championName → spells[Q,W,E,R])
 const championSpellCache = {};
 
@@ -1141,7 +1148,7 @@ function RunePage({ row, runeTree }) {
             <div key={ri} style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 14 }}>
               {shardRow.map(sh => (
                 <RuneCircle key={sh.id} icon={STAT_SHARD_ICON[sh.id]} name={sh.n}
-                  selected={sh.id === selectedId} size={24} />
+                  desc={STAT_SHARD_DESC[sh.id]} selected={sh.id === selectedId} size={24} />
               ))}
             </div>
           );
