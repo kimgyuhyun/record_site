@@ -17,6 +17,7 @@ import { getSummonerSpellData, getChampionData, getRuneData, getItemData, getCha
 const MetaContext = createContext({
   spellNameById: {}, runeNameById: {}, styleNameById: {}, itemNameById: {},
   spellDescById: {}, runeDescById: {}, itemDescById: {}, itemGoldById: {},
+  championNameById: {},
 });
 
 /* DDragon 설명 텍스트는 <br>/<stats> 등 HTML 태그를 포함 → 툴팁용 평문으로 정리 */
@@ -127,15 +128,18 @@ function Tooltip({ label, desc, gold, children }) {
    챔피언 아이콘
 ════════════════════════════════════════════════════════════════ */
 function ChampionIcon({ championId, championKeyById, championName, size = 40 }) {
+  const { championNameById } = useContext(MetaContext);
   const key = championKeyById[championId] ||
     (championName ? championName.replace(/[^a-zA-Z0-9]/g, '') : null);
+  // 호버 시 한글 챔피언명(현지화). 메타 로딩 전이면 영문명으로 폴백.
+  const koName = championNameById[championId] || championName || key || '';
   const baseStyle = {
     width: size, height: size, borderRadius: '50%', flexShrink: 0,
     objectFit: 'cover', border: '2px solid rgba(255,255,255,0.15)',
   };
-  if (!key) return <div style={{ ...baseStyle, background: '#1e2535' }} title={championName || ''} />;
+  if (!key) return <div style={{ ...baseStyle, background: '#1e2535' }} title={koName} />;
   return (
-    <img src={imgChampion(key)} alt={championName || key} title={championName || key} style={baseStyle}
+    <img src={imgChampion(key)} alt={koName} title={koName} style={baseStyle}
       onError={e => { e.target.style.visibility = 'hidden'; }} />
   );
 }
@@ -442,7 +446,7 @@ function TeamDivider({ winRows, loseRows, matchObj, blueIsWin }) {
   );
 
   return (
-    <div style={{ background:'#0d1018', padding:'10px 16px',
+    <div style={{ background:'#1c2334', padding:'10px 16px',
       borderTop:`1px solid ${T.sectionLine}`, borderBottom:`1px solid ${T.sectionLine}` }}>
 
       {/* 오브젝트 행 */}
@@ -1576,6 +1580,7 @@ export default function MatchList({ matches = [] }) {
   const [summaryLoadingMap, setSummaryLoadingMap] = useState({});
   const [spellMap,          setSpellMap]          = useState({});
   const [championKeyById,   setChampionKeyById]   = useState({});
+  const [championNameById,  setChampionNameById]  = useState({});
   const [runeIconById,      setRuneIconById]       = useState({});
   const [styleIconById,     setStyleIconById]      = useState({});
   /* 룬 트리 원본 구조 (빌드 탭 룬 페이지 전체 렌더용) */
@@ -1618,7 +1623,11 @@ export default function MatchList({ matches = [] }) {
           }
         });
         const champs = {};
-        Object.values(cj.data).forEach(c => { champs[Number(c.key)] = c.id; });
+        const champNames = {}; // championId → 현지화(한글) 이름. champion.json을 ko_KR로 받으므로 c.name이 한글.
+        Object.values(cj.data).forEach(c => {
+          champs[Number(c.key)] = c.id;
+          champNames[Number(c.key)] = c.name;
+        });
         const { runeIconById: runeMap, styleIconById: styleMap,
           runeNameById: runeNames, styleNameById: styleNames,
           runeDescById: runeDescs } = buildRuneMaps(rj);
@@ -1635,6 +1644,7 @@ export default function MatchList({ matches = [] }) {
         if (!cancelled) {
           setSpellMap(spells);
           setChampionKeyById(champs);
+          setChampionNameById(champNames);
           setRuneIconById(runeMap);
           setStyleIconById(styleMap);
           setRuneTree(rj);
@@ -1684,6 +1694,7 @@ export default function MatchList({ matches = [] }) {
     <MetaContext.Provider value={{
       spellNameById, runeNameById, styleNameById, itemNameById,
       spellDescById, runeDescById, itemDescById, itemGoldById,
+      championNameById,
     }}>
       <div style={{
         fontFamily: 'Pretendard, "Apple SD Gothic Neo", -apple-system, sans-serif',
