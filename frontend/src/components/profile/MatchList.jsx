@@ -46,6 +46,8 @@ const T = {
   divider:      '#0d0d14',
   border:       'rgba(255,255,255,0.07)',
   borderStrong: 'rgba(255,255,255,0.13)',
+  sectionLine:  '#39414f', // 상세보기 섹션(헤더/구분바) 경계선 — 확실히 보이는 회색
+
   /* 텍스트 */
   txtName:      '#ffffff',
   txtPrimary:   '#c8d0e0',
@@ -441,7 +443,7 @@ function TeamDivider({ winRows, loseRows, matchObj, blueIsWin }) {
 
   return (
     <div style={{ background:'#0d1018', padding:'10px 16px',
-      borderTop:`1px solid ${T.border}`, borderBottom:`1px solid ${T.border}` }}>
+      borderTop:`1px solid ${T.sectionLine}`, borderBottom:`1px solid ${T.sectionLine}` }}>
 
       {/* 오브젝트 행 */}
       {matchObj && (
@@ -506,10 +508,10 @@ function TeamHeader({ label, accentColor, teamSide }) {
     <div style={{
       display: 'grid', gridTemplateColumns: GRID,
       alignItems: 'center', padding: '8px 16px',
-      // 헤더 밴드에 배경색을 줘서 본문 행과 경계가 또렷하게 (빌드 섹션 밴드와 동일 톤)
+      // 헤더 밴드에 배경색 + 또렷한 경계선으로 본문 행과 확실히 구분
       background: '#1a1f2b',
-      borderTop: `1px solid ${T.border}`,
-      borderBottom: `1px solid ${T.border}`,
+      borderTop: `1px solid ${T.sectionLine}`,
+      borderBottom: `1px solid ${T.sectionLine}`,
     }}>
       <div style={{ color: '#ffffff', fontWeight: 800, fontSize: 13 }}>{label}</div>
       {['KDA', '피해량', '와드', 'CS', '아이템'].map(h => (
