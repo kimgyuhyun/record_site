@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getMatchSummary } from '../../api/match';
 import { imgChampion, imgItem, imgSpell, imgObjective, imgRune, imgTier } from '../../constants/ddragon';
-import { getSummonerSpellData, getChampionData, getRuneData, getItemData } from '../../api/ddragon';
+import { getSummonerSpellData, getChampionData, getRuneData, getItemData, getChampionDetail } from '../../api/ddragon';
 
 /* ═══════════════════════════════════════════════════════════════
    DDragon 메타(이름) 컨텍스트
@@ -910,10 +910,10 @@ function ArenaMiniList({ parts, championKeyById, myPuuid, onSummonerClick }) {
 ════════════════════════════════════════════════════════════════ */
 const DETAIL_TABS = ['종합', 'OP 스코어', '팀 분석', '빌드', '기타'];
 
-function DetailTabs({ active, onChange }) {
+function DetailTabs({ tabs = DETAIL_TABS, active, onChange }) {
   return (
     <div style={{ display: 'flex', borderBottom: `1px solid ${T.border}`, background: '#12161f' }}>
-      {DETAIL_TABS.map(tab => {
+      {tabs.map(tab => {
         const on = tab === active;
         return (
           <button key={tab} onClick={() => onChange(tab)}
@@ -939,19 +939,48 @@ function DetailTabs({ active, onChange }) {
    - skillBuildOrder: "QWEQ..." → 선마 순서(5레벨 도달 순) + 레벨별 시퀀스
 ════════════════════════════════════════════════════════════════ */
 const SKILL_COLOR = { Q: '#3b7dd8', W: '#1f9e63', E: '#9b46d6', R: '#d9a514' };
+const SKILL_SLOT_INDEX = { Q: 0, W: 1, E: 2, R: 3 }; // DDragon spells 배열 순서
 
 // 능력치 파편 id → DDragon StatMods 아이콘 경로 (perk-images 하위, 버전 무관)
 const STAT_SHARD_ICON = {
   5008: 'perk-images/StatMods/StatModsAdaptiveForceIcon.png',
   5005: 'perk-images/StatMods/StatModsAttackSpeedIcon.png',
   5007: 'perk-images/StatMods/StatModsCDRScalingIcon.png',
-  5002: 'perk-images/StatMods/StatModsArmorIcon.png',
-  5003: 'perk-images/StatMods/StatModsMagicResIcon.png',
   5001: 'perk-images/StatMods/StatModsHealthScalingIcon.png',
   5011: 'perk-images/StatMods/StatModsHealthPlusIcon.png',
   5013: 'perk-images/StatMods/StatModsTenacityIcon.png',
   5010: 'perk-images/StatMods/StatModsMovementSpeedIcon.png',
 };
+
+// 능력치 파편 3행(공격/유연/방어) 고정 레이아웃. 선택된 칸만 강조하고 나머지는 흐리게.
+const STAT_SHARDS = [
+  [{ id: 5008, n: '적응형 능력치' }, { id: 5005, n: '공격 속도' }, { id: 5007, n: '스킬 가속' }],
+  [{ id: 5008, n: '적응형 능력치' }, { id: 5010, n: '이동 속도' }, { id: 5001, n: '체력(레벨 비례)' }],
+  [{ id: 5011, n: '체력' }, { id: 5013, n: '강인함 및 둔화 저항' }, { id: 5001, n: '체력(레벨 비례)' }],
+];
+
+// 챔피언 스킬 상세는 매치 펼칠 때마다 다시 받지 않도록 모듈 캐시에 보관 (championName → spells[Q,W,E,R])
+const championSpellCache = {};
+
+function useChampionSpells(championName) {
+  const [spells, setSpells] = useState(() => (championName ? championSpellCache[championName] : null) || null);
+  useEffect(() => {
+    if (!championName) return;
+    if (championSpellCache[championName]) { setSpells(championSpellCache[championName]); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getChampionDetail('ko_KR', championName)
+          .catch(() => getChampionDetail('en_US', championName));
+        const arr = res?.data?.data?.[championName]?.spells || [];
+        championSpellCache[championName] = arr;
+        if (!cancelled) setSpells(arr);
+      } catch { if (!cancelled) setSpells([]); }
+    })();
+    return () => { cancelled = true; };
+  }, [championName]);
+  return spells;
+}
 
 // "id:sec,id:sec" → [{ minute, items: [{ id, count }] }] (분이 바뀌면 새 묶음)
 function parseItemBuild(itemBuildOrder) {
@@ -999,28 +1028,125 @@ function SkillBadge({ letter, size = 24 }) {
   );
 }
 
-function BuildArrow() {
-  return <span style={{ color: T.txtMuted, fontSize: 16, alignSelf: 'flex-start', marginTop: 12 }}>›</span>;
+// 선마 순서 한 칸 — 챔피언 스킬 아이콘 + Q/W/E 라벨, 호버 시 스킬명/쿨다운/사거리/설명 툴팁.
+function SkillMasterStep({ letter, spell }) {
+  const color = SKILL_COLOR[letter] || '#3e4a5a';
+  if (!spell || !spell.image) return <SkillBadge letter={letter} size={42} />;
+
+  const lines = [];
+  if (spell.cooldownBurn && spell.cooldownBurn !== '0') lines.push(`재사용 대기시간: ${spell.cooldownBurn}초`);
+  if (spell.rangeBurn && spell.rangeBurn !== '0') lines.push(`사거리: ${spell.rangeBurn}`);
+  const head = lines.join('\n');
+  const body = stripHtml(spell.description);
+  const desc = head ? `${head}\n\n${body}` : body;
+
+  return (
+    <Tooltip label={spell.name} desc={desc}>
+      <span style={{ position: 'relative', display: 'inline-block' }}>
+        <img src={imgSpell(spell.image.full)} alt={spell.name}
+          style={{ width: 42, height: 42, borderRadius: 6, border: `2px solid ${color}` }} />
+        <span style={{
+          position: 'absolute', right: -4, bottom: -4, background: color, color: '#fff',
+          fontSize: 10, fontWeight: 800, padding: '0 4px', borderRadius: 3, lineHeight: '15px',
+        }}>{letter}</span>
+      </span>
+    </Tooltip>
+  );
 }
 
+function BuildArrow({ centered }) {
+  return <span style={{ color: T.txtMuted, fontSize: 16, alignSelf: centered ? 'center' : 'flex-start', marginTop: centered ? 0 : 12 }}>›</span>;
+}
+
+// 어두운 헤더 바 형태의 섹션 제목 (이미지와 동일하게 좌측 정렬)
 function BuildSectionTitle({ children }) {
   return (
-    <div style={{ color: T.txtSub, fontSize: 13, fontWeight: 700, margin: '0 0 12px' }}>{children}</div>
+    <div style={{
+      color: T.txtSub, fontSize: 13, fontWeight: 700, padding: '8px 14px',
+      background: 'rgba(255,255,255,0.03)', borderRadius: 4, margin: '0 0 16px',
+    }}>{children}</div>
   );
 }
 
-function RuneIcon({ icon, size, dim, round = true }) {
-  if (!icon) return <div style={{ width: size, height: size, borderRadius: round ? '50%' : 4, background: 'rgba(255,255,255,0.05)' }} />;
+// 룬/파편 동그란 아이콘 + 선택 강조 + 호버 툴팁
+function RuneCircle({ icon, name, desc, selected, size }) {
   return (
-    <img src={imgRune(icon)} alt="" style={{
-      width: size, height: size, borderRadius: round ? '50%' : 4,
-      background: '#0a0c14', opacity: dim ? 0.35 : 1,
-    }} />
+    <Tooltip label={name} desc={desc}>
+      {icon
+        ? <img src={imgRune(icon)} alt={name || ''} style={{
+            width: size, height: size, borderRadius: '50%', background: '#0a0c14',
+            opacity: selected ? 1 : 0.3,
+            border: selected ? '2px solid #c8aa6e' : '2px solid transparent',
+          }} />
+        : <span style={{ width: size, height: size, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'inline-block' }} />}
+    </Tooltip>
   );
 }
 
-function BuildView({ row, runeIconById, styleIconById }) {
-  const { itemNameById, itemDescById, itemGoldById, runeNameById, styleNameById } = useContext(MetaContext);
+// 룬 페이지 전체(주 트리 + 보조 트리 + 능력치 파편). 선택 룬은 밝게, 나머지는 흐리게.
+function RunePage({ row, runeTree }) {
+  const { runeNameById, runeDescById } = useContext(MetaContext);
+  const primaryPath = runeTree.find(p => p.id === row.primaryStyleId);
+  const secondaryPath = runeTree.find(p => p.id === row.subStyleId);
+  const selected = new Set(
+    [row.keystoneId, row.primaryRune1, row.primaryRune2, row.primaryRune3, row.subRune1, row.subRune2]
+      .filter(Boolean)
+  );
+
+  const renderSlot = (runes, big, key) => (
+    <div key={key} style={{ display: 'flex', justifyContent: 'center', gap: big ? 12 : 16, marginBottom: 14 }}>
+      {runes.map(r => (
+        <RuneCircle key={r.id} icon={r.icon} name={runeNameById[r.id] || r.name}
+          desc={runeDescById[r.id]} selected={selected.has(r.id)} size={big ? 38 : 26} />
+      ))}
+    </div>
+  );
+
+  const columnStyle = { padding: '0 22px', display: 'flex', flexDirection: 'column', alignItems: 'center' };
+  const pathIcon = (path) => (
+    <div style={{ height: 26, marginBottom: 14 }}>
+      {path && <img src={imgRune(path.icon)} alt={path.name} style={{ width: 24, height: 24 }} />}
+    </div>
+  );
+
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', rowGap: 16 }}>
+      {/* 주 룬 트리 (키스톤 줄 포함) */}
+      {primaryPath && (
+        <div style={{ ...columnStyle, borderRight: `1px solid ${T.border}` }}>
+          {pathIcon(primaryPath)}
+          {primaryPath.slots.map((slot, si) => renderSlot(slot.runes, si === 0, si))}
+        </div>
+      )}
+      {/* 보조 룬 트리 (키스톤 줄 제외) */}
+      {secondaryPath && (
+        <div style={{ ...columnStyle, borderRight: `1px solid ${T.border}` }}>
+          {pathIcon(secondaryPath)}
+          {secondaryPath.slots.slice(1).map((slot, si) => renderSlot(slot.runes, false, si))}
+        </div>
+      )}
+      {/* 능력치 파편 */}
+      <div style={columnStyle}>
+        <div style={{ height: 26, marginBottom: 14, color: T.txtMuted, fontSize: 11, lineHeight: '26px' }}>능력치 파편</div>
+        {STAT_SHARDS.map((shardRow, ri) => {
+          const selectedId = [row.statPerkOffense, row.statPerkFlex, row.statPerkDefense][ri];
+          return (
+            <div key={ri} style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 14 }}>
+              {shardRow.map(sh => (
+                <RuneCircle key={sh.id} icon={STAT_SHARD_ICON[sh.id]} name={sh.n}
+                  selected={sh.id === selectedId} size={24} />
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function BuildView({ row, championKeyById, runeIconById, styleIconById, runeTree }) {
+  const { itemNameById, itemDescById, itemGoldById } = useContext(MetaContext);
+  const spells = useChampionSpells(row ? championKeyById[row.championId] : null);
 
   if (!row) {
     return <div style={{ color: T.txtMuted, fontSize: 13, padding: '20px 16px' }}>데이터가 없습니다.</div>;
@@ -1039,21 +1165,20 @@ function BuildView({ row, runeIconById, styleIconById }) {
     );
   }
 
-  const primaryRunes = [row.keystoneId, row.primaryRune1, row.primaryRune2, row.primaryRune3].filter(Boolean);
-  const subRunes = [row.subRune1, row.subRune2].filter(Boolean);
-  const shards = [row.statPerkOffense, row.statPerkFlex, row.statPerkDefense].filter(Boolean);
+  const spellOf = (letter) => (spells ? spells[SKILL_SLOT_INDEX[letter]] : null);
+  const hasRunes = (runeTree.length > 0) && (row.primaryStyleId || row.subStyleId);
 
   return (
     <div style={{ padding: '18px 16px', background: T.bg }}>
-      {/* ── 아이템 빌드 ── */}
+      {/* ── 아이템 빌드 (좌측 정렬, 분 단위 묶음) ── */}
       <BuildSectionTitle>아이템 빌드</BuildSectionTitle>
       {itemGroups.length === 0
-        ? <div style={{ color: T.txtMuted, fontSize: 12, marginBottom: 22 }}>아이템 구매 기록이 없습니다.</div>
+        ? <div style={{ color: T.txtMuted, fontSize: 12, marginBottom: 26 }}>아이템 구매 기록이 없습니다.</div>
         : (
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 6, rowGap: 16, marginBottom: 26 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 6, rowGap: 16, marginBottom: 30 }}>
             {itemGroups.map((g, gi) => (
               <React.Fragment key={gi}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                   <div style={{
                     display: 'flex', gap: 3, padding: '5px 6px',
                     background: 'rgba(255,255,255,0.03)',
@@ -1063,7 +1188,7 @@ function BuildView({ row, runeIconById, styleIconById }) {
                       <Tooltip key={ii} label={itemNameById[it.id]} desc={itemDescById[it.id]} gold={itemGoldById[it.id]}>
                         <span style={{ position: 'relative', display: 'inline-block' }}>
                           <img src={imgItem(it.id)} alt={itemNameById[it.id] || ''}
-                            style={{ width: 36, height: 36, borderRadius: 4, border: '1px solid rgba(255,255,255,0.08)' }} />
+                            style={{ width: 42, height: 42, borderRadius: 4, border: '1px solid rgba(255,255,255,0.08)' }} />
                           {it.count > 1 && (
                             <span style={{
                               position: 'absolute', right: -3, bottom: -3,
@@ -1084,62 +1209,33 @@ function BuildView({ row, runeIconById, styleIconById }) {
           </div>
         )}
 
-      {/* ── 스킬 빌드 ── */}
+      {/* ── 스킬 빌드 (가운데 정렬) ── */}
       <BuildSectionTitle>스킬 빌드</BuildSectionTitle>
       {skillSeq.length === 0
-        ? <div style={{ color: T.txtMuted, fontSize: 12, marginBottom: 22 }}>스킬 레벨업 기록이 없습니다.</div>
+        ? <div style={{ color: T.txtMuted, fontSize: 12, marginBottom: 26 }}>스킬 레벨업 기록이 없습니다.</div>
         : (
-          <div style={{ marginBottom: 26 }}>
+          <div style={{ marginBottom: 30 }}>
             {master.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                 {master.map((s, i) => (
                   <React.Fragment key={s}>
-                    <SkillBadge letter={s} size={30} />
-                    {i < master.length - 1 && <span style={{ color: T.txtMuted, fontSize: 15 }}>›</span>}
+                    <SkillMasterStep letter={s} spell={spellOf(s)} />
+                    {i < master.length - 1 && <span style={{ color: T.txtMuted, fontSize: 18 }}>›</span>}
                   </React.Fragment>
                 ))}
               </div>
             )}
-            <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-              {[...skillSeq].map((ch, i) => <SkillBadge key={i} letter={ch} size={24} />)}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 4, flexWrap: 'wrap' }}>
+              {[...skillSeq].map((ch, i) => <SkillBadge key={i} letter={ch} size={26} />)}
             </div>
           </div>
         )}
 
-      {/* ── 룬 ── (선택한 룬 + 능력치 파편) */}
+      {/* ── 룬 (가운데 정렬, 전체 트리) ── */}
       <BuildSectionTitle>룬</BuildSectionTitle>
-      <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }}>
-        {/* 주 룬 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
-          <RuneIcon icon={styleIconById[row.primaryStyleId]} size={20} />
-          <RuneIcon icon={runeIconById[row.keystoneId]} size={40} />
-          <div style={{ display: 'flex', gap: 8 }}>
-            {[row.primaryRune1, row.primaryRune2, row.primaryRune3].map((id, i) => (
-              <RuneIcon key={i} icon={runeIconById[id]} size={26} />
-            ))}
-          </div>
-        </div>
-        {/* 보조 룬 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
-          <RuneIcon icon={styleIconById[row.subStyleId]} size={20} />
-          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-            {[row.subRune1, row.subRune2].map((id, i) => (
-              <RuneIcon key={i} icon={runeIconById[id]} size={26} />
-            ))}
-          </div>
-        </div>
-        {/* 능력치 파편 */}
-        {shards.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
-            <span style={{ color: T.txtMuted, fontSize: 11 }}>능력치 파편</span>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {shards.map((id, i) => (
-                <RuneIcon key={i} icon={STAT_SHARD_ICON[id]} size={22} />
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      {hasRunes
+        ? <RunePage row={row} runeTree={runeTree} />
+        : <div style={{ color: T.txtMuted, fontSize: 12 }}>룬 정보가 없습니다.</div>}
     </div>
   );
 }
@@ -1155,7 +1251,7 @@ function DetailPlaceholder({ label }) {
 /* ═══════════════════════════════════════════════════════════════
    매치 카드 (요약 행 + 드롭다운)
 ════════════════════════════════════════════════════════════════ */
-function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconById,
+function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconById, runeTree,
   onSummonerClick, onToggle, isExpanded, summaryLoading, summaryRows }) {
 
   const [detailTab, setDetailTab] = useState('종합');
@@ -1392,32 +1488,39 @@ function MatchCard({ match, championKeyById, spellMap, runeIconById, styleIconBy
             ? <div style={{ color: T.txtMuted, fontSize: 13, padding: '18px 16px' }}>
                 조회 중...
               </div>
-            : (
-              <>
-                <DetailTabs active={detailTab} onChange={setDetailTab} />
-                {detailTab === '종합' && (
-                  <DetailTable
-                    rows={summaryRows}
-                    championKeyById={championKeyById}
-                    spellMap={spellMap}
-                    runeIconById={runeIconById}
-                    styleIconById={styleIconById}
-                    onSummonerClick={onSummonerClick}
-                    myPuuid={match.myPuuid}
-                  />
-                )}
-                {detailTab === '빌드' && (
-                  <BuildView
-                    row={summaryRows.find(r => r.puuid === match.myPuuid)}
-                    runeIconById={runeIconById}
-                    styleIconById={styleIconById}
-                  />
-                )}
-                {(detailTab === 'OP 스코어' || detailTab === '팀 분석' || detailTab === '기타') && (
-                  <DetailPlaceholder label={detailTab} />
-                )}
-              </>
-            )
+            : (() => {
+                // 아레나는 표준 팀 스코어보드/지표가 맞지 않아 종합·OP 스코어·팀 분석 탭을 숨긴다.
+                const availableTabs = isArena ? ['빌드', '기타'] : DETAIL_TABS;
+                const activeTab = availableTabs.includes(detailTab) ? detailTab : availableTabs[0];
+                return (
+                  <>
+                    <DetailTabs tabs={availableTabs} active={activeTab} onChange={setDetailTab} />
+                    {activeTab === '종합' && (
+                      <DetailTable
+                        rows={summaryRows}
+                        championKeyById={championKeyById}
+                        spellMap={spellMap}
+                        runeIconById={runeIconById}
+                        styleIconById={styleIconById}
+                        onSummonerClick={onSummonerClick}
+                        myPuuid={match.myPuuid}
+                      />
+                    )}
+                    {activeTab === '빌드' && (
+                      <BuildView
+                        row={summaryRows.find(r => r.puuid === match.myPuuid)}
+                        championKeyById={championKeyById}
+                        runeIconById={runeIconById}
+                        styleIconById={styleIconById}
+                        runeTree={runeTree}
+                      />
+                    )}
+                    {(activeTab === 'OP 스코어' || activeTab === '팀 분석' || activeTab === '기타') && (
+                      <DetailPlaceholder label={activeTab} />
+                    )}
+                  </>
+                );
+              })()
           }
         </div>
       )}
@@ -1447,6 +1550,8 @@ export default function MatchList({ matches = [] }) {
   const [championKeyById,   setChampionKeyById]   = useState({});
   const [runeIconById,      setRuneIconById]       = useState({});
   const [styleIconById,     setStyleIconById]      = useState({});
+  /* 룬 트리 원본 구조 (빌드 탭 룬 페이지 전체 렌더용) */
+  const [runeTree,          setRuneTree]           = useState([]);
   /* 툴팁용 이름 맵 (스펠/룬/계열/아이템 → 이름) */
   const [spellNameById,     setSpellNameById]      = useState({});
   const [runeNameById,      setRuneNameById]       = useState({});
@@ -1504,6 +1609,7 @@ export default function MatchList({ matches = [] }) {
           setChampionKeyById(champs);
           setRuneIconById(runeMap);
           setStyleIconById(styleMap);
+          setRuneTree(rj);
           setSpellNameById(spellNames);
           setRuneNameById(runeNames);
           setStyleNameById(styleNames);
@@ -1559,6 +1665,7 @@ export default function MatchList({ matches = [] }) {
             key={m.matchId} match={m}
             championKeyById={championKeyById} spellMap={spellMap}
             runeIconById={runeIconById} styleIconById={styleIconById}
+            runeTree={runeTree}
             onSummonerClick={goToSummoner}
             onToggle={toggleSummary}
             isExpanded={!!expandedMap[m.matchId]}

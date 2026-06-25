@@ -12,6 +12,10 @@ export const getSummonerSpellData = (locale) =>
 export const getChampionData = (locale) =>
   apiClient.get(`${DATA_CDN}/data/${locale}/champion.json`);
 
+// 챔피언 상세 (스킬 Q/W/E/R 아이콘·이름·쿨다운·사거리·설명 — 빌드 탭 스킬 툴팁용)
+export const getChampionDetail = (locale, championName) =>
+  apiClient.get(`${DATA_CDN}/data/${locale}/champion/${championName}.json`);
+
 // 룬 메타데이터 (핵심룬/계열 아이콘 매핑용)
 export const getRuneData = (locale) =>
   apiClient.get(runesReforgedUrl(locale));
