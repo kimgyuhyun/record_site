@@ -45,6 +45,8 @@ riot:
 
     match-ids-by-puuid-path: /lol/match/v5/matches/by-puuid/{puuid}/ids
     match-by-id-path: /lol/match/v5/matches/{matchId}
+    # 타임라인(분당 프레임 + 이벤트) — 아이템 구매 순서/스킬 선마 순서 추출용. 매치당 추가 1회 호출.
+    match-timeline-by-id-path: /lol/match/v5/matches/{matchId}/timeline
 
     league-entries-by-puuid-path: /lol/league/v4/entries/by-puuid/{puuid}
     league-apex-by-queue-path: /lol/league/v4/{apexTier}/by-queue/{queue}

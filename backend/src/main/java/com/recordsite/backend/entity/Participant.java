@@ -184,6 +184,14 @@ public class Participant {
     private Integer subRune1;      // 보조 트리 1번째
     private Integer subRune2;
 
+    // ── 타임라인에서 추출한 빌드 순서. 타임라인 호출 실패/구버전 적재분은 null. ──
+    // skillBuildOrder: 레벨업 순서를 Q/W/E/R 로 이어 붙인 문자열(예: "QWEQQR...") — 진화 제외
+    @Column(name = "skill_build_order", length = 32)
+    private String skillBuildOrder;
+    // itemBuildOrder: 구매 아이템 id 를 구매 순서대로 콤마로 이어 붙인 문자열(소모품/장신구 포함)
+    @Column(name = "item_build_order", length = 1024)
+    private String itemBuildOrder;
+
     public static Participant from(RiotParticipantResponse res, Match match) {
         // 빌더 체이닝 안에서 null 체크 로직은 불가 -> 미리 추출
         int offense = 0;

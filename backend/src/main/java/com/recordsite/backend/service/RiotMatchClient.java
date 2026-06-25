@@ -1,6 +1,7 @@
 package com.recordsite.backend.service;
 
 import com.recordsite.backend.dto.RiotMatchResponse;
+import com.recordsite.backend.dto.RiotMatchTimelineResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,10 @@ public class RiotMatchClient {
     // /lol/match/v5/matches/{matchId}
     private String matchByIdPath;
 
+    @Value("${riot.api.match-timeline-by-id-path}")
+    // /lol/match/v5/matches/{matchId}/timeline
+    private String matchTimelineByIdPath;
+
     // puuid 로 최근 matchId 리스트 가져오기
     public List<String> getMatchIdsByPuuid(String puuid, int start, int count) {
         String url = asiaBaseUrl + matchIdsByPuuidPath;
@@ -66,6 +71,19 @@ public class RiotMatchClient {
                 .toUri();
 
         return restTemplate.getForObject(uri, RiotMatchResponse.class);
+    }
+
+    // matchId 하나로 타임라인(분당 프레임 + 이벤트) 조회 → 아이템 구매/스킬 선마 순서 추출용
+    public RiotMatchTimelineResponse getMatchTimelineById(String matchId) {
+        String url = asiaBaseUrl + matchTimelineByIdPath;
+
+        URI uri = UriComponentsBuilder
+                .fromHttpUrl(url)
+                .queryParam("api_key", apiKey)
+                .buildAndExpand(matchId)
+                .toUri();
+
+        return restTemplate.getForObject(uri, RiotMatchTimelineResponse.class);
     }
 
 }

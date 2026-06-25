@@ -25,6 +25,10 @@ public class ParticipantSummaryDto {
     private Integer subteamPlacement; // 듀오의 최종 등수 = 1~4위
     private Integer playerSubteamId;  // 듀오 식별자(같은 값이면 한 팀)
 
+    // 타임라인 추출 빌드 순서(타임라인 실패/구버전 적재분은 null)
+    private String skillBuildOrder; // 예: "QWEQQR..." (Q/W/E/R)
+    private String itemBuildOrder;  // 구매 순서 아이템 id CSV (예: "1055,2003,3340,...")
+
     public static ParticipantSummaryDto from(Participant p) {
         return ParticipantSummaryDto.builder()
                 .puuid(p.getPuuid())
@@ -40,6 +44,8 @@ public class ParticipantSummaryDto {
                 .teamPosition(p.getTeamPosition())
                 .subteamPlacement(p.getSubteamPlacement())
                 .playerSubteamId(p.getPlayerSubteamId())
+                .skillBuildOrder(p.getSkillBuildOrder())
+                .itemBuildOrder(p.getItemBuildOrder())
                 .build();
     }
 }
