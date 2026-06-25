@@ -925,15 +925,16 @@ const DETAIL_TABS = ['종합', 'OP 스코어', '팀 분석', '빌드', '기타']
 
 function DetailTabs({ tabs = DETAIL_TABS, active, onChange }) {
   return (
-    // 탭 바는 본문(#13131b)보다 확실히 어두운 톤으로 깔아 경계가 드러나게 한다.
+    // 탭 바는 본문(#13131b)보다 어두운 톤 + 탭 사이 구분선. 활성 탭은 배경 강조 + 파란 밑줄.
     <div style={{ display: 'flex', background: '#0b0d13', borderBottom: `1px solid ${T.borderStrong}` }}>
-      {tabs.map(tab => {
+      {tabs.map((tab, i) => {
         const on = tab === active;
         return (
           <button key={tab} onClick={() => onChange(tab)}
             style={{
-              flex: 1, padding: '10px 4px', border: 'none', cursor: 'pointer',
-              background: on ? T.bg : 'transparent',
+              flex: 1, padding: '10px 4px', cursor: 'pointer', border: 'none',
+              borderRight: i < tabs.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+              background: on ? '#1c2433' : 'transparent',
               color: on ? T.txtName : T.txtSub,
               fontWeight: on ? 700 : 500, fontSize: 13,
               borderBottom: on ? `2px solid ${T.blue}` : '2px solid transparent',
@@ -1305,6 +1306,7 @@ function StatComparePanel({ title, valueOf, winRows, loseRows, championKeyById }
   const grand = winTotal + loseTotal;
   const winPct = grand > 0 ? (winTotal / grand) * 100 : 50;
 
+  // 막대 안에 수치를 오른쪽 정렬로 겹쳐 넣는다(막대 밖으로 숫자가 튀지 않게).
   const teamBars = (rows, color) => (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7, minWidth: 0 }}>
       {rows.map((r, i) => {
@@ -1314,11 +1316,14 @@ function StatComparePanel({ title, valueOf, winRows, loseRows, championKeyById }
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <ChampionIcon championId={r.championId} championKeyById={championKeyById}
               championName={r.championName} size={22} />
-            <div style={{ flex: 1, height: 13, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{ flex: 1, height: 18, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden', position: 'relative' }}>
               <div style={{ width: `${w}%`, height: '100%', background: color, borderRadius: 3 }} />
+              <span style={{
+                position: 'absolute', right: 6, top: 0, lineHeight: '18px',
+                fontSize: 11, fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums',
+                textShadow: '0 1px 2px rgba(0,0,0,0.65)',
+              }}>{v.toLocaleString()}</span>
             </div>
-            <span style={{ width: 58, textAlign: 'right', fontSize: 12, color: T.txtPrimary,
-              fontVariantNumeric: 'tabular-nums' }}>{v.toLocaleString()}</span>
           </div>
         );
       })}
@@ -1326,7 +1331,7 @@ function StatComparePanel({ title, valueOf, winRows, loseRows, championKeyById }
   );
 
   return (
-    <div>
+    <div style={{ background: '#171b24', border: `1px solid ${T.border}`, borderRadius: 8, padding: '14px 16px' }}>
       <div style={{ textAlign: 'center', color: T.txtSub, fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{title}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         {teamBars(winRows, T.blue)}
@@ -1356,22 +1361,25 @@ function TeamAnalysis({ rows, championKeyById }) {
   const winRows = rows.filter(r => r.win);
   const loseRows = rows.filter(r => !r.win);
 
-  const subTabBtn = (label) => {
-    const on = subTab === label;
-    return (
-      <button key={label} onClick={() => setSubTab(label)}
-        style={{
-          flex: 1, padding: '10px 4px', border: 'none', cursor: 'pointer', background: 'transparent',
-          color: on ? T.blue : T.txtSub, fontWeight: on ? 700 : 500, fontSize: 13,
-          borderBottom: on ? `2px solid ${T.blue}` : '2px solid transparent', fontFamily: 'inherit',
-        }}>{label}</button>
-    );
-  };
+  const SUBS = ['경기 분석', '타임라인'];
 
   return (
     <div style={{ background: T.bg }}>
-      <div style={{ display: 'flex', borderBottom: `1px solid ${T.sectionLine}` }}>
-        {['경기 분석', '타임라인'].map(subTabBtn)}
+      {/* 서브탭도 메인 탭과 동일하게 구분선 + 활성 배경 강조 */}
+      <div style={{ display: 'flex', background: '#0e1119', borderBottom: `1px solid ${T.sectionLine}` }}>
+        {SUBS.map((label, i) => {
+          const on = subTab === label;
+          return (
+            <button key={label} onClick={() => setSubTab(label)}
+              style={{
+                flex: 1, padding: '10px 4px', cursor: 'pointer', border: 'none',
+                borderRight: i < SUBS.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                background: on ? '#1c2433' : 'transparent',
+                color: on ? T.blue : T.txtSub, fontWeight: on ? 700 : 500, fontSize: 13,
+                borderBottom: on ? `2px solid ${T.blue}` : '2px solid transparent', fontFamily: 'inherit',
+              }}>{label}</button>
+          );
+        })}
       </div>
 
       {subTab === '경기 분석' ? (
