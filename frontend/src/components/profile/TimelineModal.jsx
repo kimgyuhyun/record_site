@@ -68,17 +68,17 @@ export default function TimelineModal({ matchId, winTeamId, championKeyById = {}
 
   return createPortal(
     <div onClick={onClose} style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 10000,
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 10000,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
       fontFamily: 'Pretendard, "Apple SD Gothic Neo", -apple-system, sans-serif',
     }}>
       <div onClick={e => e.stopPropagation()} style={{
-        width: 'min(1120px, 96vw)', maxHeight: '94vh', overflow: 'auto',
-        background: '#15171c', border: '1px solid #2a2f3a', borderRadius: 10, color: '#e2e8f0',
+        width: 'min(900px, 94vw)', maxHeight: '94vh', overflow: 'auto',
+        background: '#272b33', border: '1px solid #3c4350', borderRadius: 10, color: '#e8edf4',
       }}>
         {/* 헤더 */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '12px 16px', borderBottom: '1px solid #2a2f3a' }}>
+          padding: '12px 16px', borderBottom: '1px solid #3c4350' }}>
           <span style={{ fontSize: 15, fontWeight: 800 }}>타임라인</span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#9aa7b4',
             fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
@@ -164,7 +164,7 @@ function RosterBar({ data, winTeamId, champImg, champKo, showKill, setShowKill, 
 }
 
 function EventMap({ data, effMinute, showKill, showTower, teamColor, pidMap }) {
-  const size = 440;
+  const size = 380;
   const cutoff = (effMinute + 1) * 60000; // 선택 분까지 발생한 이벤트
   const markers = data.events.filter(e => {
     if (e.timestamp > cutoff) return false;
@@ -179,12 +179,9 @@ function EventMap({ data, effMinute, showKill, showTower, teamColor, pidMap }) {
   return (
     <div style={{
       width: size, height: size, flexShrink: 0, position: 'relative',
-      background: 'radial-gradient(circle at 30% 70%, #18324a 0%, #0e1726 60%, #0a0f1a 100%)',
-      border: '1px solid #243246', borderRadius: 8, overflow: 'hidden',
+      backgroundImage: 'url(/static/map/map.png)', backgroundSize: 'cover', backgroundPosition: 'center',
+      border: '1px solid #3c4350', borderRadius: 8, overflow: 'hidden',
     }}>
-      {/* 대각선(중앙 강) 가이드 */}
-      <div style={{ position: 'absolute', left: 0, top: 0, width: '141%', height: 1,
-        background: 'rgba(255,255,255,0.06)', transform: 'rotate(45deg)', transformOrigin: 'top left' }} />
       {markers.map((e, i) => {
         const left = px(e.x), top = py(e.y);
         if (e.category === 'CHAMPION_KILL') {
@@ -219,8 +216,8 @@ function EventFeed({ data, champImg, champKo, teamColor, pidMap }) {
     );
   };
   return (
-    <div style={{ flex: 1, minWidth: 320, maxHeight: 440, overflowY: 'auto',
-      border: '1px solid #243246', borderRadius: 8, background: '#11141b' }}>
+    <div style={{ flex: 1, minWidth: 300, maxHeight: 380, overflowY: 'auto',
+      border: '1px solid #3c4350', borderRadius: 8, background: '#21252d' }}>
       {data.events.map((e, i) => {
         const minute = Math.floor(e.timestamp / 60000);
         const showMin = minute !== lastMinute; lastMinute = minute;
@@ -230,9 +227,9 @@ function EventFeed({ data, champImg, champKo, teamColor, pidMap }) {
             ? teamColor(e.teamId === 100 ? 200 : 100)
             : teamColor(pidMap[e.killerId]?.teamId);
         return (
-          <div key={i} style={{ display: 'flex', borderBottom: '1px solid #1a212d' }}>
-            <div style={{ width: 44, flexShrink: 0, padding: '8px 6px', color: '#7a8a9e', fontSize: 11,
-              borderRight: '1px solid #1a212d', textAlign: 'center' }}>
+          <div key={i} style={{ display: 'flex', borderBottom: '1px solid #2c333f' }}>
+            <div style={{ width: 44, flexShrink: 0, padding: '8px 6px', color: '#8895a6', fontSize: 11,
+              borderRight: '1px solid #2c333f', textAlign: 'center' }}>
               {showMin ? `${minute}분` : ''}
             </div>
             <div style={{ flex: 1, padding: '8px 10px', borderLeft: `3px solid ${accent || '#3a4252'}`,
@@ -260,7 +257,7 @@ function EventFeed({ data, champImg, champKo, teamColor, pidMap }) {
 
 function GoldGraph({ data, effMinute }) {
   const frames = data.goldFrames || [];
-  const w = 1080, h = 120, pad = 24;
+  const w = 860, h = 120, pad = 24;
   const diffs = frames.map(f => f.blueGold - f.redGold);
   const maxAbs = Math.max(1000, ...diffs.map(d => Math.abs(d)));
   const x = (i) => pad + (frames.length <= 1 ? 0 : (i / (frames.length - 1)) * (w - pad * 2));
@@ -271,7 +268,7 @@ function GoldGraph({ data, effMinute }) {
     <div style={{ marginTop: 14 }}>
       <div style={{ color: '#9aa7b4', fontSize: 12, marginBottom: 4 }}>골드 차이 (블루 − 레드)</div>
       <svg viewBox={`0 0 ${w} ${h}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
-        <line x1={pad} y1={h / 2} x2={w - pad} y2={h / 2} stroke="#2a3140" strokeWidth="1" />
+        <line x1={pad} y1={h / 2} x2={w - pad} y2={h / 2} stroke="#3c4350" strokeWidth="1" />
         <text x="2" y="12" fill="#5a6b7e" fontSize="10">+{Math.round(maxAbs / 1000)}k</text>
         <text x="2" y={h - 2} fill="#5a6b7e" fontSize="10">-{Math.round(maxAbs / 1000)}k</text>
         {frames.length > 1 && <polyline points={pts} fill="none" stroke="#5a6678" strokeWidth="1.5" />}
