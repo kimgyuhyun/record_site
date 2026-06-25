@@ -1093,7 +1093,8 @@ function BuildSection({ title, children }) {
     <>
       <div style={{
         color: T.txtSub, fontSize: 13, fontWeight: 700, padding: '9px 16px',
-        background: '#1a1f2b', borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`,
+        // 본문 배경(#1e2024)보다 살짝 어둡게 해서 은은하게 구분
+        background: '#181a1e', borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`,
       }}>{title}</div>
       <div style={{ padding: '18px 16px' }}>{children}</div>
     </>
@@ -1333,7 +1334,7 @@ function StatComparePanel({ title, valueOf, winRows, loseRows, championKeyById }
   );
 
   return (
-    <div style={{ background: '#171b24', border: `1px solid ${T.border}`, borderRadius: 8, padding: '14px 16px' }}>
+    <div style={{ padding: '4px 6px' }}>
       <div style={{ textAlign: 'center', color: T.txtSub, fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{title}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         {teamBars(winRows, T.blue)}
