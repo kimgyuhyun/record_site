@@ -107,6 +107,11 @@ function Tooltip({ label, desc, gold, children }) {
             <span style={{ display: 'block', marginTop: 5, fontWeight: 700,
               color: T.gold, fontSize: 11 }}>
               가격 {gold.total.toLocaleString()}
+              {gold.sell > 0 && (
+                <span style={{ fontWeight: 400, color: '#cfd6e4' }}>
+                  {' '}({gold.sell.toLocaleString()} 되팔기 가격)
+                </span>
+              )}
             </span>
           )}
         </span>,
