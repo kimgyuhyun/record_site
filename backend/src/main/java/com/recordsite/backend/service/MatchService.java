@@ -81,8 +81,6 @@ public class MatchService {
                 .filter(id -> !existingIds.contains(id))
                 .toList();
 
-        if (newMatchIds.isEmpty()) return 0;
-
         // db에 없는 매치 저장
         int newCount = 0;
         for (String matchId : newMatchIds) {
@@ -95,14 +93,17 @@ public class MatchService {
 
         }
 
-        // 랭크 갱신 + 최근 갱신시간 찍기
+        // 랭크 갱신 + 스냅샷은 신규 매치 유무와 무관하게 매 갱신마다 수행한다.
+        //  - 판당 LP 증감은 "최신 LP 리딩" 2개의 차이로 계산되므로, 리딩을 자주 확보할수록 표본이 쌓인다.
+        //  - 특히 크롤러가 동료 경로로 내 매치를 먼저 저장한 경우, 내가 직접 갱신해도 신규 매치가 0이 되어
+        //    예전엔 스냅샷이 안 찍혔다 → 이제는 그래도 현재 LP를 최신 랭크 매치에 앵커로 박는다.
         leagueService.updateAndSaveLeague(puuid);
-
-        // 갱신된 현재 LP를 최신 랭크 매치에 스냅샷으로 박아둠 (판당 LP 증감 계산 근거)
         rankSnapshotService.recordSnapshots(puuid);
 
-        // 이번에 만난 동료 puuid 들을 크롤러 큐에 적재 → 백그라운드로 매치망 점진 확장(챔피언 통계 표본 확보)
-        summonerCrawlService.enqueueNeighborsFromMatches(newMatchIds, 1, puuid);
+        // 이번에 새로 만난 동료 puuid 들만 크롤러 큐에 적재 → 백그라운드로 매치망 점진 확장(챔피언 통계 표본 확보)
+        if (!newMatchIds.isEmpty()) {
+            summonerCrawlService.enqueueNeighborsFromMatches(newMatchIds, 1, puuid);
+        }
 
         return newCount;
     }
