@@ -137,10 +137,18 @@ function ChampionIcon({ championId, championKeyById, championName, size = 40 }) 
     width: size, height: size, borderRadius: '50%', flexShrink: 0,
     objectFit: 'cover', border: '2px solid rgba(255,255,255,0.15)',
   };
-  if (!key) return <div style={{ ...baseStyle, background: '#1e2535' }} title={koName} />;
+  if (!key) {
+    return (
+      <Tooltip label={koName}>
+        <div style={{ ...baseStyle, background: '#1e2535' }} />
+      </Tooltip>
+    );
+  }
   return (
-    <img src={imgChampion(key)} alt={koName} title={koName} style={baseStyle}
-      onError={e => { e.target.style.visibility = 'hidden'; }} />
+    <Tooltip label={koName}>
+      <img src={imgChampion(key)} alt={koName} style={baseStyle}
+        onError={e => { e.target.style.visibility = 'hidden'; }} />
+    </Tooltip>
   );
 }
 
@@ -446,7 +454,7 @@ function TeamDivider({ winRows, loseRows, matchObj, blueIsWin }) {
   );
 
   return (
-    <div style={{ background:'#1c2334', padding:'10px 16px',
+    <div style={{ background:'#26282d', padding:'10px 16px',
       borderTop:`1px solid ${T.sectionLine}`, borderBottom:`1px solid ${T.sectionLine}` }}>
 
       {/* 오브젝트 행 */}
