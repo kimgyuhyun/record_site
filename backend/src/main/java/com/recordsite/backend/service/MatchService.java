@@ -12,6 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 @Service
@@ -26,6 +29,7 @@ public class MatchService {
     private final LeagueService leagueService;
     private final RankSnapshotService rankSnapshotService;
     private final SummonerCrawlService summonerCrawlService;
+    private final Executor matchCollectExecutor;
 
 
     // ──────────────────────────────────────────
@@ -69,18 +73,8 @@ public class MatchService {
                 .toList();
         progress.onTotal(newMatchIds.size());
 
-        // db에 없는 매치 저장
-        int newCount = 0;
-        for (String matchId : newMatchIds) {
-                try {
-                    matchSaveHelper.saveMatchWithParticipants(matchId, puuid);
-                    newCount++;
-                } catch (Exception e) {
-                    log.warn("매치 저장 실패, 스킵: matchId={}, error={}", matchId, e.getMessage());
-                } finally {
-                    progress.onMatchDone(); // 성공·스킵 무관하게 진행률 한 칸 전진
-                }
-        }
+        // db에 없는 매치를 동시에 저장(매치당 독립 트랜잭션 REQUIRES_NEW). 동시 개수는 matchCollectExecutor 풀 크기가 제한.
+        int newCount = collectNewMatches(newMatchIds, puuid, progress);
 
         // 랭크 갱신 + 스냅샷은 신규 매치 유무와 무관하게 매 갱신마다 수행한다.
         //  - 판당 LP 증감은 "최신 LP 리딩" 2개의 차이로 계산되므로, 리딩을 자주 확보할수록 표본이 쌓인다.
@@ -95,5 +89,27 @@ public class MatchService {
         }
 
         return newCount;
+    }
+
+    // 신규 매치들을 matchCollectExecutor 풀에서 동시에 수집한다. 매치당 호출은 REQUIRES_NEW 라 서로 독립이고,
+    // 한 건 실패는 그 매치만 스킵한다. 모든 작업이 끝날 때까지 기다린 뒤 실제 저장된 수를 반환한다.
+    private int collectNewMatches(List<String> newMatchIds, String puuid, RefreshProgress progress) {
+        AtomicInteger savedCount = new AtomicInteger();
+
+        CompletableFuture<?>[] tasks = newMatchIds.stream()
+                .map(matchId -> CompletableFuture.runAsync(() -> {
+                    try {
+                        matchSaveHelper.saveMatchWithParticipants(matchId, puuid);
+                        savedCount.incrementAndGet();
+                    } catch (Exception e) {
+                        log.warn("매치 저장 실패, 스킵: matchId={}, error={}", matchId, e.getMessage());
+                    } finally {
+                        progress.onMatchDone(); // 성공·스킵 무관하게 진행률 한 칸 전진
+                    }
+                }, matchCollectExecutor))
+                .toArray(CompletableFuture[]::new);
+
+        CompletableFuture.allOf(tasks).join();
+        return savedCount.get();
     }
 }

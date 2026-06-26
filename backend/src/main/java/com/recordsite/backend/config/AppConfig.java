@@ -3,9 +3,13 @@ package com.recordsite.backend.config;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestTemplate;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Configuration
 public class AppConfig {
@@ -27,5 +31,14 @@ public class AppConfig {
     @Bean
     public JPAQueryFactory jpaQueryFactory() {
         return new JPAQueryFactory(em);
+    }
+
+    // 전적 갱신 시 신규 매치들을 동시에 수집하기 위한 고정 크기 풀.
+    // 동시 개수에 상한을 둬서 (1) Riot 공유 예산을 한 번에 다 쓰지 않고, (2) DB 커넥션 풀(HikariCP) 한도를
+    // 넘지 않게 한다. 실제 호출 속도는 RiotApiRateLimiter 가 최종적으로 제어한다.
+    @Bean(destroyMethod = "shutdown")
+    public ExecutorService matchCollectExecutor(
+            @Value("${riot.refresh.collect-concurrency:5}") int concurrency) {
+        return Executors.newFixedThreadPool(concurrency);
     }
 }

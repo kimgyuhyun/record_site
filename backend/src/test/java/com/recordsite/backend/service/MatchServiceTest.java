@@ -3,10 +3,10 @@ package com.recordsite.backend.service;
 import com.recordsite.backend.dto.MatchRecordDto;
 import com.recordsite.backend.dto.MatchSummaryDto;
 import com.recordsite.backend.repository.MatchRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
@@ -31,7 +31,15 @@ class MatchServiceTest {
     @Mock RankSnapshotService rankSnapshotService;
     @Mock SummonerCrawlService summonerCrawlService;
 
-    @InjectMocks MatchService matchService;
+    MatchService matchService;
+
+    // 매치 수집 병렬 풀 대신 호출 스레드에서 바로 실행하는 Executor 를 주입해 테스트를 결정적으로 만든다.
+    @BeforeEach
+    void setUp() {
+        matchService = new MatchService(
+                matchRepository, participantService, matchSaveHelper, riotMatchClient,
+                leagueService, rankSnapshotService, summonerCrawlService, Runnable::run);
+    }
 
     @Test
     @DisplayName("전적 목록 조회는 ParticipantService에 위임해 페이지를 그대로 반환한다")

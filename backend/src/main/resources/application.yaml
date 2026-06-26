@@ -75,6 +75,7 @@ riot:
     lock-ttl-seconds: 120        # 중복 갱신 차단 + 직후 쿨다운. 워커가 죽어도 이 TTL로 락 자동 해제
     job-ttl-seconds: 600         # 잡 상태(status/total/done) 보존 시간(폴링 종료 후 자연 소멸)
     block-timeout-seconds: 5     # BRPOP 블록 최대 대기(초). 이 주기로 종료 플래그를 확인
+    collect-concurrency: 5       # 신규 매치 동시 수집 개수. DB 커넥션 풀·Riot 공유 예산 고려해 작게 유지
 
   # 상위 티어 사다리 랭킹 주기 갱신(실시간 아님 — 30~60분마다 스냅샷)
   ranking:
