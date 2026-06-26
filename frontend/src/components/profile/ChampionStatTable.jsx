@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { imgChampion } from '../../constants/ddragon';
 
 const HEADERS = [
@@ -37,6 +38,7 @@ const num1 = v => (v == null ? '-' : Number(v).toFixed(1));
 export default function ChampionStatTable({
   stats = [], championKeyById = {}, championNameById = {}, search = '',
 }) {
+  const navigate = useNavigate();
   const [showAll, setShowAll] = useState(false);
   const [hoverRow, setHoverRow] = useState(null);
 
@@ -98,10 +100,12 @@ export default function ChampionStatTable({
                   key={row.championId || row.championName || i}
                   onMouseEnter={() => setHoverRow(i)}
                   onMouseLeave={() => setHoverRow(null)}
+                  onClick={() => row.championId && navigate(`/champions/${row.championId}`)}
                   style={{
                     borderBottom: '1px solid #1a2535',
                     background: isHover ? '#1a2d3e' : 'transparent',
-                    transition: 'background 0.15s', cursor: 'default',
+                    transition: 'background 0.15s',
+                    cursor: row.championId ? 'pointer' : 'default',
                   }}
                 >
                   {/* 챔피언 아이콘 + 이름 */}

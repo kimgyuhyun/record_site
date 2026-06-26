@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useChampionMeta from '../hooks/useChampionMeta';
 import useChampionTierList from '../hooks/useChampionTierList';
 import { imgChampion } from '../constants/ddragon';
@@ -36,6 +37,7 @@ const TIER_STYLE = {
 };
 
 export default function ChampionAnalysisPage() {
+  const navigate = useNavigate();
   const { championKeyById, championNameById } = useChampionMeta();
   const [queueType, setQueueType] = useState(undefined);
   const [position, setPosition] = useState('ALL');
@@ -105,7 +107,7 @@ export default function ChampionAnalysisPage() {
           const name = championNameById[row.championId] || row.championName || '알 수 없음';
           const tier = TIER_STYLE[row.tier] ?? TIER_STYLE['4'];
           return (
-            <Row key={row.championId}>
+            <Row key={row.championId} onClick={() => navigate(`/champions/${row.championId}`)}>
               <Cell w={48} align="center">
                 <span style={{ color: i < 3 ? '#5383e8' : '#5a6b7e', fontWeight: 700, fontSize: 13 }}>{i + 1}</span>
               </Cell>
@@ -164,13 +166,14 @@ function FilterGroup({ items, activeKey, onSelect }) {
   );
 }
 
-function Row({ children, header }) {
+function Row({ children, header, onClick }) {
   return (
-    <div style={{
+    <div onClick={onClick} style={{
       display: 'flex', alignItems: 'center', gap: 8,
       padding: header ? '10px 16px' : '8px 16px',
       borderBottom: '1px solid #1a2433',
       background: header ? '#101826' : 'transparent',
+      cursor: onClick ? 'pointer' : 'default',
     }}>
       {children}
     </div>

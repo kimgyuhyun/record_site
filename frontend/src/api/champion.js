@@ -21,3 +21,10 @@ export const getChampionTierList = (queueType) =>
   apiClient.get('/api/champion-stats/tier-list', {
     params: queueType ? { queueType } : {},
   });
+
+// 챔피언 상세(룬/스킬/아이템/스펠/카운터/장인) 집계 조회
+// queueType: undefined(전체) | 'SOLO' | 'FLEX'
+export const getChampionDetail = (championId, queueType) =>
+  apiClient.get(`/api/champion-stats/${championId}/detail`, {
+    params: queueType ? { queueType } : {},
+  });
