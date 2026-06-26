@@ -922,9 +922,9 @@ function ArenaMiniList({ parts, championKeyById, myPuuid, onSummonerClick }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   상세 탭 바 (종합 / OP 스코어 / 팀 분석 / 빌드 / 기타)
+   상세 탭 바 (종합 / 팀 분석 / 빌드)
 ════════════════════════════════════════════════════════════════ */
-const DETAIL_TABS = ['종합', 'OP 스코어', '팀 분석', '빌드', '기타'];
+const DETAIL_TABS = ['종합', '팀 분석', '빌드'];
 
 function DetailTabs({ tabs = DETAIL_TABS, active, onChange }) {
   return (
@@ -1279,13 +1279,6 @@ function BuildView({ row, championKeyById, runeIconById, styleIconById, runeTree
   );
 }
 
-function DetailPlaceholder({ label }) {
-  return (
-    <div style={{ color: T.txtMuted, fontSize: 13, padding: '28px 16px', textAlign: 'center', background: T.tabBg }}>
-      {label} 탭은 준비 중입니다.
-    </div>
-  );
-}
 
 /* ═══════════════════════════════════════════════════════════════
    팀 분석 탭 — 지표별 양 팀 비교 (승리팀=파랑 / 패배팀=빨강)
@@ -1664,7 +1657,7 @@ function MatchCard({ match, championKeyById, championNameById, spellMap, runeIco
                 조회 중...
               </div>
             : isArena
-              // 아레나는 표준 탭(종합/OP 스코어/팀 분석/빌드/기타)이 맞지 않아 탭 없이 스코어보드만 보여준다.
+              // 아레나는 표준 탭(종합/팀 분석/빌드)이 맞지 않아 탭 없이 스코어보드만 보여준다.
               ? <DetailTable
                   rows={summaryRows}
                   championKeyById={championKeyById}
@@ -1700,9 +1693,6 @@ function MatchCard({ match, championKeyById, championNameById, spellMap, runeIco
                   {detailTab === '팀 분석' && (
                     <TeamAnalysis rows={summaryRows} championKeyById={championKeyById}
                       championNameById={championNameById} matchId={match.matchId} />
-                  )}
-                  {(detailTab === 'OP 스코어' || detailTab === '기타') && (
-                    <DetailPlaceholder label={detailTab} />
                   )}
                 </>
               )
