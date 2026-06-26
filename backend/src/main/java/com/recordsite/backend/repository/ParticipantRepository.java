@@ -63,4 +63,16 @@ public interface ParticipantRepository extends JpaRepository<Participant, Long>,
                                                @Param("queueId") int queueId,
                                                Pageable pageable);
     // 해당 큐에서 puuid가 참가한 매치 ID를 최신순으로. Pageable로 최신 1건만 뽑아 LP 스냅샷 앵커로 사용
+
+    // 챔피언 상세 페이지용: 해당 챔피언의 모든 참가 행(룬/스킬/아이템/스펠 집계는 서비스에서 Java로 수행).
+    // queueId 가 null 이면 전체 큐, 아니면 해당 큐만.
+    @Query("""
+            select p
+            from Participant p
+            join fetch p.match m
+            where p.championId = :championId
+            and (:queueId is null or m.queueId = :queueId)
+            """)
+    List<Participant> findByChampionForStats(@Param("championId") int championId,
+                                             @Param("queueId") Integer queueId);
 }

@@ -4,6 +4,7 @@ import com.recordsite.backend.dto.ChampionPickCount;
 import com.recordsite.backend.dto.ChampionPositionAggregate;
 import com.recordsite.backend.dto.MatchRecordDto;
 import com.recordsite.backend.dto.PlayedChampionAggregate;
+import com.recordsite.backend.dto.champion.ChampionMatchupAggregate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -23,4 +24,10 @@ public interface ParticipantRepositoryCustom {
 
     // 주어진 puuid들의 (puuid, championId)별 플레이 횟수. 랭킹 페이지 '모스트 챔피언' 계산용.
     List<ChampionPickCount> findChampionPickCounts(Collection<String> puuids);
+
+    // 챔피언 상세 카운터: 같은 포지션·상대 팀의 챔피언별로 기준 챔피언의 만난 판/이긴 판 집계. queueId null=전체 큐.
+    List<ChampionMatchupAggregate> aggregateMatchups(int championId, Integer queueId);
+
+    // 같은 큐의 전체 참가자 수(픽률 분모: ÷10 ≈ 매치 수). queueId null=전체 큐.
+    long countParticipantsByQueue(Integer queueId);
 }

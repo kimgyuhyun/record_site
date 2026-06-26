@@ -9,6 +9,7 @@ import com.recordsite.backend.dto.ChampionPickCount;
 import com.recordsite.backend.dto.ChampionPositionAggregate;
 import com.recordsite.backend.dto.MatchRecordDto;
 import com.recordsite.backend.dto.PlayedChampionAggregate;
+import com.recordsite.backend.dto.champion.ChampionMatchupAggregate;
 import com.recordsite.backend.entity.QMatch;
 import com.recordsite.backend.entity.QParticipant;
 import lombok.RequiredArgsConstructor;
@@ -160,6 +161,62 @@ public class ParticipantRepositoryCustomImpl implements ParticipantRepositoryCus
                 .where(where)
                 .groupBy(p.championId, p.championName, p.teamPosition)
                 .fetch();
+    }
+
+    @Override
+    public List<ChampionMatchupAggregate> aggregateMatchups(int championId, Integer queueId) {
+        QParticipant me = new QParticipant("me");
+        QParticipant opp = new QParticipant("opp");
+
+        // 기준 챔피언(me) 기준 승리 여부를 1/0으로 환산
+        NumberExpression<Integer> meWinToInt = new CaseBuilder()
+                .when(me.win.isTrue()).then(1).otherwise(0);
+
+        // 같은 매치 + 같은 포지션 + 상대 팀 = 라인 맞상대
+        BooleanBuilder onClause = new BooleanBuilder()
+                .and(opp.match.eq(me.match))
+                .and(opp.teamPosition.eq(me.teamPosition))
+                .and(opp.teamId.ne(me.teamId));
+
+        BooleanBuilder where = new BooleanBuilder()
+                .and(me.championId.eq(championId))
+                .and(me.teamPosition.isNotNull())
+                .and(me.teamPosition.ne(""));
+        if (queueId != null) {
+            where.and(me.match.queueId.eq(queueId));
+        }
+
+        return queryFactory
+                .select(Projections.constructor(ChampionMatchupAggregate.class,
+                        opp.championId,
+                        opp.championName,
+                        me.count(),
+                        meWinToInt.sum().longValue()
+                ))
+                .from(me)
+                .join(opp).on(onClause)
+                .where(where)
+                .groupBy(opp.championId, opp.championName)
+                .fetch();
+    }
+
+    @Override
+    public long countParticipantsByQueue(Integer queueId) {
+        QParticipant p = QParticipant.participant;
+        QMatch m = QMatch.match;
+
+        BooleanBuilder where = new BooleanBuilder();
+        if (queueId != null) {
+            where.and(m.queueId.eq(queueId));
+        }
+
+        Long count = queryFactory
+                .select(p.count())
+                .from(p)
+                .join(p.match, m)
+                .where(where)
+                .fetchOne();
+        return count != null ? count : 0L;
     }
 
     @Override
