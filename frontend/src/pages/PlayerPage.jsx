@@ -28,7 +28,6 @@ export default function PlayerPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error,      setError]      = useState('');
   const [cooldown,   setCooldown]   = useState(0); // 남은 쿨다운 초
-  const [progress,   setProgress]   = useState(null); // 갱신 진행 { total, done } 또는 null
   const cooldownTimer = useRef(null);
   const pollTimer     = useRef(null); // 갱신 작업 폴링 인터벌
 
@@ -89,7 +88,6 @@ export default function PlayerPage() {
     if (!summoner?.puuid || cooldown > 0 || refreshing) return;
     setRefreshing(true);
     setError('');
-    setProgress(null);
     try {
       const { data } = await refreshMatches(summoner.puuid);
       // 이미 끝난 작업(쿨다운 창에서 재요청 등)이면 바로 마무리, 아니면 폴링 시작
@@ -111,7 +109,6 @@ export default function PlayerPage() {
     pollTimer.current = setInterval(async () => {
       try {
         const { data } = await getRefreshJob(jobId);
-        setProgress({ total: data.total, done: data.done });
 
         if (data.status === 'DONE') {
           clearInterval(pollTimer.current);
@@ -151,7 +148,6 @@ export default function PlayerPage() {
 
   const stopRefreshing = () => {
     setRefreshing(false);
-    setProgress(null);
   };
 
   if (loading) return (
@@ -205,7 +201,6 @@ export default function PlayerPage() {
       onRefresh={handleRefresh}
       refreshing={refreshing}
       cooldown={cooldown}
-      progress={progress}
     />
   );
 }
