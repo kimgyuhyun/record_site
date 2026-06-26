@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { getSummoner } from '../api/summoner';
-import { getMatches, refreshMatches } from '../api/match';
+import { getMatches, refreshMatches, getRefreshJob } from '../api/match';
 import SummonerProfilePage from './SummonerProfilePage';
+
+// 갱신 작업 진행 상황 폴링 주기(ms)
+const REFRESH_POLL_INTERVAL_MS = 2500;
 
 function parseSlug(slug) {
   const decoded = decodeURIComponent(slug);
@@ -18,7 +21,6 @@ function parseSlug(slug) {
 
 export default function PlayerPage() {
   const { region, slug } = useParams();
-  const navigate = useNavigate();
 
   const [summoner,   setSummoner]   = useState(null);
   const [matchList,  setMatchList]  = useState([]);
@@ -26,7 +28,9 @@ export default function PlayerPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error,      setError]      = useState('');
   const [cooldown,   setCooldown]   = useState(0); // 남은 쿨다운 초
+  const [progress,   setProgress]   = useState(null); // 갱신 진행 { total, done } 또는 null
   const cooldownTimer = useRef(null);
+  const pollTimer     = useRef(null); // 갱신 작업 폴링 인터벌
 
   // 페이지 진입 시 rankUpdatedAt 기반으로 남은 쿨다운 계산
   const initCooldown = (summonerData) => {
@@ -53,7 +57,10 @@ export default function PlayerPage() {
   useEffect(() => {
     const { name, tagLine } = parseSlug(slug);
     load(name, tagLine, region.toUpperCase());
-    return () => { if (cooldownTimer.current) clearInterval(cooldownTimer.current); };
+    return () => {
+      if (cooldownTimer.current) clearInterval(cooldownTimer.current);
+      if (pollTimer.current) clearInterval(pollTimer.current); // 다른 소환사로 이동 시 진행 중 폴링 정리
+    };
   }, [region, slug]);
 
   const load = async (name, tagLine, regionUpper) => {
@@ -77,21 +84,55 @@ export default function PlayerPage() {
     }
   };
 
+  // 갱신 요청 → 작업 큐에 투입(즉시 jobId) → 완료까지 폴링. 동기 대기 없이 진행률만 갱신한다.
   const handleRefresh = async () => {
-    if (!summoner?.puuid || cooldown > 0) return;
+    if (!summoner?.puuid || cooldown > 0 || refreshing) return;
     setRefreshing(true);
     setError('');
+    setProgress(null);
     try {
-      const result = await refreshMatches(summoner.puuid);
-      const count = result.data;
-
-      // 백엔드가 -1 반환 → 쿨다운 중 (이미 프론트에서 막지만 이중 방어)
-      if (count === -1) {
-        startCooldownTimer(180);
-        return;
+      const { data } = await refreshMatches(summoner.puuid);
+      // 이미 끝난 작업(쿨다운 창에서 재요청 등)이면 바로 마무리, 아니면 폴링 시작
+      if (data.status === 'DONE') {
+        await finishRefresh();
+      } else {
+        startPolling(data.jobId);
       }
+    } catch (err) {
+      console.error(err);
+      setError('전적 갱신 요청 중 오류가 발생했습니다.');
+      stopRefreshing();
+    }
+  };
 
-      // 갱신 후 소환사 정보 + 매치 재조회
+  // jobId 작업이 DONE/FAILED 될 때까지 일정 주기로 진행 상황을 조회한다.
+  const startPolling = (jobId) => {
+    if (pollTimer.current) clearInterval(pollTimer.current);
+    pollTimer.current = setInterval(async () => {
+      try {
+        const { data } = await getRefreshJob(jobId);
+        setProgress({ total: data.total, done: data.done });
+
+        if (data.status === 'DONE') {
+          clearInterval(pollTimer.current);
+          await finishRefresh();
+        } else if (data.status === 'FAILED') {
+          clearInterval(pollTimer.current);
+          setError('전적 갱신에 실패했습니다. 잠시 후 다시 시도해주세요.');
+          stopRefreshing();
+        }
+      } catch (err) {
+        console.error(err);
+        clearInterval(pollTimer.current);
+        setError('전적 갱신 상태 조회 중 오류가 발생했습니다.');
+        stopRefreshing();
+      }
+    }, REFRESH_POLL_INTERVAL_MS);
+  };
+
+  // 갱신 완료 후 소환사 정보 + 매치 재조회, 쿨다운 시작.
+  const finishRefresh = async () => {
+    try {
       const { name, tagLine } = parseSlug(slug);
       const [sumRes, matchRes] = await Promise.all([
         getSummoner(name, tagLine, region.toUpperCase()),
@@ -99,15 +140,18 @@ export default function PlayerPage() {
       ]);
       setSummoner(sumRes.data);
       setMatchList(matchRes.data?.content || []);
-
-      // 갱신 완료 후 쿨다운 시작
       startCooldownTimer(180);
     } catch (err) {
       console.error(err);
-      setError('전적 갱신 중 오류가 발생했습니다.');
+      setError('갱신 결과를 불러오는 중 오류가 발생했습니다.');
     } finally {
-      setRefreshing(false);
+      stopRefreshing();
     }
+  };
+
+  const stopRefreshing = () => {
+    setRefreshing(false);
+    setProgress(null);
   };
 
   if (loading) return (
@@ -161,6 +205,7 @@ export default function PlayerPage() {
       onRefresh={handleRefresh}
       refreshing={refreshing}
       cooldown={cooldown}
+      progress={progress}
     />
   );
 }

@@ -2,7 +2,6 @@ package com.recordsite.backend.service;
 
 import com.recordsite.backend.dto.MatchRecordDto;
 import com.recordsite.backend.dto.MatchSummaryDto;
-import com.recordsite.backend.dto.SummonerDto;
 import com.recordsite.backend.repository.MatchRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,12 +14,10 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,7 +28,6 @@ class MatchServiceTest {
     @Mock MatchSaveHelper matchSaveHelper;
     @Mock RiotMatchClient riotMatchClient;
     @Mock LeagueService leagueService;
-    @Mock SummonerService summonerService;
     @Mock RankSnapshotService rankSnapshotService;
     @Mock SummonerCrawlService summonerCrawlService;
 
@@ -65,37 +61,39 @@ class MatchServiceTest {
     }
 
     @Test
-    @DisplayName("3분 이내 갱신 이력이 있으면 -1을 반환하고 Riot 호출을 하지 않는다")
-    void refresh_recentlyUpdated_returnsMinusOne() {
-        String puuid = "puuid-1";
-        SummonerDto dto = new SummonerDto();
-        dto.setRankUpdatedAt(LocalDateTime.now().minusMinutes(1));
-        when(summonerService.findByPuuid(puuid)).thenReturn(dto);
-
-        int result = matchService.refreshMatchesByPuuid(puuid);
-
-        assertEquals(-1, result);
-        verifyNoInteractions(riotMatchClient);
-        verify(matchSaveHelper, never()).saveMatchWithParticipants(anyString(), anyString());
-    }
-
-    @Test
     @DisplayName("DB에 없는 새 매치만 저장하고 저장 수를 반환하며 랭크를 갱신한다")
     void refresh_newMatches_savesAndUpdatesLeague() {
         String puuid = "puuid-1";
-        SummonerDto dto = new SummonerDto();
-        dto.setRankUpdatedAt(LocalDateTime.now().minusMinutes(10)); // 갱신 가능
-        when(summonerService.findByPuuid(puuid)).thenReturn(dto);
-
         List<String> matchIds = List.of("KR_1", "KR_2");
         when(riotMatchClient.getMatchIdsByPuuid(puuid, 0, 20)).thenReturn(matchIds);
         when(matchRepository.findExistingMatchIds(matchIds)).thenReturn(Set.of("KR_1")); // KR_1은 이미 존재
 
-        int result = matchService.refreshMatchesByPuuid(puuid);
+        int result = matchService.refreshMatchesByPuuid(puuid, RefreshProgress.NONE);
 
         assertEquals(1, result); // KR_2만 신규
         verify(matchSaveHelper).saveMatchWithParticipants("KR_2", puuid);
         verify(matchSaveHelper, never()).saveMatchWithParticipants("KR_1", puuid);
         verify(leagueService).updateAndSaveLeague(puuid);
+    }
+
+    @Test
+    @DisplayName("진행률 콜백으로 신규 매치 수(total)와 처리 건수(done)를 보고한다")
+    void refresh_reportsProgress() {
+        String puuid = "puuid-1";
+        List<String> matchIds = List.of("KR_1", "KR_2", "KR_3");
+        when(riotMatchClient.getMatchIdsByPuuid(puuid, 0, 20)).thenReturn(matchIds);
+        when(matchRepository.findExistingMatchIds(matchIds)).thenReturn(Set.of("KR_1")); // 신규는 KR_2, KR_3
+
+        int[] total = {-1};
+        int[] doneCount = {0};
+        RefreshProgress progress = new RefreshProgress() {
+            @Override public void onTotal(int t) { total[0] = t; }
+            @Override public void onMatchDone() { doneCount[0]++; }
+        };
+
+        matchService.refreshMatchesByPuuid(puuid, progress);
+
+        assertEquals(2, total[0]);     // 신규 2건이 분모
+        assertEquals(2, doneCount[0]); // 2건 모두 처리(전진)
     }
 }

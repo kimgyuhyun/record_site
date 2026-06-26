@@ -69,6 +69,13 @@ riot:
     daily-limit: 300          # 하루 최대 처리 puuid 수(폭주 방지)
     matches-per-puuid: 10     # 크롤링 puuid 1명당 수집할 최근 매치 수
 
+  # 전적 갱신 작업 큐(비동기). 요청을 큐에 넣고 즉시 jobId 응답 → 전용 워커가 BRPOP 으로 소비.
+  refresh:
+    worker-enabled: true
+    lock-ttl-seconds: 120        # 중복 갱신 차단 + 직후 쿨다운. 워커가 죽어도 이 TTL로 락 자동 해제
+    job-ttl-seconds: 600         # 잡 상태(status/total/done) 보존 시간(폴링 종료 후 자연 소멸)
+    block-timeout-seconds: 5     # BRPOP 블록 최대 대기(초). 이 주기로 종료 플래그를 확인
+
   # 상위 티어 사다리 랭킹 주기 갱신(실시간 아님 — 30~60분마다 스냅샷)
   ranking:
     enabled: true

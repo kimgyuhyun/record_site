@@ -1,7 +1,10 @@
 package com.recordsite.backend.controller;
 
 import com.recordsite.backend.dto.MatchSummaryDto;
+import com.recordsite.backend.dto.RefreshJobDto;
 import com.recordsite.backend.service.MatchService;
+import com.recordsite.backend.service.MatchTimelineService;
+import com.recordsite.backend.service.RefreshJobStore;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +28,12 @@ class MatchControllerTest {
     @MockitoBean
     private MatchService matchService;
 
+    @MockitoBean
+    private MatchTimelineService matchTimelineService;
+
+    @MockitoBean
+    private RefreshJobStore refreshJobStore;
+
     @Test
     @DisplayName("GET /api/matches/{matchId}/summary 는 참가자 요약 목록(룬 포함)을 반환한다")
     void getMatchSummaryList() throws Exception {
@@ -47,12 +56,29 @@ class MatchControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/matches/refresh 는 새로 저장된 매치 수를 반환한다")
+    @DisplayName("POST /api/matches/refresh 는 갱신 작업을 큐에 넣고 jobId와 PENDING 상태를 반환한다")
     void refreshMatches() throws Exception {
-        when(matchService.refreshMatchesByPuuid("puuid-1")).thenReturn(3);
+        when(refreshJobStore.submit("puuid-1"))
+                .thenReturn(new RefreshJobDto("job-1", "PENDING", 0, 0));
 
         mockMvc.perform(post("/api/matches/refresh").param("puuid", "puuid-1"))
                 .andExpect(status().isOk())
-                .andExpect(content().string("3"));
+                .andExpect(jsonPath("$.jobId").value("job-1"))
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.total").value(0))
+                .andExpect(jsonPath("$.done").value(0));
+    }
+
+    @Test
+    @DisplayName("GET /api/matches/refresh-jobs/{jobId} 는 진행 상황을 반환한다")
+    void getRefreshJob() throws Exception {
+        when(refreshJobStore.find("job-1"))
+                .thenReturn(new RefreshJobDto("job-1", "PROCESSING", 20, 7));
+
+        mockMvc.perform(get("/api/matches/refresh-jobs/{jobId}", "job-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PROCESSING"))
+                .andExpect(jsonPath("$.total").value(20))
+                .andExpect(jsonPath("$.done").value(7));
     }
 }

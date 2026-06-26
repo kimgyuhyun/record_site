@@ -40,7 +40,7 @@ const QUEUE_TYPE_BY_SUBTAB = { '전체': undefined, '솔로랭크': 'SOLO', '자
 
 export default function SummonerProfilePage({
   summoner, matchList = [],
-  onRefresh, refreshing, cooldown = 0,
+  onRefresh, refreshing, cooldown = 0, progress = null,
 }) {
   const [mainTab, setMainTab] = useState('챔피언');
   const [subTab, setSubTab]   = useState('전체');
@@ -114,7 +114,7 @@ export default function SummonerProfilePage({
       fontFamily: "'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif",
     }}>
       {/* 1. 유저 정보 */}
-      <UserInfo summoner={summoner} onRefresh={onRefresh} refreshing={refreshing} cooldown={cooldown} />
+      <UserInfo summoner={summoner} onRefresh={onRefresh} refreshing={refreshing} cooldown={cooldown} progress={progress} />
 
       {/* 2. 메인 탭 — 티어 박스 윗줄 가운데 */}
       <MainTabNav mainTab={mainTab} setMainTab={setMainTab} />

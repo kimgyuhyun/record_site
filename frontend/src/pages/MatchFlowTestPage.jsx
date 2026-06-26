@@ -199,20 +199,28 @@ function MatchFlowTestPage({ onSummonerLoaded }) {
 
   const [refreshing, setRefreshing] = useState(false);
 
+  // 비동기 갱신: 작업 큐에 투입(즉시 jobId) → DONE 될 때까지 폴링 후 매치 재조회.
   const refreshMatches = async () => {
     if (!summoner?.puuid) return;
     setRefreshing(true);
     setError('');
     try {
-      const res = await apiClient.post('/api/matches/refresh', null, {
+      const { data: job } = await apiClient.post('/api/matches/refresh', null, {
         params: { puuid: summoner.puuid },
       });
-      const newCount = res.data;
+      const finished = job.status === 'DONE'
+        ? job
+        : await pollUntilDone(job.jobId);
+
       const matchRes = await apiClient.get('/api/matches', {
         params: { puuid: summoner.puuid },
       });
       setMatchList(matchRes.data?.content || []);
-      alert(`${newCount}개의 새 매치가 추가됐습니다.`);
+      if (finished.status === 'FAILED') {
+        setError('전적 갱신에 실패했습니다.');
+      } else {
+        alert(`${finished.done}개의 매치를 처리했습니다.`);
+      }
     } catch (err) {
       console.error(err);
       setError('전적 갱신 중 오류가 발생했습니다.');
@@ -220,6 +228,22 @@ function MatchFlowTestPage({ onSummonerLoaded }) {
       setRefreshing(false);
     }
   };
+
+  // jobId 작업이 DONE/FAILED 가 될 때까지 2.5초 간격으로 상태를 조회한다.
+  const pollUntilDone = (jobId) => new Promise((resolve, reject) => {
+    const timer = setInterval(async () => {
+      try {
+        const { data } = await apiClient.get(`/api/matches/refresh-jobs/${jobId}`);
+        if (data.status === 'DONE' || data.status === 'FAILED') {
+          clearInterval(timer);
+          resolve(data);
+        }
+      } catch (err) {
+        clearInterval(timer);
+        reject(err);
+      }
+    }, 2500);
+  });
 
   const toggleSummary = async (matchId) => {
     const currentlyExpanded = !!expandedMap[matchId];

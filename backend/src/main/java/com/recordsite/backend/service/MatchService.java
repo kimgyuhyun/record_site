@@ -2,11 +2,7 @@ package com.recordsite.backend.service;
 
 import com.recordsite.backend.dto.MatchRecordDto;
 import com.recordsite.backend.dto.MatchSummaryDto;
-import com.recordsite.backend.dto.SummonerDto;
-import com.recordsite.backend.entity.Match;
-import com.recordsite.backend.entity.Participant;
 import com.recordsite.backend.repository.MatchRepository;
-import com.recordsite.backend.repository.ParticipantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -14,7 +10,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
@@ -29,7 +24,6 @@ public class MatchService {
     private final MatchSaveHelper matchSaveHelper;
     private final RiotMatchClient riotMatchClient;
     private final LeagueService leagueService;
-    private final SummonerService summonerService;
     private final RankSnapshotService rankSnapshotService;
     private final SummonerCrawlService summonerCrawlService;
 
@@ -52,27 +46,20 @@ public class MatchService {
     }
 
     // ──────────────────────────────────────────
-    // 갱신 전용 - 전적갱신 버튼 클릭 시에만 호출
+    // 갱신 전용 - 전적갱신 작업 큐의 워커가 호출
     // ──────────────────────────────────────────
 
-    // Riot API에서 최근 전적 20개 받아서 DB에 없는 것만 저장,
-    // 자유/솔로 랭크도 갱신 
-    // 새로 저장된 수 반환
-    public int refreshMatchesByPuuid(String puuid) {
-
-        // 갱신 체크
-        SummonerDto summoner = summonerService.findByPuuid(puuid);
-        LocalDateTime rankUpdatedAt = summoner.getRankUpdatedAt();
-        LocalDateTime threeMinutesAgo = LocalDateTime.now().minusMinutes(3);
-        boolean isUpdateRecently = rankUpdatedAt != null &&
-                rankUpdatedAt.isAfter(threeMinutesAgo);
-        if (isUpdateRecently) {
-            return -1;
-        }
+    // Riot API에서 최근 전적 20개 받아서 DB에 없는 것만 저장(증분 수집), 자유/솔로 랭크도 갱신.
+    // 진행 상황은 progress 콜백으로 흘려보낸다(워커가 잡 상태에 반영). 새로 저장된 매치 수 반환.
+    // 중복 갱신 차단·쿨다운은 호출 측의 Redis 락(RefreshJobStore)이 담당하므로 여기선 검사하지 않는다.
+    public int refreshMatchesByPuuid(String puuid, RefreshProgress progress) {
 
         // 라이엇 API 에서 최근 매치 20개 조회
         List<String> matchIdList = riotMatchClient.getMatchIdsByPuuid(puuid, 0, 20);
-        if (matchIdList.isEmpty()) return 0;
+        if (matchIdList.isEmpty()) {
+            progress.onTotal(0);
+            return 0;
+        }
 
         // DB에 이미 있는 matchId를 한 번의 쿼리로 조회 -> Set 으로 변환
         Set<String> existingIds = matchRepository.findExistingMatchIds(matchIdList);
@@ -80,6 +67,7 @@ public class MatchService {
         List<String> newMatchIds = matchIdList.stream()
                 .filter(id -> !existingIds.contains(id))
                 .toList();
+        progress.onTotal(newMatchIds.size());
 
         // db에 없는 매치 저장
         int newCount = 0;
@@ -89,8 +77,9 @@ public class MatchService {
                     newCount++;
                 } catch (Exception e) {
                     log.warn("매치 저장 실패, 스킵: matchId={}, error={}", matchId, e.getMessage());
+                } finally {
+                    progress.onMatchDone(); // 성공·스킵 무관하게 진행률 한 칸 전진
                 }
-
         }
 
         // 랭크 갱신 + 스냅샷은 신규 매치 유무와 무관하게 매 갱신마다 수행한다.

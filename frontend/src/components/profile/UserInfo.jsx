@@ -25,7 +25,7 @@ function getTierStyle(tierStr) {
   return { bg: '#eee', color: '#333', border: '#aaa' };
 }
 
-export default function UserInfo({ summoner, onRefresh, refreshing, cooldown = 0 }) {
+export default function UserInfo({ summoner, onRefresh, refreshing, cooldown = 0, progress = null }) {
   const { region } = useParams(); // /find/:region/:slug — 즐겨찾기 링크를 같은 리전으로 만든다.
   const favorites = useFavorites();
 
@@ -47,6 +47,13 @@ export default function UserInfo({ summoner, onRefresh, refreshing, cooldown = 0
   const mins = Math.floor(cooldown / 60);
   const secs = String(cooldown % 60).padStart(2, '0');
   const cooldownText = mins > 0 ? `${mins}분 ${secs}초` : `${cooldown}초`;
+
+  // 갱신 중 버튼 라벨: 진행률(처리/총)이 잡히면 함께 표시, 아직이면 일반 안내
+  const refreshLabel = !refreshing
+    ? '전적 갱신'
+    : progress && progress.total > 0
+      ? `갱신 중... (${progress.done}/${progress.total})`
+      : '갱신 중...';
 
   const profileIconSrc = summoner.profileIconId != null
     ? imgProfileIcon(summoner.profileIconId)
@@ -125,7 +132,7 @@ export default function UserInfo({ summoner, onRefresh, refreshing, cooldown = 0
               onMouseEnter={e => { if (!isDisabled) e.target.style.transform = 'translateY(-1px)'; }}
               onMouseLeave={e => { e.target.style.transform = 'translateY(0)'; }}
             >
-              {refreshing ? '갱신 중...' : '전적 갱신'}
+              {refreshLabel}
             </button>
 
             {/* 즐겨찾기 토글 — 로그인 없이 localStorage 에 저장(사이드바 즐겨찾기와 동일 저장소) */}
