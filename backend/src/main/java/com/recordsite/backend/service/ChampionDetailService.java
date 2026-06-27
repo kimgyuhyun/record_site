@@ -145,20 +145,49 @@ public class ChampionDetailService {
     // ── 스킬 선마 순서 ─────────────────────────────────
 
     private List<ChampionDetailResponse.SkillOrder> topSkillOrders(List<Participant> rows) {
-        Map<String, long[]> tally = new LinkedHashMap<>();
+        Map<String, long[]> tally = new LinkedHashMap<>();              // 선마순서 → [games, wins]
+        Map<String, Map<String, Long>> levelSeqCount = new LinkedHashMap<>(); // 선마순서 → (레벨업순서 → 빈도)
         for (Participant p : rows) {
-            String order = skillMaxOrder(p.getSkillBuildOrder());
+            String levels = normalizeLevels(p.getSkillBuildOrder());
+            if (levels == null) {
+                continue;
+            }
+            String order = skillMaxOrder(levels);
             if (order == null) {
                 continue;
             }
             accumulate(tally, order, p.isWin());
+            levelSeqCount.computeIfAbsent(order, k -> new LinkedHashMap<>()).merge(levels, 1L, Long::sum);
         }
         return tally.entrySet().stream()
                 .sorted(byGamesDesc())
                 .limit(TOP_SKILL_ORDERS)
                 .map(e -> new ChampionDetailResponse.SkillOrder(
-                        e.getKey(), e.getValue()[0], e.getValue()[1], ratio(e.getValue()[1], e.getValue()[0])))
+                        e.getKey(), mostCommonKey(levelSeqCount.get(e.getKey())),
+                        e.getValue()[0], e.getValue()[1], ratio(e.getValue()[1], e.getValue()[0])))
                 .toList();
+    }
+
+    // 레벨업 순서 문자열에서 Q/W/E/R 만 남기고 최대 18레벨까지 자른다.
+    private String normalizeLevels(String build) {
+        if (build == null || build.isBlank()) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < build.length() && sb.length() < 18; i++) {
+            char c = build.charAt(i);
+            if (c == 'Q' || c == 'W' || c == 'E' || c == 'R') {
+                sb.append(c);
+            }
+        }
+        return sb.length() == 0 ? null : sb.toString();
+    }
+
+    private String mostCommonKey(Map<String, Long> counts) {
+        return counts == null ? null : counts.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse(null);
     }
 
     // "QWEQQR..." → 선마 순서 "Q>E>W" (R 제외). 각 스킬이 5포인트(=마스터)에 먼저 도달한 순.

@@ -29,8 +29,8 @@ public record ChampionDetailResponse(
             Integer statOffense, Integer statFlex, Integer statDefense,
             long games, long wins, double winRate) {}
 
-    // 선마 순서. order 예: "Q>E>W" (R 제외, 5포인트 도달이 빠른 순).
-    public record SkillOrder(String order, long games, long wins, double winRate) {}
+    // 스킬 빌드. order=선마 순서 "Q>E>W"(R 제외). levelOrder=대표 레벨업 순서 "QEWQQR..."(최대 18레벨).
+    public record SkillOrder(String order, String levelOrder, long games, long wins, double winRate) {}
 
     // 핵심 아이템 빌드(구매 순서 앞쪽 코어 아이템들). 소비/장신구 제외.
     public record ItemBuild(List<Integer> items, long games, long wins, double winRate) {}
