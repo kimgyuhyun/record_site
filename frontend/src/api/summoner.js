@@ -9,3 +9,7 @@ export const getSummoner = (name, tagLine, region) =>
 // 자동완성용 — 내 DB에서 name 포함 검색 (Riot API 호출 없음)
 export const searchSummonerByName = (name) =>
   apiClient.get('/api/summoners/search', { params: { name } });
+
+// 티어/LP 변동 이력 — 누적된 랭크 스냅샷 시계열 (LP 그래프용)
+export const getRankHistory = (puuid) =>
+  apiClient.get('/api/summoners/rank-history', { params: { puuid } });

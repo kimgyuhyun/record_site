@@ -1,5 +1,6 @@
 package com.recordsite.backend.service;
 
+import com.recordsite.backend.dto.RankHistoryResponse;
 import com.recordsite.backend.entity.QueueType;
 import com.recordsite.backend.entity.RankSnapshot;
 import com.recordsite.backend.entity.Summoner;
@@ -11,6 +12,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
@@ -76,5 +79,21 @@ public class RankSnapshotService {
             previousByQueue.put(snapshot.getQueueType(), snapshot);
         }
         return lpChangeByMatchId;
+    }
+
+    // 티어/LP 변동 이력 — 큐별 스냅샷 시계열(시간 오름차순). 프론트가 LP 그래프로 그린다.
+    @Transactional(readOnly = true)
+    public RankHistoryResponse getRankHistory(String puuid) {
+        List<RankSnapshot> snapshots = rankSnapshotRepository.findByPuuidOrderByCreatedAtAsc(puuid);
+
+        List<RankHistoryResponse.Point> solo = new ArrayList<>();
+        List<RankHistoryResponse.Point> flex = new ArrayList<>();
+        for (RankSnapshot s : snapshots) {
+            RankHistoryResponse.Point point = new RankHistoryResponse.Point(
+                    s.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                    s.getTier(), s.getDivision(), s.getLeaguePoints(), s.getLadderScore());
+            (s.getQueueType() == QueueType.SOLO ? solo : flex).add(point);
+        }
+        return new RankHistoryResponse(solo, flex);
     }
 }
