@@ -2,9 +2,10 @@ package com.recordsite.backend.service;
 
 import com.recordsite.backend.dto.ChampionBanCount;
 import com.recordsite.backend.dto.champion.ChampionDetailResponse;
-import com.recordsite.backend.dto.champion.ChampionMatchupAggregate;
+import com.recordsite.backend.entity.Item;
 import com.recordsite.backend.entity.Participant;
 import com.recordsite.backend.entity.QueueType;
+import com.recordsite.backend.repository.ItemRepository;
 import com.recordsite.backend.repository.MatchBanRepository;
 import com.recordsite.backend.repository.ParticipantRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +17,6 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * 챔피언 상세(초상화 클릭) 집계. 우리가 수집한 매치 DB 를 챔피언 단위로 모아 룬/스킬/아이템/스펠/카운터/장인을 만든다.
@@ -35,17 +35,15 @@ public class ChampionDetailService {
     private static final int TOP_ITEM_BUILDS = 3;
     private static final int TOP_SPELLS = 3;
     private static final int TOP_EXPERTS = 10;
-    private static final int MAX_COUNTERS = 60;
-    private static final int MIN_COUNTER_GAMES = 2; // 표본 1판짜리 매치업은 노이즈라 제외
 
-    // 코어 아이템 빌드에서 제외할 소비/장신구 아이템(메타데이터가 없어 알려진 id 만 거른다).
-    private static final Set<Integer> NON_CORE_ITEMS = Set.of(
-            2003, 2031, 2033, 2055, 2138, 2139, 2140, 2150, 2151, 2152,
-            3340, 3363, 3364, 3330, 2052, 2004, 2010, 3400);
-    private static final int CORE_ITEM_COUNT = 3;
+    private static final int CORE_ITEM_COUNT = 3;        // 1·2·3 코어
+    private static final int CORE_MIN_GOLD = 1000;        // 도란/시작템 같은 저가 완성템을 코어에서 제외하는 하한
+    private static final int BOOTS_MIN_GOLD = 600;        // 기본 신발(1001, 300골드) 제외 → 2티어 신발만 신발 선택으로
+    private static final int STARTING_SECONDS = 90;       // 게임 시작 후 이 시간(초) 내 구매를 시작 아이템으로 본다
 
     private final ParticipantRepository participantRepository;
     private final MatchBanRepository matchBanRepository;
+    private final ItemRepository itemRepository;
 
     @Transactional(readOnly = true)
     public ChampionDetailResponse getChampionDetail(int championId, QueueType queueType) {
@@ -58,6 +56,8 @@ public class ChampionDetailService {
         double totalMatches = (double) participantRepository.countParticipantsByQueue(queueId) / PICKS_PER_MATCH;
         long banCount = banCountOf(championId, queueId);
 
+        Map<Integer, ItemMeta> itemMeta = loadItemMeta();
+
         return new ChampionDetailResponse(
                 championId,
                 championNameOf(rows),
@@ -69,9 +69,10 @@ public class ChampionDetailService {
                 totalMatches <= 0 ? 0 : banCount / totalMatches,
                 topRunes(rows),
                 topSkillOrders(rows),
-                topItemBuilds(rows),
+                topStartingItems(rows, itemMeta),
+                topBoots(rows, itemMeta),
+                topCoreItems(rows, itemMeta),
                 topSpells(rows),
-                counters(championId, queueId),
                 experts(rows));
     }
 
@@ -202,17 +203,72 @@ public class ChampionDetailService {
         return -1;
     }
 
-    // ── 아이템 코어 빌드 ───────────────────────────────
+    // ── 아이템: 시작 아이템 / 신발 / 핵심(1·2·3코어) ──────
+    //  구매 순서 문자열(itemId:구매초)을 아이템 메타데이터(가격/태그/상위템 여부)로 분류해 집계한다.
 
-    private List<ChampionDetailResponse.ItemBuild> topItemBuilds(List<Participant> rows) {
+    // 시작 아이템: 게임 시작 STARTING_SECONDS 초 내 구매(장신구 제외), 같은 구성끼리 묶어 상위 노출.
+    private List<ChampionDetailResponse.ItemBuild> topStartingItems(
+            List<Participant> rows, Map<Integer, ItemMeta> meta) {
         Map<List<Integer>, long[]> tally = new LinkedHashMap<>();
         for (Participant p : rows) {
-            List<Integer> core = coreItems(p.getItemBuildOrder());
-            if (core.isEmpty()) {
-                continue;
+            List<Integer> starting = new ArrayList<>();
+            for (Purchase buy : parsePurchases(p.getItemBuildOrder())) {
+                if (buy.seconds() > STARTING_SECONDS) {
+                    break; // 구매 순서대로라 시간 초과 시 이후는 볼 필요 없음
+                }
+                ItemMeta m = meta.get(buy.itemId());
+                if (m == null || m.trinket() || starting.contains(buy.itemId())) {
+                    continue;
+                }
+                starting.add(buy.itemId());
             }
-            accumulate(tally, core, p.isWin());
+            if (!starting.isEmpty()) {
+                accumulate(tally, starting, p.isWin());
+            }
         }
+        return topItemBuilds(tally);
+    }
+
+    // 신발: 구매한 첫 2티어 신발(기본 신발 1001 제외) 한 개를 집계.
+    private List<ChampionDetailResponse.ItemBuild> topBoots(
+            List<Participant> rows, Map<Integer, ItemMeta> meta) {
+        Map<List<Integer>, long[]> tally = new LinkedHashMap<>();
+        for (Participant p : rows) {
+            for (Purchase buy : parsePurchases(p.getItemBuildOrder())) {
+                ItemMeta m = meta.get(buy.itemId());
+                if (m != null && m.boots() && m.goldTotal() >= BOOTS_MIN_GOLD) {
+                    accumulate(tally, List.of(buy.itemId()), p.isWin());
+                    break;
+                }
+            }
+        }
+        return topItemBuilds(tally);
+    }
+
+    // 핵심 빌드: 구매 순서대로 완성 아이템(상위템으로 안 올라가는 고가 아이템, 신발·소비·장신구 제외) 앞 3개.
+    private List<ChampionDetailResponse.ItemBuild> topCoreItems(
+            List<Participant> rows, Map<Integer, ItemMeta> meta) {
+        Map<List<Integer>, long[]> tally = new LinkedHashMap<>();
+        for (Participant p : rows) {
+            List<Integer> core = new ArrayList<>(CORE_ITEM_COUNT);
+            for (Purchase buy : parsePurchases(p.getItemBuildOrder())) {
+                ItemMeta m = meta.get(buy.itemId());
+                if (m == null || !m.completedCore() || core.contains(buy.itemId())) {
+                    continue;
+                }
+                core.add(buy.itemId());
+                if (core.size() == CORE_ITEM_COUNT) {
+                    break;
+                }
+            }
+            if (!core.isEmpty()) {
+                accumulate(tally, core, p.isWin());
+            }
+        }
+        return topItemBuilds(tally);
+    }
+
+    private List<ChampionDetailResponse.ItemBuild> topItemBuilds(Map<List<Integer>, long[]> tally) {
         return tally.entrySet().stream()
                 .sorted(byGamesDesc())
                 .limit(TOP_ITEM_BUILDS)
@@ -221,33 +277,53 @@ public class ChampionDetailService {
                 .toList();
     }
 
-    // "1055:8,2003:8,3006:520,..." → 소비/장신구 제외, 구매 순서대로 중복 없이 앞쪽 3개(코어).
-    private List<Integer> coreItems(String itemBuildOrder) {
+    // "1055:8,2003:8,3006:520" → 구매(아이템id, 구매초) 목록(구매 순서 유지).
+    private List<Purchase> parsePurchases(String itemBuildOrder) {
         if (itemBuildOrder == null || itemBuildOrder.isBlank()) {
             return List.of();
         }
-        List<Integer> core = new ArrayList<>(CORE_ITEM_COUNT);
+        List<Purchase> purchases = new ArrayList<>();
         for (String token : itemBuildOrder.split(",")) {
             int colon = token.indexOf(':');
             if (colon <= 0) {
                 continue;
             }
-            int itemId;
             try {
-                itemId = Integer.parseInt(token.substring(0, colon).trim());
+                int itemId = Integer.parseInt(token.substring(0, colon).trim());
+                long seconds = Long.parseLong(token.substring(colon + 1).trim());
+                purchases.add(new Purchase(itemId, seconds));
+            } catch (NumberFormatException ignored) {
+                // 형식이 깨진 토큰은 건너뛴다
+            }
+        }
+        return purchases;
+    }
+
+    private record Purchase(int itemId, long seconds) {}
+
+    // 아이템 메타데이터(가격/신발·장신구 여부/완성 코어 여부)를 DB Item 에서 한 번에 적재한다.
+    private Map<Integer, ItemMeta> loadItemMeta() {
+        Map<Integer, ItemMeta> map = new LinkedHashMap<>();
+        for (Item item : itemRepository.findAll()) {
+            int id;
+            try {
+                id = Integer.parseInt(item.getItemKey());
             } catch (NumberFormatException e) {
                 continue;
             }
-            if (NON_CORE_ITEMS.contains(itemId) || core.contains(itemId)) {
-                continue;
-            }
-            core.add(itemId);
-            if (core.size() == CORE_ITEM_COUNT) {
-                break;
-            }
+            String tags = item.getTags() == null ? "" : item.getTags();
+            boolean boots = tags.contains("Boots");
+            boolean trinket = tags.contains("Trinket");
+            boolean consumable = tags.contains("Consumable");
+            boolean finished = item.getBuildsInto() == null || item.getBuildsInto().isBlank();
+            boolean completedCore = item.isPurchasable() && finished && !boots && !trinket && !consumable
+                    && item.getGoldTotal() >= CORE_MIN_GOLD;
+            map.put(id, new ItemMeta(item.getGoldTotal(), boots, trinket, completedCore));
         }
-        return core;
+        return map;
     }
+
+    private record ItemMeta(int goldTotal, boolean boots, boolean trinket, boolean completedCore) {}
 
     // ── 소환사 주문 ────────────────────────────────────
 
@@ -267,18 +343,6 @@ public class ChampionDetailService {
                 .map(e -> new ChampionDetailResponse.SpellPair(
                         e.getKey().get(0), e.getKey().get(1),
                         e.getValue()[0], e.getValue()[1], ratio(e.getValue()[1], e.getValue()[0])))
-                .toList();
-    }
-
-    // ── 카운터 ────────────────────────────────────────
-
-    private List<ChampionDetailResponse.Counter> counters(int championId, Integer queueId) {
-        return participantRepository.aggregateMatchups(championId, queueId).stream()
-                .filter(m -> m.games() >= MIN_COUNTER_GAMES)
-                .sorted(Comparator.comparingDouble((ChampionMatchupAggregate m) -> ratio(m.wins(), m.games())))
-                .limit(MAX_COUNTERS)
-                .map(m -> new ChampionDetailResponse.Counter(
-                        m.championId(), m.championName(), m.games(), m.wins(), ratio(m.wins(), m.games())))
                 .toList();
     }
 

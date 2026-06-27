@@ -15,9 +15,10 @@ public record ChampionDetailResponse(
         double banRate,           // 0~1
         List<RuneBuild> runes,
         List<SkillOrder> skillOrders,
-        List<ItemBuild> itemBuilds,
+        List<ItemBuild> startingItems, // 시작 아이템 조합(게임 시작 ~90초 내 구매, 장신구 제외)
+        List<ItemBuild> boots,         // 신발 선택(items 는 신발 1개)
+        List<ItemBuild> coreItems,     // 핵심 빌드 1코어>2코어>3코어 순서
         List<SpellPair> spells,
-        List<Counter> counters,   // winRate 오름차순(앞=상대하기 어려운, 뒤=쉬운). 프론트가 양끝을 나눠 보여준다.
         List<Expert> experts      // 우리 DB 내 해당 챔피언 다판 유저(=장인) 랭킹
 ) {
     // 룬 페이지 한 벌(주룬 계열/키스톤+3, 보조 계열/2, 스탯 파편 3). id 는 DDragon 아이콘 매핑용.
@@ -36,9 +37,6 @@ public record ChampionDetailResponse(
 
     // 소환사 주문 조합(순서 무관 정규화).
     public record SpellPair(int spell1, int spell2, long games, long wins, double winRate) {}
-
-    // 같은 포지션 상대 매치업. winRate 는 이 챔피언 기준 승률(낮을수록 상대하기 어려움).
-    public record Counter(int championId, String championName, long games, long wins, double winRate) {}
 
     // 해당 챔피언 다판 유저.
     public record Expert(String puuid, String gameName, String tagLine, long games, long wins, double winRate) {}
