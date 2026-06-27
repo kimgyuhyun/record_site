@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams } from 'react-router-dom';
 import useChampionMeta from '../hooks/useChampionMeta';
 import { getChampionDetail as getChampionStatsDetail } from '../api/champion';
@@ -6,13 +7,22 @@ import {
   getChampionDetail as getChampionDdragon,
   getSummonerSpellData,
   getRuneData,
+  getItemData,
 } from '../api/ddragon';
 import {
-  DATA_CDN, DDRAGON_VERSION, imgChampion, imgItem, imgSpell, imgChampionSpell, imgRune,
+  DDRAGON_VERSION, imgChampion, imgItem, imgSpell, imgChampionSpell, imgRune,
 } from '../constants/ddragon';
 
 // 화면에 표기하는 패치 버전(예: '16.12.1' → '16.12')
 const PATCH = DDRAGON_VERSION.split('.').slice(0, 2).join('.');
+
+// 툴팁 설명용 — DDragon 설명 HTML 을 평문으로 정리(전적 빌드탭과 동일 방식).
+const stripHtml = (s) => (s || '')
+  .replace(/<br\s*\/?>/gi, '\n')
+  .replace(/<\/?(li|p)>/gi, '\n')
+  .replace(/<[^>]+>/g, '')
+  .replace(/\n{2,}/g, '\n')
+  .trim();
 
 /*
  * 챔피언 상세 — 초상화 클릭 시 진입. 우리 매치 DB 집계(룬/스펠/스킬/아이템/장인)에
@@ -59,9 +69,11 @@ export default function ChampionPage() {
   const [error, setError] = useState(false);
 
   const [ddragon, setDdragon] = useState(null);          // { spells:[], passive:{} }
-  const [spellFileById, setSpellFileById] = useState({}); // 소환사 주문 id → 아이콘 파일명
   const [runeIconById, setRuneIconById] = useState({});   // 룬/계열 id → 아이콘 경로
   const [runeTree, setRuneTree] = useState([]);           // 룬 전체 트리(계열→슬롯→룬)
+  // 툴팁/아이콘용 메타: 소환사 주문·아이템(이름/설명/가격)
+  const [spellMeta, setSpellMeta] = useState({ fileById: {}, nameById: {}, descById: {} });
+  const [itemMeta, setItemMeta] = useState({ nameById: {}, descById: {}, goldById: {} });
 
   // 1) 백엔드 집계
   useEffect(() => {
@@ -94,27 +106,40 @@ export default function ChampionPage() {
     return () => { cancelled = true; };
   }, [champKey]);
 
-  // 3) 소환사 주문 / 룬 아이콘 매핑 (1회)
+  // 3) 소환사 주문 / 룬 / 아이템 정적 데이터 (1회) — 아이콘 + 툴팁용 이름·설명·가격
   useEffect(() => {
     let cancelled = false;
-    getSummonerSpellData('ko_KR').catch(() => getSummonerSpellData('en_US'))
-      .then(res => {
+    const loadLocale = (locale) => Promise.all([
+      getSummonerSpellData(locale), getRuneData(locale), getItemData(locale),
+    ]);
+    loadLocale('ko_KR').catch(() => loadLocale('en_US'))
+      .then(([spellRes, runeRes, itemRes]) => {
         if (cancelled) return;
-        const map = {};
-        Object.values(res.data.data).forEach(s => { map[Number(s.key)] = s.image.full; });
-        setSpellFileById(map);
-      }).catch(() => {});
 
-    getRuneData('ko_KR').catch(() => getRuneData('en_US'))
-      .then(res => {
-        if (cancelled) return;
-        const map = {};
-        res.data.forEach(style => {
-          map[style.id] = style.icon;
-          style.slots.forEach(slot => slot.runes.forEach(r => { map[r.id] = r.icon; }));
+        const fileById = {}, spellNameById = {}, spellDescById = {};
+        Object.values(spellRes.data.data).forEach(s => {
+          const id = Number(s.key);
+          fileById[id] = s.image.full;
+          spellNameById[id] = s.name;
+          spellDescById[id] = stripHtml(s.description);
         });
-        setRuneIconById(map);
-        setRuneTree(res.data);
+        setSpellMeta({ fileById, nameById: spellNameById, descById: spellDescById });
+
+        const iconById = {};
+        runeRes.data.forEach(style => {
+          iconById[style.id] = style.icon;
+          style.slots.forEach(slot => slot.runes.forEach(r => { iconById[r.id] = r.icon; }));
+        });
+        setRuneIconById(iconById);
+        setRuneTree(runeRes.data);
+
+        const itemNameById = {}, itemDescById = {}, itemGoldById = {};
+        Object.entries(itemRes.data.data).forEach(([id, item]) => {
+          itemNameById[Number(id)] = item.name;
+          itemDescById[Number(id)] = stripHtml(item.description) || item.plaintext || '';
+          if (item.gold) itemGoldById[Number(id)] = { total: item.gold.total ?? 0, sell: item.gold.sell ?? 0 };
+        });
+        setItemMeta({ nameById: itemNameById, descById: itemDescById, goldById: itemGoldById });
       }).catch(() => {});
     return () => { cancelled = true; };
   }, []);
@@ -141,11 +166,12 @@ export default function ChampionPage() {
             <RunesSection champName={champName} runes={detail.runes} totalGames={total}
               runeTree={runeTree} runeIconById={runeIconById} />
             <SpellsSection champName={champName} spells={detail.spells}
-              spellFileById={spellFileById} totalGames={total} />
+              spellMeta={spellMeta} totalGames={total} />
             <SkillSection champName={champName} ddragon={ddragon}
               orders={detail.skillOrders} totalGames={total} />
             <ItemSection champName={champName} startingItems={detail.startingItems}
-              boots={detail.boots} coreItems={detail.coreItems} totalGames={total} />
+              boots={detail.boots} coreItems={detail.coreItems}
+              itemMeta={itemMeta} totalGames={total} />
             <ExpertsSection champName={champName} experts={detail.experts} />
           </div>
         )
@@ -246,6 +272,18 @@ const STAT_SHARD_LABEL = {
   5002: '방어력', 5003: '마법 저항력', 5001: '체력(성장)',
   5011: '체력', 5013: '강인함 및 둔화 저항', 5010: '이동 속도',
 };
+// 능력치 파편 설명 — DDragon 룬 데이터에 없어 직접 정의.
+const STAT_SHARD_DESC = {
+  5008: '공격력 +5.4 또는 주문력 +9 (둘 중 높은 효과 적용)',
+  5005: '공격 속도 +10%',
+  5007: '스킬 가속 +8',
+  5002: '방어력 +6',
+  5003: '마법 저항력 +8',
+  5001: '레벨에 비례해 체력 +10~180 (1레벨 기준 증가)',
+  5011: '체력 +65',
+  5013: '강인함 및 둔화 저항 +10%',
+  5010: '이동 속도 +2%',
+};
 const STAT_SHARD_ROWS = [
   [5008, 5005, 5007],
   [5008, 5010, 5001],
@@ -315,7 +353,7 @@ function RuneTreeColumn({ style, picks, keystone, flex }) {
                 const on = picks.has(rune.id);
                 const size = big ? 40 : 28;
                 return (
-                  <Tooltip key={rune.id} title={rune.name} body={rune.shortDesc} width={250}>
+                  <Tooltip key={rune.id} label={rune.name} desc={stripHtml(rune.shortDesc)}>
                     <span style={{ display: 'inline-block', cursor: 'help',
                       opacity: on ? 1 : 0.3, filter: on ? 'none' : 'grayscale(1)' }}>
                       <img src={imgRune(rune.icon)} alt={rune.name} width={size} height={size}
@@ -344,7 +382,7 @@ function ShardColumn({ shards, flex }) {
               const on = shards[ri] === id;
               const icon = STAT_SHARD_ICON[id];
               return (
-                <Tooltip key={ci} title={STAT_SHARD_LABEL[id] || '능력치 파편'} width={160}>
+                <Tooltip key={ci} label={STAT_SHARD_LABEL[id] || '능력치 파편'} desc={STAT_SHARD_DESC[id]}>
                   <span style={{ display: 'inline-block', cursor: 'help',
                     opacity: on ? 1 : 0.3, filter: on ? 'none' : 'grayscale(1)' }}>
                     {icon
@@ -379,7 +417,7 @@ function RuneIcon({ id, runeIconById, size }) {
 }
 
 /* ── 소환사 주문 ── 상위 1·2위 가로 2개 ── */
-function SpellsSection({ champName, spells, spellFileById, totalGames }) {
+function SpellsSection({ champName, spells, spellMeta, totalGames }) {
   return (
     <Section title={`${champName} 소환사 주문`} bodyPad="6px 16px">
       {!spells?.length ? <Empty /> : (
@@ -388,8 +426,8 @@ function SpellsSection({ champName, spells, spellFileById, totalGames }) {
             <div key={i} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12,
               padding: '12px 14px', borderLeft: i > 0 ? `1px solid ${C.line}` : 'none' }}>
               <span style={{ display: 'flex', gap: 4 }}>
-                <SpellIcon file={spellFileById[s.spell1]} />
-                <SpellIcon file={spellFileById[s.spell2]} />
+                <SpellIcon id={s.spell1} spellMeta={spellMeta} />
+                <SpellIcon id={s.spell2} spellMeta={spellMeta} />
               </span>
               <FreqGames freq={totalGames > 0 ? s.games / totalGames : 0} games={s.games} />
               <WinPct value={s.winRate} style={{ marginLeft: 'auto' }} />
@@ -401,10 +439,16 @@ function SpellsSection({ champName, spells, spellFileById, totalGames }) {
   );
 }
 
-function SpellIcon({ file }) {
+function SpellIcon({ id, spellMeta }) {
+  const file = spellMeta.fileById[id];
   if (!file) return <span style={{ width: 34, height: 34, background: C.box, borderRadius: 7,
     display: 'inline-block' }} />;
-  return <img src={imgSpell(file)} alt="" width={34} height={34} style={{ borderRadius: 7 }} />;
+  return (
+    <Tooltip label={spellMeta.nameById[id]} desc={spellMeta.descById[id]}>
+      <img src={imgSpell(file)} alt={spellMeta.nameById[id] || ''} width={34} height={34}
+        style={{ borderRadius: 7, cursor: 'help' }} />
+    </Tooltip>
+  );
 }
 
 /* ── 스킬 빌드 ── 선마 순서 아이콘 + 레벨업 순서 한 줄 ── */
@@ -445,7 +489,7 @@ function SkillIcon({ ddragon, letter }) {
   const spell = ddragon?.spells?.[idx];
   const src = spell ? imgChampionSpell(spell.image.full) : null;
   return (
-    <Tooltip title={spell?.name} body={spell?.description}>
+    <Tooltip label={spell?.name} desc={stripHtml(spell?.description)}>
       <span style={{ position: 'relative', display: 'inline-block', cursor: 'help' }}>
         {src
           ? <img src={src} alt={spell?.name} width={44} height={44}
@@ -470,7 +514,7 @@ function LevelBadge({ letter }) {
 }
 
 /* ── 아이템 빌드 ── 시작 아이템 | 신발 + 핵심 빌드 ── */
-function ItemSection({ champName, startingItems, boots, coreItems, totalGames }) {
+function ItemSection({ champName, startingItems, boots, coreItems, itemMeta, totalGames }) {
   return (
     <Section title={`${champName} 아이템 빌드`}>
       <div style={{ display: 'flex' }}>
@@ -479,7 +523,7 @@ function ItemSection({ champName, startingItems, boots, coreItems, totalGames })
           {!startingItems?.length ? <Empty /> : startingItems.map((b, i) => (
             <ItemStatRow key={i} first={i === 0} freq={totalGames > 0 ? b.games / totalGames : 0}
               games={b.games} winRate={b.winRate}>
-              <ItemIcons ids={b.items} />
+              <ItemIcons ids={b.items} itemMeta={itemMeta} />
             </ItemStatRow>
           ))}
         </div>
@@ -488,7 +532,7 @@ function ItemSection({ champName, startingItems, boots, coreItems, totalGames })
           {!boots?.length ? <Empty /> : boots.map((b, i) => (
             <ItemStatRow key={i} first={i === 0} freq={totalGames > 0 ? b.games / totalGames : 0}
               games={b.games} winRate={b.winRate}>
-              <ItemIcons ids={b.items} />
+              <ItemIcons ids={b.items} itemMeta={itemMeta} />
             </ItemStatRow>
           ))}
         </div>
@@ -504,9 +548,7 @@ function ItemSection({ champName, startingItems, boots, coreItems, totalGames })
                 <React.Fragment key={k}>
                   {k > 0 && <Chevron />}
                   <span style={{ textAlign: 'center' }}>
-                    <img src={imgItem(id)} alt="" width={34} height={34}
-                      style={{ borderRadius: 6, border: `1px solid ${C.line}`, display: 'block' }}
-                      onError={e => { e.target.style.visibility = 'hidden'; }} />
+                    <ItemImg id={id} itemMeta={itemMeta} size={34} />
                     <span style={{ display: 'block', color: C.muted, fontSize: 9.5, marginTop: 3 }}>{k + 1}코어</span>
                   </span>
                 </React.Fragment>
@@ -519,15 +561,21 @@ function ItemSection({ champName, startingItems, boots, coreItems, totalGames })
   );
 }
 
-function ItemIcons({ ids }) {
+function ItemIcons({ ids, itemMeta }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      {ids.map((id, k) => (
-        <img key={k} src={imgItem(id)} alt="" width={32} height={32}
-          style={{ borderRadius: 6, border: `1px solid ${C.line}` }}
-          onError={e => { e.target.style.visibility = 'hidden'; }} />
-      ))}
+      {ids.map((id, k) => <ItemImg key={k} id={id} itemMeta={itemMeta} size={32} />)}
     </div>
+  );
+}
+
+function ItemImg({ id, itemMeta, size }) {
+  return (
+    <Tooltip label={itemMeta.nameById[id]} desc={itemMeta.descById[id]} gold={itemMeta.goldById[id]}>
+      <img src={imgItem(id)} alt={itemMeta.nameById[id] || ''} width={size} height={size}
+        style={{ borderRadius: 6, border: `1px solid ${C.line}`, display: 'block', cursor: 'help' }}
+        onError={e => { e.target.style.visibility = 'hidden'; }} />
+    </Tooltip>
   );
 }
 
@@ -562,27 +610,37 @@ function ExpertsSection({ champName, experts }) {
   );
 }
 
-/* ── 검은 배경/흰 글씨 호버 툴팁 ── */
-function Tooltip({ children, title, body, width = 260 }) {
-  const [show, setShow] = useState(false);
+/* ── 검은 배경/흰 글씨 호버 툴팁 ── 전적 빌드탭과 동일하게 body 로 포털 렌더(섹션 overflow 에 안 잘림) */
+function Tooltip({ children, label, desc, gold }) {
+  const [pos, setPos] = useState(null); // 뷰포트 기준 {x: 대상 가로중앙, y: 대상 상단}
+  const ref = useRef(null);
+  if (!label && !desc) return children;
+  const show = () => {
+    const r = ref.current?.getBoundingClientRect();
+    if (r) setPos({ x: r.left + r.width / 2, y: r.top });
+  };
+  const hasGold = gold && gold.total > 0;
   return (
-    <span style={{ position: 'relative', display: 'inline-block' }}
-      onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
+    <span ref={ref} style={{ display: 'inline-flex', flexShrink: 0 }}
+      onMouseEnter={show} onMouseLeave={() => setPos(null)}>
       {children}
-      {show && (title || body) && (
-        <span style={{ position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
-          marginBottom: 9, width, zIndex: 50, pointerEvents: 'none',
-          background: '#000', color: '#fff', border: '1px solid #3a3a3a', borderRadius: 8,
-          padding: '10px 12px', boxShadow: '0 8px 24px rgba(0,0,0,0.65)', textAlign: 'left',
-          display: 'block', whiteSpace: 'normal' }}>
-          {title && <span style={{ display: 'block', fontSize: 12.5, fontWeight: 800, color: '#fff',
-            marginBottom: body ? 6 : 0 }}>{title}</span>}
-          {body && <span style={{ display: 'block', fontSize: 11.5, lineHeight: 1.55, color: '#d6d6d6' }}
-            dangerouslySetInnerHTML={{ __html: body }} />}
-          <span style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
-            width: 0, height: 0, borderLeft: '6px solid transparent', borderRight: '6px solid transparent',
-            borderTop: '6px solid #000' }} />
-        </span>
+      {pos && createPortal(
+        <span style={{
+          position: 'fixed', left: pos.x, top: pos.y - 8, transform: 'translate(-50%, -100%)',
+          background: '#000', color: '#fff', fontSize: 11.5, lineHeight: '16px',
+          padding: '8px 11px', borderRadius: 6, maxWidth: 300, whiteSpace: 'pre-wrap',
+          pointerEvents: 'none', zIndex: 9999, boxShadow: '0 6px 20px rgba(0,0,0,0.6)',
+        }}>
+          {label && <span style={{ display: 'block', fontWeight: 800 }}>{label}</span>}
+          {desc && <span style={{ display: 'block', marginTop: 4, fontWeight: 400, color: '#cfd6e4' }}>{desc}</span>}
+          {hasGold && (
+            <span style={{ display: 'block', marginTop: 5, fontWeight: 700, color: '#c89b3c' }}>
+              가격 {gold.total.toLocaleString()}
+              {gold.sell > 0 && <span style={{ fontWeight: 400, color: '#cfd6e4' }}> ({gold.sell.toLocaleString()})</span>}
+            </span>
+          )}
+        </span>,
+        document.body,
       )}
     </span>
   );
