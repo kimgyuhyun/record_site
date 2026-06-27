@@ -34,12 +34,12 @@ public class ChampionDetailService {
     private static final int TOP_SKILL_ORDERS = 3;
     private static final int TOP_ITEM_BUILDS = 3;
     private static final int TOP_SPELLS = 3;
-    private static final int TOP_EXPERTS = 10;
 
     private static final int CORE_ITEM_COUNT = 3;        // 1·2·3 코어
     private static final int CORE_MIN_GOLD = 1000;        // 도란/시작템 같은 저가 완성템을 코어에서 제외하는 하한
     private static final int BOOTS_MIN_GOLD = 600;        // 기본 신발(1001, 300골드) 제외 → 2티어 신발만 신발 선택으로
-    private static final int STARTING_SECONDS = 90;       // 게임 시작 후 이 시간(초) 내 구매를 시작 아이템으로 본다
+    private static final int STARTING_SECONDS = 90;       // 게임 시작 후 이 시간(초) 내 구매만 시작 아이템 후보
+    private static final int STARTING_GOLD_BUDGET = 650;  // 시작 골드로 살 수 있는 범위(도란+물약 등). 신발은 제외.
 
     private final ParticipantRepository participantRepository;
     private final MatchBanRepository matchBanRepository;
@@ -72,8 +72,7 @@ public class ChampionDetailService {
                 topStartingItems(rows, itemMeta),
                 topBoots(rows, itemMeta),
                 topCoreItems(rows, itemMeta),
-                topSpells(rows),
-                experts(rows));
+                topSpells(rows));
     }
 
     // ── 요약 ──────────────────────────────────────────
@@ -235,21 +234,27 @@ public class ChampionDetailService {
     // ── 아이템: 시작 아이템 / 신발 / 핵심(1·2·3코어) ──────
     //  구매 순서 문자열(itemId:구매초)을 아이템 메타데이터(가격/태그/상위템 여부)로 분류해 집계한다.
 
-    // 시작 아이템: 게임 시작 STARTING_SECONDS 초 내 구매(장신구 제외), 같은 구성끼리 묶어 상위 노출.
+    // 시작 아이템: 게임 시작 직후(STARTING_SECONDS 초 내), 시작 골드(STARTING_GOLD_BUDGET)로 살 수 있는 범위.
+    //  - 신발·장신구는 제외(신발은 별도 섹션). 같은 구성끼리 묶어 상위 노출.
     private List<ChampionDetailResponse.ItemBuild> topStartingItems(
             List<Participant> rows, Map<Integer, ItemMeta> meta) {
         Map<List<Integer>, long[]> tally = new LinkedHashMap<>();
         for (Participant p : rows) {
             List<Integer> starting = new ArrayList<>();
+            long spent = 0;
             for (Purchase buy : parsePurchases(p.getItemBuildOrder())) {
                 if (buy.seconds() > STARTING_SECONDS) {
                     break; // 구매 순서대로라 시간 초과 시 이후는 볼 필요 없음
                 }
                 ItemMeta m = meta.get(buy.itemId());
-                if (m == null || m.trinket() || starting.contains(buy.itemId())) {
+                if (m == null || m.trinket() || m.boots() || starting.contains(buy.itemId())) {
                     continue;
                 }
+                if (spent + m.goldTotal() > STARTING_GOLD_BUDGET) {
+                    break; // 시작 골드 예산 초과 → 이후 구매는 시작 아이템이 아님
+                }
                 starting.add(buy.itemId());
+                spent += m.goldTotal();
             }
             if (!starting.isEmpty()) {
                 accumulate(tally, starting, p.isWin());
@@ -372,31 +377,6 @@ public class ChampionDetailService {
                 .map(e -> new ChampionDetailResponse.SpellPair(
                         e.getKey().get(0), e.getKey().get(1),
                         e.getValue()[0], e.getValue()[1], ratio(e.getValue()[1], e.getValue()[0])))
-                .toList();
-    }
-
-    // ── 장인 랭킹 ──────────────────────────────────────
-
-    private List<ChampionDetailResponse.Expert> experts(List<Participant> rows) {
-        Map<String, long[]> games = new LinkedHashMap<>();
-        Map<String, String[]> names = new LinkedHashMap<>(); // puuid → [gameName, tagLine]
-        for (Participant p : rows) {
-            String puuid = p.getPuuid();
-            if (puuid == null) {
-                continue;
-            }
-            accumulate(games, puuid, p.isWin());
-            names.putIfAbsent(puuid, new String[]{p.getGameName(), p.getTagLine()});
-        }
-        return games.entrySet().stream()
-                .sorted(byGamesDesc())
-                .limit(TOP_EXPERTS)
-                .map(e -> {
-                    String[] name = names.get(e.getKey());
-                    long g = e.getValue()[0], w = e.getValue()[1];
-                    return new ChampionDetailResponse.Expert(
-                            e.getKey(), name[0], name[1], g, w, ratio(w, g));
-                })
                 .toList();
     }
 

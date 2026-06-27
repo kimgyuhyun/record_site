@@ -172,7 +172,6 @@ export default function ChampionPage() {
             <ItemSection champName={champName} startingItems={detail.startingItems}
               boots={detail.boots} coreItems={detail.coreItems}
               itemMeta={itemMeta} totalGames={total} />
-            <ExpertsSection champName={champName} experts={detail.experts} />
           </div>
         )
       )}
@@ -468,8 +467,8 @@ function SkillSection({ champName, ddragon, orders, totalGames }) {
               ))}
             </div>
             <FreqGames freq={totalGames > 0 ? top.games / totalGames : 0} games={top.games}
-              style={{ marginLeft: 'auto' }} />
-            <WinPct value={top.winRate} />
+              style={{ width: 96, marginLeft: 'auto' }} />
+            <WinPct value={top.winRate} style={{ width: 56, textAlign: 'right' }} />
           </div>
 
           {top.levelOrder && (
@@ -581,32 +580,12 @@ function ItemImg({ id, itemMeta, size }) {
 
 function ItemStatRow({ children, freq, games, winRate, first }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 0',
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '9px 0',
       borderTop: first ? 'none' : `1px solid ${C.line}` }}>
       <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
-      <FreqGames freq={freq} games={games} />
-      <WinPct value={winRate} />
+      <FreqGames freq={freq} games={games} style={{ width: 96 }} />
+      <WinPct value={winRate} style={{ width: 56, textAlign: 'right' }} />
     </div>
-  );
-}
-
-/* ── 장인 랭킹 ── */
-function ExpertsSection({ champName, experts }) {
-  return (
-    <Section title={`${champName} 장인 랭킹`}>
-      {!experts?.length ? <Empty /> : experts.map((e, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0',
-          borderTop: i === 0 ? 'none' : `1px solid ${C.line}` }}>
-          <span style={{ width: 18, color: i < 3 ? C.accent : C.muted, fontWeight: 700, fontSize: 12 }}>{i + 1}</span>
-          <span style={{ flex: 1, color: C.text, fontSize: 13, overflow: 'hidden',
-            textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {e.gameName}{e.tagLine ? <span style={{ color: C.muted }}> #{e.tagLine}</span> : null}
-          </span>
-          <WinPct value={e.winRate} />
-          <span style={{ color: C.muted, fontSize: 11.5, width: 44, textAlign: 'right' }}>{e.games}판</span>
-        </div>
-      ))}
-    </Section>
   );
 }
 
@@ -646,10 +625,10 @@ function Tooltip({ children, label, desc, gold }) {
   );
 }
 
-/* ── 공통 UI ── */
+/* ── 공통 UI ── 통계 표시는 어디서나 같은 폭/정렬로 컬럼이 맞게 ── */
 function FreqGames({ freq, games, style }) {
   return (
-    <span style={{ lineHeight: 1.25, ...style }}>
+    <span style={{ display: 'inline-block', lineHeight: 1.25, ...style }}>
       <span style={{ display: 'block', color: C.text, fontSize: 15, fontWeight: 800 }}>{pct(freq, 2)}</span>
       <span style={{ display: 'block', color: C.muted, fontSize: 11 }}>{games.toLocaleString()} 게임</span>
     </span>
@@ -657,7 +636,7 @@ function FreqGames({ freq, games, style }) {
 }
 
 function WinPct({ value, style }) {
-  return <span style={{ color: WIN, fontSize: 14, fontWeight: 800, ...style }}>{pct(value, 2)}</span>;
+  return <span style={{ display: 'inline-block', color: WIN, fontSize: 14, fontWeight: 800, ...style }}>{pct(value, 2)}</span>;
 }
 
 function SubLabel({ children }) {
