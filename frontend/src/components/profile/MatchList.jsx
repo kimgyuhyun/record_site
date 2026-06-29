@@ -1472,8 +1472,9 @@ function MatchCard({ match, championKeyById, championNameById, spellMap, runeIco
   /* 판당 LP 증감 (백엔드 스냅샷 비교값, 계산 불가 매치는 null → 미표시) */
   const lp     = match.myLpChange;
   const hasLp  = lp !== null && lp !== undefined;
-  const lpColor = !hasLp ? null : lp > 0 ? T.blue : lp < 0 ? T.red : T.txtMuted;
-  const lpText  = !hasLp ? null : `${lp > 0 ? '▲' : lp < 0 ? '▼' : ''}${Math.abs(lp)}`;
+  const lpColor = !hasLp ? null : lp > 0 ? '#2bb673' : lp < 0 ? T.red : T.txtMuted;
+  const lpBg    = !hasLp ? null : lp > 0 ? 'rgba(43,182,115,0.16)' : lp < 0 ? 'rgba(232,64,87,0.16)' : 'transparent';
+  const lpText  = !hasLp ? null : `${lp > 0 ? '▲' : lp < 0 ? '▼' : ''} ${Math.abs(lp)}`;
 
   /* 요약 KDA */
   const mRatio = match.myDeaths === 0
@@ -1515,7 +1516,12 @@ function MatchCard({ match, championKeyById, championNameById, spellMap, runeIco
             <div style={{ color: accent, fontSize: 10, fontWeight: 700, marginTop: 1 }}>{myArenaTeam}팀</div>
           )}
           {hasLp && (
-            <div style={{ color: lpColor, fontSize: 11, fontWeight: 700, marginTop: 2 }}>
+            <div style={{
+              display: 'inline-block', marginTop: 3,
+              color: lpColor, background: lpBg,
+              fontSize: 11, fontWeight: 800,
+              padding: '1px 7px', borderRadius: 10, letterSpacing: 0.2,
+            }}>
               {lpText}
             </div>
           )}

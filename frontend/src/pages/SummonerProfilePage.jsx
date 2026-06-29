@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import UserInfo from '../components/profile/UserInfo';
 import RankTierBox from '../components/profile/RankTierBox';
-import RankHistoryGraph from '../components/profile/RankHistoryGraph';
 import RecentGamesSummary from '../components/profile/RecentGamesSummary';
 import ChampionStatTable from '../components/profile/ChampionStatTable';
 import ChampionMasterySection from '../components/profile/ChampionMasterySection';
@@ -125,13 +124,6 @@ export default function SummonerProfilePage({
         <RankTierBox title="개인 / 2인전"   rankData={solo} />
         <RankTierBox title="자유 5대5 대전" rankData={flex} />
       </div>
-
-      {/* 3-1. 티어/LP 변동 이력 그래프 */}
-      {summoner?.puuid && (
-        <div style={{ marginBottom: 16 }}>
-          <RankHistoryGraph puuid={summoner.puuid} />
-        </div>
-      )}
 
       {/* 4. 탭 콘텐츠 */}
       {mainTab === '챔피언' && (

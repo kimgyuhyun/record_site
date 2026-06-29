@@ -1,8 +1,6 @@
 package com.recordsite.backend.controller;
 
-import com.recordsite.backend.dto.RankHistoryResponse;
 import com.recordsite.backend.dto.SummonerDto;
-import com.recordsite.backend.service.RankSnapshotService;
 import com.recordsite.backend.service.SummonerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +16,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SummonerController {
     private final SummonerService summonerService;
-    private final RankSnapshotService rankSnapshotService;
 
     @GetMapping()
     public ResponseEntity<SummonerDto> getSummonerByNameAndTag(
@@ -57,12 +54,6 @@ public class SummonerController {
     public ResponseEntity<List<SummonerDto>> getSummonerSearchByName(
             @RequestParam String name) {
         return ResponseEntity.ok(summonerService.searchByName(name));
-    }
-
-    // 티어/LP 변동 이력 — 누적된 랭크 스냅샷 시계열(LP 그래프용)
-    @GetMapping("/rank-history")
-    public ResponseEntity<RankHistoryResponse> getRankHistory(@RequestParam String puuid) {
-        return ResponseEntity.ok(rankSnapshotService.getRankHistory(puuid));
     }
 
 

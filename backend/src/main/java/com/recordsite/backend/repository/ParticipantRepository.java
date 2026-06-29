@@ -88,6 +88,16 @@ public interface ParticipantRepository extends JpaRepository<Participant, Long>,
                                     @Param("untilGameCreation") long untilGameCreation);
     // 직전 앵커(배타) ~ 현재 앵커(포함) 구간의 랭크 게임 수. 정확히 1이면 LP 증감을 그 한 판에 귀속할 수 있다
 
+    @Query("""
+            select p.win
+            from Participant p
+            where p.puuid = :puuid
+            and p.match.matchId = :matchId
+            """)
+    Boolean findWinByPuuidAndMatchId(@Param("puuid") String puuid,
+                                     @Param("matchId") String matchId);
+    // 앵커 매치의 승/패 — LP 증감 부호가 승패와 어긋나면(패배인데 +LP) 오귀속이므로 버린다
+
     // 챔피언 상세 페이지용: 해당 챔피언의 모든 참가 행(룬/스킬/아이템/스펠 집계는 서비스에서 Java로 수행).
     // queueId 가 null 이면 전체 큐, 아니면 해당 큐만.
     @Query("""

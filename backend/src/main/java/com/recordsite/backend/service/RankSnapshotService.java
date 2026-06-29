@@ -1,6 +1,5 @@
 package com.recordsite.backend.service;
 
-import com.recordsite.backend.dto.RankHistoryResponse;
 import com.recordsite.backend.entity.QueueType;
 import com.recordsite.backend.entity.RankSnapshot;
 import com.recordsite.backend.entity.Summoner;
@@ -12,8 +11,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.ZoneId;
-import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
@@ -90,24 +87,16 @@ public class RankSnapshotService {
             if (rankedGamesBetween != 1) continue; // 단판으로 끊긴 구간만 귀속
 
             int lpChange = snapshot.getLadderScore() - previous.getLadderScore();
+
+            // 부호 정합성: 승리면 +, 패배면 - 여야 한다. 어긋나면(패배인데 +LP 등) 데이터가 꼬인 오귀속이므로 버린다.
+            Boolean win = participantRepository
+                    .findWinByPuuidAndMatchId(puuid, snapshot.getAnchorMatchId());
+            if (win == null) continue;
+            if (win && lpChange <= 0) continue;
+            if (!win && lpChange >= 0) continue;
+
             lpChangeByMatchId.put(snapshot.getAnchorMatchId(), lpChange);
         }
         return lpChangeByMatchId;
-    }
-
-    // 티어/LP 변동 이력 — 큐별 스냅샷 시계열(시간 오름차순). 프론트가 LP 그래프로 그린다.
-    @Transactional(readOnly = true)
-    public RankHistoryResponse getRankHistory(String puuid) {
-        List<RankSnapshot> snapshots = rankSnapshotRepository.findByPuuidOrderByCreatedAtAsc(puuid);
-
-        List<RankHistoryResponse.Point> solo = new ArrayList<>();
-        List<RankHistoryResponse.Point> flex = new ArrayList<>();
-        for (RankSnapshot s : snapshots) {
-            RankHistoryResponse.Point point = new RankHistoryResponse.Point(
-                    s.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
-                    s.getTier(), s.getDivision(), s.getLeaguePoints(), s.getLadderScore());
-            (s.getQueueType() == QueueType.SOLO ? solo : flex).add(point);
-        }
-        return new RankHistoryResponse(solo, flex);
     }
 }
