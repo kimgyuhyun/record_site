@@ -26,6 +26,20 @@ public class QMatch extends EntityPathBase<Match> {
 
     public final NumberPath<Integer> blueDragonKills = createNumber("blueDragonKills", Integer.class);
 
+    public final BooleanPath blueFirstBaron = createBoolean("blueFirstBaron");
+
+    public final BooleanPath blueFirstBlood = createBoolean("blueFirstBlood");
+
+    public final BooleanPath blueFirstDragon = createBoolean("blueFirstDragon");
+
+    public final BooleanPath blueFirstInhibitor = createBoolean("blueFirstInhibitor");
+
+    public final BooleanPath blueFirstRiftHerald = createBoolean("blueFirstRiftHerald");
+
+    public final BooleanPath blueFirstTower = createBoolean("blueFirstTower");
+
+    public final NumberPath<Integer> blueHordeKills = createNumber("blueHordeKills", Integer.class);
+
     public final NumberPath<Integer> blueInhibitorKills = createNumber("blueInhibitorKills", Integer.class);
 
     public final NumberPath<Integer> blueRiftHeraldKills = createNumber("blueRiftHeraldKills", Integer.class);
@@ -39,6 +53,8 @@ public class QMatch extends EntityPathBase<Match> {
     public final StringPath gameMode = createString("gameMode");
 
     public final StringPath gameType = createString("gameType");
+
+    public final StringPath gameVersion = createString("gameVersion");
 
     public final NumberPath<Long> id = createNumber("id", Long.class);
 
@@ -55,6 +71,20 @@ public class QMatch extends EntityPathBase<Match> {
     public final NumberPath<Integer> redBaronKills = createNumber("redBaronKills", Integer.class);
 
     public final NumberPath<Integer> redDragonKills = createNumber("redDragonKills", Integer.class);
+
+    public final BooleanPath redFirstBaron = createBoolean("redFirstBaron");
+
+    public final BooleanPath redFirstBlood = createBoolean("redFirstBlood");
+
+    public final BooleanPath redFirstDragon = createBoolean("redFirstDragon");
+
+    public final BooleanPath redFirstInhibitor = createBoolean("redFirstInhibitor");
+
+    public final BooleanPath redFirstRiftHerald = createBoolean("redFirstRiftHerald");
+
+    public final BooleanPath redFirstTower = createBoolean("redFirstTower");
+
+    public final NumberPath<Integer> redHordeKills = createNumber("redHordeKills", Integer.class);
 
     public final NumberPath<Integer> redInhibitorKills = createNumber("redInhibitorKills", Integer.class);
 
