@@ -1472,7 +1472,7 @@ function MatchCard({ match, championKeyById, championNameById, spellMap, runeIco
   /* 판당 LP 증감 (백엔드 스냅샷 비교값, 계산 불가 매치는 null → 미표시) */
   const lp     = match.myLpChange;
   const hasLp  = lp !== null && lp !== undefined;
-  const lpColor = !hasLp ? null : lp > 0 ? '#2bb673' : lp < 0 ? T.red : T.txtMuted;
+  const lpColor = !hasLp ? null : lp > 0 ? T.blue : lp < 0 ? T.red : T.txtMuted;
   const lpText  = !hasLp ? null : `${lp > 0 ? '▲' : lp < 0 ? '▼' : ''}${Math.abs(lp)}`;
 
   /* 요약 KDA */

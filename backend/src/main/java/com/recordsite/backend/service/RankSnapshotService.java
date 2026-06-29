@@ -62,7 +62,11 @@ public class RankSnapshotService {
         return matchIds.isEmpty() ? null : matchIds.get(0);
     }
 
-    // 직전 스냅샷이 없는 매치(각 큐의 첫 스냅샷)는 맵에 담기지 않는다 = 프론트에서 LP 미표시
+    // 판당 LP 증감 맵(matchId -> ±LP). 다음 조건을 모두 만족하는 매치에만 값이 담긴다(나머지는 프론트에서 미표시):
+    //  1) 같은 큐의 직전 스냅샷이 존재한다(각 큐 첫 스냅샷은 비교 대상이 없음)
+    //  2) 직전 앵커와 현재 앵커 사이에 낀 랭크 게임이 정확히 한 판이다
+    // (2)가 핵심: 두 갱신 사이에 여러 판을 했다면 LP 차이가 어느 판 몫인지 쪼갤 수 없으므로, 통째로 한 판에
+    // 귀속시키면 패배인데 +LP가 찍히는 식의 오귀속이 생긴다. 단판으로 끊겼을 때만 그 차이를 그 판에 귀속한다.
     @Transactional(readOnly = true)
     public Map<String, Integer> getLpChangesByPuuid(String puuid) {
         List<RankSnapshot> snapshots = rankSnapshotRepository.findByPuuidOrderByCreatedAtAsc(puuid);
@@ -72,11 +76,21 @@ public class RankSnapshotService {
 
         for (RankSnapshot snapshot : snapshots) {
             RankSnapshot previous = previousByQueue.get(snapshot.getQueueType());
-            if (previous != null) {
-                int lpChange = snapshot.getLadderScore() - previous.getLadderScore();
-                lpChangeByMatchId.put(snapshot.getAnchorMatchId(), lpChange);
-            }
             previousByQueue.put(snapshot.getQueueType(), snapshot);
+            if (previous == null) continue;
+
+            Long previousAnchorTime = participantRepository
+                    .findGameCreationByPuuidAndMatchId(puuid, previous.getAnchorMatchId());
+            Long currentAnchorTime = participantRepository
+                    .findGameCreationByPuuidAndMatchId(puuid, snapshot.getAnchorMatchId());
+            if (previousAnchorTime == null || currentAnchorTime == null) continue;
+
+            long rankedGamesBetween = participantRepository.countRankedMatchesInWindow(
+                    puuid, snapshot.getQueueType().queueId(), previousAnchorTime, currentAnchorTime);
+            if (rankedGamesBetween != 1) continue; // 단판으로 끊긴 구간만 귀속
+
+            int lpChange = snapshot.getLadderScore() - previous.getLadderScore();
+            lpChangeByMatchId.put(snapshot.getAnchorMatchId(), lpChange);
         }
         return lpChangeByMatchId;
     }
