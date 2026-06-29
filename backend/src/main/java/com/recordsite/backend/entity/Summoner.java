@@ -63,6 +63,9 @@ public class Summoner {
     // 마지막 랭크 갱신 시각
     @Column private LocalDateTime rankUpdatedAt;
 
+    // 백그라운드 LP 폴링 추적 만료 시각. 프로필 조회 시 연장되며, 이 시각이 미래인 동안만 폴러가 주기적으로 갱신한다.
+    @Column private LocalDateTime trackedUntil;
+
     public static Summoner from(RiotSummonerResponse res) {
         return Summoner.builder()
                 .puuid(res.getPuuid())
@@ -92,5 +95,10 @@ public class Summoner {
 
     public void stampRankUpdateAt() {
         this.rankUpdatedAt = LocalDateTime.now();
+    }
+
+    // 프로필을 본 사용자의 관심 표시 — 지금부터 window 기간만큼 폴링 추적을 연장한다(폴링 자체는 호출하지 않는다).
+    public void extendTracking(java.time.Duration window) {
+        this.trackedUntil = LocalDateTime.now().plus(window);
     }
 }

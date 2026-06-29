@@ -60,6 +60,8 @@ public class QSummoner extends EntityPathBase<Summoner> {
 
     public final StringPath tagLine = createString("tagLine");
 
+    public final DateTimePath<java.time.LocalDateTime> trackedUntil = createDateTime("trackedUntil", java.time.LocalDateTime.class);
+
     public QSummoner(String variable) {
         super(Summoner.class, forVariable(variable));
     }
