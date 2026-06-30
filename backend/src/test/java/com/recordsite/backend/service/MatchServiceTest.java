@@ -28,7 +28,7 @@ class MatchServiceTest {
     @Mock MatchSaveHelper matchSaveHelper;
     @Mock RiotMatchClient riotMatchClient;
     @Mock LeagueService leagueService;
-    @Mock RankSnapshotService rankSnapshotService;
+    @Mock LpTimelineService lpTimelineService;
     @Mock SummonerCrawlService summonerCrawlService;
 
     MatchService matchService;
@@ -38,7 +38,7 @@ class MatchServiceTest {
     void setUp() {
         matchService = new MatchService(
                 matchRepository, participantService, matchSaveHelper, riotMatchClient,
-                leagueService, rankSnapshotService, summonerCrawlService, Runnable::run);
+                leagueService, lpTimelineService, summonerCrawlService, Runnable::run);
     }
 
     @Test

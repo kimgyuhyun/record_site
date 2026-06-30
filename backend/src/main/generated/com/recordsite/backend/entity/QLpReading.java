@@ -10,18 +10,14 @@ import com.querydsl.core.types.Path;
 
 
 /**
- * QRankSnapshot is a Querydsl query type for RankSnapshot
+ * QLpReading is a Querydsl query type for LpReading
  */
 @Generated("com.querydsl.codegen.DefaultEntitySerializer")
-public class QRankSnapshot extends EntityPathBase<RankSnapshot> {
+public class QLpReading extends EntityPathBase<LpReading> {
 
-    private static final long serialVersionUID = 1332903736L;
+    private static final long serialVersionUID = -1187624896L;
 
-    public static final QRankSnapshot rankSnapshot = new QRankSnapshot("rankSnapshot");
-
-    public final StringPath anchorMatchId = createString("anchorMatchId");
-
-    public final DateTimePath<java.time.LocalDateTime> createdAt = createDateTime("createdAt", java.time.LocalDateTime.class);
+    public static final QLpReading lpReading = new QLpReading("lpReading");
 
     public final StringPath division = createString("division");
 
@@ -35,18 +31,20 @@ public class QRankSnapshot extends EntityPathBase<RankSnapshot> {
 
     public final EnumPath<QueueType> queueType = createEnum("queueType", QueueType.class);
 
+    public final NumberPath<Long> readAtEpochMs = createNumber("readAtEpochMs", Long.class);
+
     public final StringPath tier = createString("tier");
 
-    public QRankSnapshot(String variable) {
-        super(RankSnapshot.class, forVariable(variable));
+    public QLpReading(String variable) {
+        super(LpReading.class, forVariable(variable));
     }
 
-    public QRankSnapshot(Path<? extends RankSnapshot> path) {
+    public QLpReading(Path<? extends LpReading> path) {
         super(path.getType(), path.getMetadata());
     }
 
-    public QRankSnapshot(PathMetadata metadata) {
-        super(RankSnapshot.class, metadata);
+    public QLpReading(PathMetadata metadata) {
+        super(LpReading.class, metadata);
     }
 
 }

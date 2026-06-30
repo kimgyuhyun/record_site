@@ -27,7 +27,7 @@ public class MatchService {
     private final MatchSaveHelper matchSaveHelper;
     private final RiotMatchClient riotMatchClient;
     private final LeagueService leagueService;
-    private final RankSnapshotService rankSnapshotService;
+    private final LpTimelineService lpTimelineService;
     private final SummonerCrawlService summonerCrawlService;
     private final Executor matchCollectExecutor;
 
@@ -76,12 +76,12 @@ public class MatchService {
         // db에 없는 매치를 동시에 저장(매치당 독립 트랜잭션 REQUIRES_NEW). 동시 개수는 matchCollectExecutor 풀 크기가 제한.
         int newCount = collectNewMatches(newMatchIds, puuid, progress);
 
-        // 랭크 갱신 + 스냅샷은 신규 매치 유무와 무관하게 매 갱신마다 수행한다.
-        //  - 판당 LP 증감은 "최신 LP 리딩" 2개의 차이로 계산되므로, 리딩을 자주 확보할수록 표본이 쌓인다.
-        //  - 특히 크롤러가 동료 경로로 내 매치를 먼저 저장한 경우, 내가 직접 갱신해도 신규 매치가 0이 되어
-        //    예전엔 스냅샷이 안 찍혔다 → 이제는 그래도 현재 LP를 최신 랭크 매치에 앵커로 박는다.
+        // 랭크 갱신 + LP 측정값 적재는 신규 매치 유무와 무관하게 매 갱신마다 수행한다.
+        //  - 판당 LP 증감은 "한 게임을 사이에 둔 두 LP 측정값"의 차이로만 구해지므로, 측정을 자주 할수록
+        //    단판으로 끊긴 구간이 늘어 표본이 쌓인다(측정값은 매치에 묶지 않고 시간순 타임라인으로 쌓는다).
+        //  - 크롤러가 동료 경로로 내 매치를 먼저 저장해 신규 매치가 0이어도, 현재 LP는 한 줄 측정해 둔다.
         leagueService.updateAndSaveLeague(puuid);
-        rankSnapshotService.recordSnapshots(puuid);
+        lpTimelineService.recordReadings(puuid);
 
         // 이번에 새로 만난 동료 puuid 들만 크롤러 큐에 적재 → 백그라운드로 매치망 점진 확장(챔피언 통계 표본 확보)
         if (!newMatchIds.isEmpty()) {

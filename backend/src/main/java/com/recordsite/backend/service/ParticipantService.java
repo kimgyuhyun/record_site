@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 public class ParticipantService {
     private final ParticipantRepository participantRepository;
     private final SummonerRepository summonerRepository;
-    private final RankSnapshotService rankSnapshotService;
+    private final LpTimelineService lpTimelineService;
 
     @Transactional
     public void linkSummonerToParticipant(Participant participant) {
@@ -62,8 +62,8 @@ public class ParticipantService {
         // 소환사 랭크는 페이지 전체가 같은 puuid라 한 번만 조회 (없으면 null)
         Summoner summoner = summonerRepository.findBypuuid(puuid);
 
-        // matchId -> 판당 LP 증감 (스냅샷이 없는 매치는 맵에 없음 = 미표시)
-        Map<String, Integer> lpChangeByMatchId = rankSnapshotService.getLpChangesByPuuid(puuid);
+        // matchId -> 판당 LP 증감 (측정값으로 귀속 못 한 매치는 맵에 없음 = 미표시)
+        Map<String, Integer> lpChangeByMatchId = lpTimelineService.getLpChangesByPuuid(puuid);
 
         // 각 MatchRecordDto에 participantSummaryDtos, killParticipation, tier, lpChange 주입
         page.getContent().forEach(dto -> {
