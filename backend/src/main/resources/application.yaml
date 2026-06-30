@@ -27,7 +27,8 @@ spring:
     show-sql: true
   flyway:
     enabled: true
-    # 기존에 ddl-auto로 만들어둔 테이블이 이미 있어서, 그 시점을 베이스라인으로 잡고 그 이후 변경만 마이그레이션으로 관리
+    # V1__init_schema 가 현재 전체 스키마를 만든다(엔티티 기준 Hibernate DDL 을 떠온 것). 따라서 빈 DB(신규 배포·CI)는
+    # V1 부터 적용해 그대로 부팅된다. baseline-on-migrate 는 "이미 테이블이 있고 이력만 없는" 기존 DB 를 채택할 때만 의미.
     baseline-on-migrate: true
     baseline-version: 0
     locations: classpath:db/migration
