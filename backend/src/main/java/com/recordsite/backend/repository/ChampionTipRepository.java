@@ -11,17 +11,43 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ChampionTipRepository extends JpaRepository<ChampionTip, Long> {
 
-    // 인기순: 점수(추천-비추천) 높은 순, 동점이면 최신순. 숨김 처리된 팁은 제외.
+    // language/patchVersion 은 null 이면 필터하지 않는다("내 언어만"·"현재 버전만" 토글이 꺼진 상태).
+    // 숨김 처리된 팁은 항상 제외.
+
+    // 인기순: 점수(추천-비추천) 높은 순, 동점이면 최신순.
     @Query("""
             select t from ChampionTip t
             where t.championId = :championId and t.hidden = false
+              and (:language is null or t.language = :language)
+              and (:patchVersion is null or t.patchVersion = :patchVersion)
             order by (t.upvotes - t.downvotes) desc, t.createdAt desc
             """)
-    Page<ChampionTip> findPopular(@Param("championId") int championId, Pageable pageable);
+    Page<ChampionTip> findPopular(@Param("championId") int championId,
+                                  @Param("language") String language,
+                                  @Param("patchVersion") String patchVersion,
+                                  Pageable pageable);
 
-    // 최신순. 숨김 처리된 팁은 제외.
-    Page<ChampionTip> findByChampionIdAndHiddenFalseOrderByCreatedAtDesc(int championId, Pageable pageable);
+    // 최신순.
+    @Query("""
+            select t from ChampionTip t
+            where t.championId = :championId and t.hidden = false
+              and (:language is null or t.language = :language)
+              and (:patchVersion is null or t.patchVersion = :patchVersion)
+            order by t.createdAt desc
+            """)
+    Page<ChampionTip> findRecent(@Param("championId") int championId,
+                                 @Param("language") String language,
+                                 @Param("patchVersion") String patchVersion,
+                                 Pageable pageable);
 
-    // 헤더의 "(N개)" 표기용 — 숨김 제외 총 개수.
-    long countByChampionIdAndHiddenFalse(int championId);
+    // 헤더의 "(N개)" 표기용 — 같은 필터 기준 총 개수.
+    @Query("""
+            select count(t) from ChampionTip t
+            where t.championId = :championId and t.hidden = false
+              and (:language is null or t.language = :language)
+              and (:patchVersion is null or t.patchVersion = :patchVersion)
+            """)
+    long countFiltered(@Param("championId") int championId,
+                       @Param("language") String language,
+                       @Param("patchVersion") String patchVersion);
 }

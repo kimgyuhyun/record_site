@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
-  getChampionTips, createChampionTip, voteChampionTip, reportChampionTip, deleteChampionTip,
+  getChampionTips, createChampionTip, voteChampionTip, reportChampionTip,
+  deleteChampionTip, updateChampionTip,
 } from '../../api/championTip';
+import { DDRAGON_VERSION } from '../../constants/ddragon';
 
 /*
  * 챔피언 운영 팁 게시판(코멘트) — 챔피언 상세 페이지 하단.
@@ -17,6 +19,20 @@ const PAGE_SIZE = 20;
 const NICK_MAX = 20;
 const CONTENT_MAX = 500;
 const VOTE_KEY = 'championTipVotes';
+
+// "16.12.1" → "16.12" — 작성 시 각인되는 현재 패치와 같은 표기(현재 버전 필터에 사용).
+const CURRENT_PATCH = DDRAGON_VERSION.split('.').slice(0, 2).join('.');
+
+// 브라우저 언어 → 표시 라벨. "내 언어만 보기"가 이 값으로 필터하고, 작성 시에도 이 값을 언어로 저장한다.
+const langLabel = (code) => {
+  const c = (code || '').toLowerCase();
+  if (c.startsWith('ko')) return '한국어';
+  if (c.startsWith('en')) return 'English';
+  if (c.startsWith('ja')) return '日本語';
+  if (c.startsWith('zh')) return '中文';
+  return code || '한국어';
+};
+const MY_LANG = langLabel(typeof navigator !== 'undefined' ? navigator.language : 'ko');
 
 const loadVoted = () => {
   try { return JSON.parse(localStorage.getItem(VOTE_KEY)) || {}; } catch { return {}; }
@@ -53,12 +69,26 @@ export default function ChampionTips({ championId, championName }) {
 
   const [voted, setVoted] = useState(loadVoted);
 
-  // 챔피언/정렬 바뀌면 첫 페이지를 새로 불러온다.
+  const [onlyMyLang, setOnlyMyLang] = useState(false);
+  const [onlyCurrentVersion, setOnlyCurrentVersion] = useState(false);
+
+  const [editingId, setEditingId] = useState(null);
+  const [editContent, setEditContent] = useState('');
+  const [editPassword, setEditPassword] = useState('');
+
+  // 토글 상태를 반영한 조회 파라미터(꺼진 필터는 undefined 라 서버에서 무시된다).
+  const buildParams = (pageNum) => ({
+    sort, page: pageNum, size: PAGE_SIZE,
+    language: onlyMyLang ? MY_LANG : undefined,
+    patchVersion: onlyCurrentVersion ? CURRENT_PATCH : undefined,
+  });
+
+  // 챔피언/정렬/필터가 바뀌면 첫 페이지를 새로 불러온다.
   useEffect(() => {
     if (!championId) return undefined;
     let cancelled = false;
     setLoading(true);
-    getChampionTips(championId, { sort, page: 0, size: PAGE_SIZE })
+    getChampionTips(championId, buildParams(0))
       .then(res => {
         if (cancelled) return;
         setTips(res.data.tips);
@@ -69,10 +99,11 @@ export default function ChampionTips({ championId, championName }) {
       .catch(() => { if (!cancelled) { setTips([]); setTotal(0); setHasNext(false); } })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [championId, sort]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [championId, sort, onlyMyLang, onlyCurrentVersion]);
 
   const reloadFirstPage = async () => {
-    const res = await getChampionTips(championId, { sort, page: 0, size: PAGE_SIZE });
+    const res = await getChampionTips(championId, buildParams(0));
     setTips(res.data.tips);
     setTotal(res.data.totalCount);
     setHasNext(res.data.hasNext);
@@ -81,7 +112,7 @@ export default function ChampionTips({ championId, championName }) {
 
   const loadMore = async () => {
     const next = page + 1;
-    const res = await getChampionTips(championId, { sort, page: next, size: PAGE_SIZE });
+    const res = await getChampionTips(championId, buildParams(next));
     setTips(prev => [...prev, ...res.data.tips]);
     setHasNext(res.data.hasNext);
     setPage(next);
@@ -96,7 +127,7 @@ export default function ChampionTips({ championId, championName }) {
     if (password.length < 4) { alert('비밀번호는 4자 이상이어야 합니다.'); return; }
     setSubmitting(true);
     try {
-      await createChampionTip({ championId, nickname: n, content: c, password });
+      await createChampionTip({ championId, nickname: n, content: c, password, language: MY_LANG });
       setContent('');
       setPassword('');
       await reloadFirstPage();
@@ -139,6 +170,29 @@ export default function ChampionTips({ championId, championName }) {
       setTotal(t => Math.max(0, t - 1));
     } catch (e) {
       alert(e?.response?.status === 403 ? '비밀번호가 일치하지 않습니다.' : '삭제에 실패했습니다.');
+    }
+  };
+
+  const startEdit = (tip) => {
+    setEditingId(tip.id);
+    setEditContent(tip.content);
+    setEditPassword('');
+  };
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditContent('');
+    setEditPassword('');
+  };
+  const saveEdit = async (tip) => {
+    const c = editContent.trim();
+    if (!c) { alert('내용을 입력하세요.'); return; }
+    if (!editPassword) { alert('비밀번호를 입력하세요.'); return; }
+    try {
+      const res = await updateChampionTip(tip.id, { password: editPassword, content: c });
+      setTips(prev => prev.map(t => (t.id === tip.id ? { ...t, content: res.data.content } : t)));
+      cancelEdit();
+    } catch (e) {
+      alert(e?.response?.status === 403 ? '비밀번호가 일치하지 않습니다.' : '수정에 실패했습니다.');
     }
   };
 
@@ -196,20 +250,27 @@ export default function ChampionTips({ championId, championName }) {
           </div>
         </div>
 
-        {/* 정렬 탭 */}
-        <div style={{ display: 'flex', gap: 4, margin: '14px 0 8px' }}>
-          {[{ k: 'popular', l: '인기순' }, { k: 'recent', l: '최신순' }].map(t => {
-            const active = sort === t.k;
-            return (
-              <button key={t.k} onClick={() => setSort(t.k)} style={{
-                background: active ? C.accent : 'transparent',
-                border: `1px solid ${active ? C.accent : C.line}`,
-                color: active ? '#fff' : C.sub,
-                fontSize: 12.5, fontWeight: 700, padding: '5px 12px', borderRadius: 6,
-                cursor: 'pointer', fontFamily: 'inherit',
-              }}>{t.l}</button>
-            );
-          })}
+        {/* 정렬 탭 + 필터 토글 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0 8px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {[{ k: 'popular', l: '인기순' }, { k: 'recent', l: '최신순' }].map(t => {
+              const active = sort === t.k;
+              return (
+                <button key={t.k} onClick={() => setSort(t.k)} style={{
+                  background: active ? C.accent : 'transparent',
+                  border: `1px solid ${active ? C.accent : C.line}`,
+                  color: active ? '#fff' : C.sub,
+                  fontSize: 12.5, fontWeight: 700, padding: '5px 12px', borderRadius: 6,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}>{t.l}</button>
+              );
+            })}
+          </div>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 16 }}>
+            <Toggle label="내 언어만" on={onlyMyLang} onToggle={() => setOnlyMyLang(v => !v)} />
+            <Toggle label={`${CURRENT_PATCH} 버전만`} on={onlyCurrentVersion}
+              onToggle={() => setOnlyCurrentVersion(v => !v)} />
+          </div>
         </div>
 
         {/* 목록 */}
@@ -238,12 +299,29 @@ export default function ChampionTips({ championId, championName }) {
                   <><Dot /><span style={{ color: C.muted, fontSize: 11.5 }}>버전 {tip.patchVersion}</span></>
                 )}
                 <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 6 }}>
+                  <button onClick={() => startEdit(tip)} style={tipActionBtn}>수정</button>
                   <button onClick={() => remove(tip)} style={tipActionBtn}>삭제</button>
                   <button onClick={() => report(tip)} style={tipActionBtn}>신고</button>
                 </span>
               </div>
-              <div style={{ color: '#d3d3da', fontSize: 13, lineHeight: 1.55, whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word' }}>{tip.content}</div>
+              {editingId === tip.id ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <textarea value={editContent} onChange={e => setEditContent(e.target.value)}
+                    maxLength={CONTENT_MAX} rows={2}
+                    style={{ ...inputStyle, width: '100%', resize: 'vertical', minHeight: 40,
+                      lineHeight: 1.5, paddingTop: 8 }} />
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input type="password" value={editPassword} onChange={e => setEditPassword(e.target.value)}
+                      maxLength={30} placeholder="비밀번호" style={{ ...inputStyle, width: 120 }} />
+                    <button onClick={() => saveEdit(tip)}
+                      style={{ ...tipActionBtn, background: C.accent, color: '#fff', borderColor: C.accent }}>저장</button>
+                    <button onClick={cancelEdit} style={tipActionBtn}>취소</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ color: '#d3d3da', fontSize: 13, lineHeight: 1.55, whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word' }}>{tip.content}</div>
+              )}
             </div>
           </div>
         ))}
@@ -273,6 +351,22 @@ function VoteArrow({ dir, active, disabled, onClick }) {
 
 function Dot() {
   return <span style={{ color: '#4a4a52', fontSize: 10 }}>·</span>;
+}
+
+function Toggle({ label, on, onToggle }) {
+  return (
+    <button onClick={onToggle} style={{
+      display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 'none',
+      cursor: 'pointer', fontFamily: 'inherit', padding: 0,
+    }}>
+      <span style={{ color: on ? '#e6e6ea' : '#6c6c75', fontSize: 11.5, fontWeight: 600 }}>{label}</span>
+      <span style={{ width: 30, height: 16, borderRadius: 999, background: on ? '#5b9bd5' : '#3a3a43',
+        position: 'relative', flexShrink: 0, transition: 'background 0.15s' }}>
+        <span style={{ position: 'absolute', top: 2, left: on ? 16 : 2, width: 12, height: 12,
+          borderRadius: '50%', background: '#fff', transition: 'left 0.15s' }} />
+      </span>
+    </button>
+  );
 }
 
 function Empty({ children }) {

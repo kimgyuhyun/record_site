@@ -3,6 +3,7 @@ package com.recordsite.backend.service;
 import com.recordsite.backend.dto.ChampionTipCreateRequest;
 import com.recordsite.backend.dto.ChampionTipPageResponse;
 import com.recordsite.backend.dto.ChampionTipResponse;
+import com.recordsite.backend.dto.ChampionTipUpdateRequest;
 import com.recordsite.backend.entity.ChampionTip;
 import com.recordsite.backend.repository.ChampionTipRepository;
 import com.recordsite.backend.support.TipPasswordEncoder;
@@ -30,15 +31,18 @@ public class ChampionTipService {
     private final TipPasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
-    public ChampionTipPageResponse getTips(int championId, String sort, int page, int size) {
+    public ChampionTipPageResponse getTips(int championId, String sort, String language,
+                                           String patchVersion, int page, int size) {
         int pageSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
         PageRequest pageRequest = PageRequest.of(Math.max(page, 0), pageSize);
+        String lang = blankToNull(language);         // "내 언어만 보기" 꺼지면 null
+        String patch = blankToNull(patchVersion);    // "현재 버전만 보기" 꺼지면 null
 
         Page<ChampionTip> tips = "recent".equalsIgnoreCase(sort)
-                ? championTipRepository.findByChampionIdAndHiddenFalseOrderByCreatedAtDesc(championId, pageRequest)
-                : championTipRepository.findPopular(championId, pageRequest); // 기본 인기순
+                ? championTipRepository.findRecent(championId, lang, patch, pageRequest)
+                : championTipRepository.findPopular(championId, lang, patch, pageRequest); // 기본 인기순
 
-        long totalCount = championTipRepository.countByChampionIdAndHiddenFalse(championId);
+        long totalCount = championTipRepository.countFiltered(championId, lang, patch);
         return new ChampionTipPageResponse(
                 tips.map(ChampionTipResponse::from).getContent(),
                 totalCount,
@@ -50,11 +54,22 @@ public class ChampionTipService {
         String nickname = require(request.nickname(), "닉네임", NICKNAME_MAX);
         String content = require(request.content(), "팁 내용", CONTENT_MAX);
         String passwordHash = passwordEncoder.encode(requirePassword(request.password()));
+        String language = blankToNull(request.language()) == null ? DEFAULT_LANGUAGE : request.language().trim();
 
         ChampionTip tip = ChampionTip.of(
                 request.championId(), nickname, content,
-                DataDragonService.currentPatch(), DEFAULT_LANGUAGE, passwordHash);
+                DataDragonService.currentPatch(), language, passwordHash);
         return ChampionTipResponse.from(championTipRepository.save(tip));
+    }
+
+    @Transactional
+    public ChampionTipResponse updateTip(Long tipId, ChampionTipUpdateRequest request) {
+        ChampionTip tip = findOrThrow(tipId);
+        if (request.password() == null || !passwordEncoder.matches(request.password(), tip.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "비밀번호가 일치하지 않습니다.");
+        }
+        tip.editContent(require(request.content(), "팁 내용", CONTENT_MAX));
+        return ChampionTipResponse.from(tip); // @Transactional 변경 감지로 저장됨
     }
 
     @Transactional
@@ -86,6 +101,10 @@ public class ChampionTipService {
     private ChampionTip findOrThrow(Long tipId) {
         return championTipRepository.findById(tipId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "팁을 찾을 수 없습니다."));
+    }
+
+    private String blankToNull(String value) {
+        return (value == null || value.isBlank()) ? null : value;
     }
 
     // 비밀번호는 앞뒤 공백까지 그대로 쓴다(공백도 유효 문자). 길이만 검증한다.

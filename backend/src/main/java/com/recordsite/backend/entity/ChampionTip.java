@@ -95,6 +95,10 @@ public class ChampionTip {
         }
     }
 
+    public void editContent(String content) {
+        this.content = content;
+    }
+
     public int score() {
         return upvotes - downvotes;
     }
