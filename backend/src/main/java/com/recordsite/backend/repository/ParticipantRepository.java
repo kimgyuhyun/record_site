@@ -51,18 +51,6 @@ public interface ParticipantRepository extends JpaRepository<Participant, Long>,
             """)
     List<Participant> findByMatch_MatchIdIn(@Param("matchIds") List<String> matchIds);
 
-    @Query("""
-            select p.match.matchId as matchId, p.match.gameCreation as gameCreation, p.win as win
-            from Participant p
-            where p.puuid = :puuid
-            and p.match.queueId = :queueId
-            order by p.match.gameCreation asc
-            """)
-    List<RankedGameView> findRankedGamesByPuuidAndQueueId(@Param("puuid") String puuid,
-                                                          @Param("queueId") int queueId);
-    // 해당 큐에서 puuid가 참가한 랭크 게임 전부를 시간 오름차순으로. 판당 LP 귀속(LpTimelineService)에서
-    // 두 LP 측정값 사이에 낀 게임을 가려내고, 그 한 판에 증감/부호 검증을 적용하는 데 쓴다.
-
     // 챔피언 상세 페이지용: 해당 챔피언의 모든 참가 행(룬/스킬/아이템/스펠 집계는 서비스에서 Java로 수행).
     // queueId 가 null 이면 전체 큐, 아니면 해당 큐만.
     @Query("""

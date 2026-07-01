@@ -155,10 +155,6 @@ public class MatchRecordDto {
     @Setter
     private String myRank; // 예: "II" (마스터+ 또는 언랭이면 null)
 
-    // 판당 LP 증감 (스냅샷 비교) - 부호 포함, 계산 불가하면 null - Service에서 주입
-    @Setter
-    private Integer myLpChange;
-
 
     public static MatchRecordDto from(Match match, Participant me) {
         return new MatchRecordDto(
