@@ -1,5 +1,8 @@
 package com.recordsite.backend.config;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
 import org.springframework.cache.annotation.CachingConfigurer;
@@ -49,7 +52,7 @@ public class CacheConfig implements CachingConfigurer {
                 .serializeKeysWith(RedisSerializationContext.SerializationPair
                         .fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair
-                        .fromSerializer(new GenericJackson2JsonRedisSerializer()));
+                        .fromSerializer(redisValueSerializer()));
 
         Map<String, RedisCacheConfiguration> perCache = Map.of(
                 STATIC_CHAMPIONS, base.entryTtl(STATIC_TTL),
@@ -63,6 +66,21 @@ public class CacheConfig implements CachingConfigurer {
                 .cacheDefaults(base.entryTtl(TIER_LIST_TTL))
                 .withInitialCacheConfigurations(perCache)
                 .build();
+    }
+
+    // 캐시 값 직렬화기. 기본 GenericJackson2JsonRedisSerializer(타입정보 As.PROPERTY)는 List 를 루트로 저장할 때
+    // JSON 배열에 @class 속성을 붙일 수 없어 타입 래퍼 없이 "[{...},{...}]" 로 쓰는데, 읽을 때는 배열 맨 앞에서
+    // 타입ID(문자열)를 기대하다 깨진다 → List<DTO> 를 반환하는 캐시(playedChampions/championTierList/static)가
+    // 전부 역직렬화 실패했다. 타입정보를 WRAPPER_ARRAY(["type", value])로 넣으면 List 루트와 원소가 함께 감싸져
+    // 라운드트립된다. final record 도 타입정보가 필요하므로 EVERYTHING 으로 모든 비원시 값에 타입을 남긴다.
+    static GenericJackson2JsonRedisSerializer redisValueSerializer() {
+        BasicPolymorphicTypeValidator typeValidator = BasicPolymorphicTypeValidator.builder()
+                .allowIfSubType(Object.class) // 우리가 직접 넣고 빼는 내부 캐시라 모든 타입 허용
+                .build();
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.activateDefaultTyping(
+                typeValidator, ObjectMapper.DefaultTyping.EVERYTHING, JsonTypeInfo.As.WRAPPER_ARRAY);
+        return new GenericJackson2JsonRedisSerializer(mapper);
     }
 
     // Redis 가 불통이어도 요청은 살린다: 캐시 연산 실패를 로깅만 하고 무시한다.
