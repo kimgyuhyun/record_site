@@ -41,6 +41,10 @@ public class ChampionTip {
     @Column(nullable = false, length = 20)
     private String language; // 예: "한국어"
 
+    // 삭제용 비밀번호 해시(PBKDF2, "salt$hash"). 비로그인이라 본인 글 삭제 키로만 쓴다.
+    @Column(name = "password_hash", nullable = false, length = 200)
+    private String passwordHash;
+
     @Column(nullable = false)
     private int upvotes;
 
@@ -57,12 +61,13 @@ public class ChampionTip {
     private LocalDateTime createdAt;
 
     private ChampionTip(int championId, String nickname, String content,
-                        String patchVersion, String language) {
+                        String patchVersion, String language, String passwordHash) {
         this.championId = championId;
         this.nickname = nickname;
         this.content = content;
         this.patchVersion = patchVersion;
         this.language = language;
+        this.passwordHash = passwordHash;
         this.upvotes = 0;
         this.downvotes = 0;
         this.reportCount = 0;
@@ -71,8 +76,8 @@ public class ChampionTip {
     }
 
     public static ChampionTip of(int championId, String nickname, String content,
-                                 String patchVersion, String language) {
-        return new ChampionTip(championId, nickname, content, patchVersion, language);
+                                 String patchVersion, String language, String passwordHash) {
+        return new ChampionTip(championId, nickname, content, patchVersion, language, passwordHash);
     }
 
     public void upvote() {

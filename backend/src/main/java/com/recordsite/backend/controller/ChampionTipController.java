@@ -2,6 +2,7 @@ package com.recordsite.backend.controller;
 
 import com.recordsite.backend.dto.ChampionTipCreateRequest;
 import com.recordsite.backend.dto.ChampionTipPageResponse;
+import com.recordsite.backend.dto.ChampionTipPasswordRequest;
 import com.recordsite.backend.dto.ChampionTipResponse;
 import com.recordsite.backend.service.ChampionTipService;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +44,14 @@ public class ChampionTipController {
     @PostMapping("/{tipId}/report")
     public ResponseEntity<Void> report(@PathVariable Long tipId) {
         championTipService.report(tipId);
+        return ResponseEntity.ok().build();
+    }
+
+    // 삭제 — 작성 시 정한 비밀번호가 일치해야 한다. 본문 { password }
+    @DeleteMapping("/{tipId}")
+    public ResponseEntity<Void> delete(@PathVariable Long tipId,
+                                       @RequestBody ChampionTipPasswordRequest request) {
+        championTipService.deleteTip(tipId, request.password());
         return ResponseEntity.ok().build();
     }
 }

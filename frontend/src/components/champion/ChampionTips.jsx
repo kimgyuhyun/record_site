@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  getChampionTips, createChampionTip, voteChampionTip, reportChampionTip,
+  getChampionTips, createChampionTip, voteChampionTip, reportChampionTip, deleteChampionTip,
 } from '../../api/championTip';
 
 /*
@@ -47,6 +47,7 @@ export default function ChampionTips({ championId, championName }) {
   const [loading, setLoading] = useState(false);
 
   const [nickname, setNickname] = useState('');
+  const [password, setPassword] = useState('');
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -92,10 +93,12 @@ export default function ChampionTips({ championId, championName }) {
     const c = content.trim();
     if (!n) { alert('닉네임을 입력하세요.'); return; }
     if (!c) { alert('팁 내용을 입력하세요.'); return; }
+    if (password.length < 4) { alert('비밀번호는 4자 이상이어야 합니다.'); return; }
     setSubmitting(true);
     try {
-      await createChampionTip({ championId, nickname: n, content: c });
+      await createChampionTip({ championId, nickname: n, content: c, password });
       setContent('');
+      setPassword('');
       await reloadFirstPage();
     } catch (e) {
       alert(e?.response?.data?.message || '등록에 실패했습니다.');
@@ -127,6 +130,18 @@ export default function ChampionTips({ championId, championName }) {
     catch { alert('신고에 실패했습니다.'); }
   };
 
+  const remove = async (tip) => {
+    const pw = window.prompt('삭제하려면 작성 시 정한 비밀번호를 입력하세요.');
+    if (pw == null) return; // 취소
+    try {
+      await deleteChampionTip(tip.id, pw);
+      setTips(prev => prev.filter(t => t.id !== tip.id));
+      setTotal(t => Math.max(0, t - 1));
+    } catch (e) {
+      alert(e?.response?.status === 403 ? '비밀번호가 일치하지 않습니다.' : '삭제에 실패했습니다.');
+    }
+  };
+
   return (
     <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 8, overflow: 'hidden' }}>
       {/* 헤더 */}
@@ -143,13 +158,23 @@ export default function ChampionTips({ championId, championName }) {
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <input
-                value={nickname}
-                onChange={e => setNickname(e.target.value)}
-                maxLength={NICK_MAX}
-                placeholder="닉네임"
-                style={inputStyle}
-              />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  value={nickname}
+                  onChange={e => setNickname(e.target.value)}
+                  maxLength={NICK_MAX}
+                  placeholder="닉네임"
+                  style={{ ...inputStyle, flex: 1 }}
+                />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  maxLength={30}
+                  placeholder="비밀번호"
+                  style={{ ...inputStyle, width: 120 }}
+                />
+              </div>
               <textarea
                 value={content}
                 onChange={e => setContent(e.target.value)}
@@ -212,11 +237,10 @@ export default function ChampionTips({ championId, championName }) {
                 {tip.patchVersion && (
                   <><Dot /><span style={{ color: C.muted, fontSize: 11.5 }}>버전 {tip.patchVersion}</span></>
                 )}
-                <button onClick={() => report(tip)} style={{
-                  marginLeft: 'auto', background: 'transparent', border: `1px solid ${C.line}`,
-                  color: C.muted, fontSize: 11, padding: '2px 8px', borderRadius: 5,
-                  cursor: 'pointer', fontFamily: 'inherit',
-                }}>신고</button>
+                <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 6 }}>
+                  <button onClick={() => remove(tip)} style={tipActionBtn}>삭제</button>
+                  <button onClick={() => report(tip)} style={tipActionBtn}>신고</button>
+                </span>
               </div>
               <div style={{ color: '#d3d3da', fontSize: 13, lineHeight: 1.55, whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word' }}>{tip.content}</div>
@@ -260,4 +284,10 @@ const inputStyle = {
   background: '#26262c', border: '1px solid #3a3a43', borderRadius: 6,
   color: '#e6e6ea', fontSize: 13, padding: '0 10px', height: 34, outline: 'none',
   fontFamily: 'inherit',
+};
+
+const tipActionBtn = {
+  background: 'transparent', border: '1px solid #3a3a43',
+  color: '#6c6c75', fontSize: 11, padding: '2px 8px', borderRadius: 5,
+  cursor: 'pointer', fontFamily: 'inherit',
 };

@@ -6,9 +6,13 @@ import apiClient from './client';
 export const getChampionTips = (championId, { sort = 'popular', page = 0, size = 20 } = {}) =>
   apiClient.get('/api/champion-tips', { params: { championId, sort, page, size } });
 
-// 작성. { championId, nickname, content }
-export const createChampionTip = ({ championId, nickname, content }) =>
-  apiClient.post('/api/champion-tips', { championId, nickname, content });
+// 작성. { championId, nickname, content, password } — password 는 삭제용 키
+export const createChampionTip = ({ championId, nickname, content, password }) =>
+  apiClient.post('/api/champion-tips', { championId, nickname, content, password });
+
+// 삭제. 작성 시 정한 비밀번호가 일치해야 한다.
+export const deleteChampionTip = (tipId, password) =>
+  apiClient.delete(`/api/champion-tips/${tipId}`, { data: { password } });
 
 // 추천/비추천. direction: 'UP' | 'DOWN'
 export const voteChampionTip = (tipId, direction) =>

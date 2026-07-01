@@ -5,6 +5,7 @@ import com.recordsite.backend.dto.ChampionTipPageResponse;
 import com.recordsite.backend.dto.ChampionTipResponse;
 import com.recordsite.backend.entity.ChampionTip;
 import com.recordsite.backend.repository.ChampionTipRepository;
+import com.recordsite.backend.support.TipPasswordEncoder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -20,10 +21,13 @@ public class ChampionTipService {
 
     private static final int NICKNAME_MAX = 20;
     private static final int CONTENT_MAX = 500;
+    private static final int PASSWORD_MIN = 4;
+    private static final int PASSWORD_MAX = 30;
     private static final int MAX_PAGE_SIZE = 50;
     private static final String DEFAULT_LANGUAGE = "한국어";
 
     private final ChampionTipRepository championTipRepository;
+    private final TipPasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
     public ChampionTipPageResponse getTips(int championId, String sort, int page, int size) {
@@ -45,11 +49,21 @@ public class ChampionTipService {
     public ChampionTipResponse createTip(ChampionTipCreateRequest request) {
         String nickname = require(request.nickname(), "닉네임", NICKNAME_MAX);
         String content = require(request.content(), "팁 내용", CONTENT_MAX);
+        String passwordHash = passwordEncoder.encode(requirePassword(request.password()));
 
         ChampionTip tip = ChampionTip.of(
                 request.championId(), nickname, content,
-                DataDragonService.currentPatch(), DEFAULT_LANGUAGE);
+                DataDragonService.currentPatch(), DEFAULT_LANGUAGE, passwordHash);
         return ChampionTipResponse.from(championTipRepository.save(tip));
+    }
+
+    @Transactional
+    public void deleteTip(Long tipId, String password) {
+        ChampionTip tip = findOrThrow(tipId);
+        if (password == null || !passwordEncoder.matches(password, tip.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "비밀번호가 일치하지 않습니다.");
+        }
+        championTipRepository.delete(tip);
     }
 
     @Transactional
@@ -72,6 +86,18 @@ public class ChampionTipService {
     private ChampionTip findOrThrow(Long tipId) {
         return championTipRepository.findById(tipId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "팁을 찾을 수 없습니다."));
+    }
+
+    // 비밀번호는 앞뒤 공백까지 그대로 쓴다(공백도 유효 문자). 길이만 검증한다.
+    private String requirePassword(String password) {
+        if (password == null || password.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "비밀번호를 입력하세요.");
+        }
+        if (password.length() < PASSWORD_MIN || password.length() > PASSWORD_MAX) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "비밀번호는 " + PASSWORD_MIN + "~" + PASSWORD_MAX + "자여야 합니다.");
+        }
+        return password;
     }
 
     // 공백 제거 후 비어있지 않고 길이 제한 이내인지 검증한다. 위반 시 400.
