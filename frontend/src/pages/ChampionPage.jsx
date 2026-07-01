@@ -12,6 +12,7 @@ import {
 import {
   DDRAGON_VERSION, imgChampion, imgItem, imgSpell, imgChampionSpell, imgRune,
 } from '../constants/ddragon';
+import ChampionTips from '../components/champion/ChampionTips';
 
 // 화면에 표기하는 패치 버전(예: '16.12.1' → '16.12')
 const PATCH = DDRAGON_VERSION.split('.').slice(0, 2).join('.');
@@ -175,6 +176,11 @@ export default function ChampionPage() {
           </div>
         )
       )}
+
+      {/* 챔피언별 운영 팁 게시판(코멘트) — 매치 표본 유무와 무관하게 항상 노출 */}
+      <div style={{ marginTop: 14 }}>
+        <ChampionTips championId={championId} championName={champName} />
+      </div>
     </div>
   );
 }
