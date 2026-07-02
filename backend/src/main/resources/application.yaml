@@ -33,6 +33,18 @@ spring:
     baseline-version: 0
     locations: classpath:db/migration
 
+# 운영 헬스 체크 — CD 배포 후 검증과 컨테이너 healthcheck 전용.
+# health 엔드포인트만 노출하고(나머지 actuator 정보는 차단), 상세는 숨긴다(상태 UP/DOWN 만 응답).
+# 기본 health 는 DB·Redis 연결까지 확인하므로 앱+의존성이 모두 살아야 UP 이 된다(readiness 성격).
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
 
 riot:
   api:

@@ -27,6 +27,9 @@ repositories {
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+	// 헬스 체크 전용(actuator) — CD 배포 검증과 컨테이너 healthcheck 가 /actuator/health 로 UP 여부를 확인한다.
+	// edge nginx 는 /actuator 를 프록시하지 않으므로 외부에는 노출되지 않는다(내부망 전용).
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	// Redis 캐시: 무거운 집계/정적 데이터 응답을 캐싱해 응답 지연·DB 부하를 줄인다.
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.springframework.boot:spring-boot-starter-cache'
