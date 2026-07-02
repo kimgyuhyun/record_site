@@ -1,0 +1,73 @@
+## CI — arm64 이미지 빌드 후 GHCR(비공개)에 푸시.
+## 서버가 aarch64 이므로 GitHub-hosted ARM 러너에서 네이티브 arm64 로 빌드한다(QEMU 크로스빌드 불필요).
+## 인증은 워크플로 GITHUB_TOKEN(단기) 만 사용 — 별도 시크릿 없음. 이미지 태그 = commit-sha(불변) + latest(편의).
+name: CI (build & push images)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  # GHCR 는 소유자/이미지명이 소문자여야 한다. kimgyuhyun / record_site-* 모두 소문자라 그대로 사용.
+  IMAGE_BACKEND: ghcr.io/${{ github.repository_owner }}/record_site-backend
+  IMAGE_FRONTEND: ghcr.io/${{ github.repository_owner }}/record_site-frontend
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm      # GitHub-hosted ARM(에페메럴·격리). 서버 arm64 와 동일 아키텍처.
+    permissions:
+      contents: read
+      packages: write              # GHCR 푸시 권한(GITHUB_TOKEN 에 부여)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & push backend (arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE_BACKEND }}:${{ github.sha }}
+            ${{ env.IMAGE_BACKEND }}:latest
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Build & push frontend (arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE_FRONTEND }}:${{ github.sha }}
+            ${{ env.IMAGE_FRONTEND }}:latest
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      # 취약점 스캔은 지금은 report-only(||true) — 결과만 로그로 남기고 빌드는 실패시키지 않는다.
+      # 뒤에 기준이 안정되면 --exit-code 1 + severity 게이트로 조여 배포 차단으로 전환한다.
+      - name: Trivy vulnerability scan (report-only)
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+          for img in "$IMAGE_BACKEND:$GITHUB_SHA" "$IMAGE_FRONTEND:$GITHUB_SHA"; do
+            echo "::group::Trivy $img"
+            trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 0 --no-progress "$img" || true
+            echo "::endgroup::"
+          done
