@@ -7,8 +7,12 @@ spring:
   datasource:
     # DB_HOST/DB_PORT 미지정 시 로컬 docker-compose mysql(호스트 포트 3307)로 접속.
     # 컨테이너 배포 시 DB_HOST=mysql, DB_PORT=3306 으로 주입한다.
-    # serverTimezone=UTC: 앱 전체를 UTC 로 통일한다(JVM 기본 TZ 도 UTC). DATETIME 컬럼은 타임존 무관 저장이라 기존 데이터 재해석 없음.
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3307}/loldb?characterEncoding=UTF-8&serverTimezone=UTC&useServerPrepStmts=false
+    # ⚠️ serverTimezone 은 Asia/Seoul 로 유지할 것(UTC 로 바꾸지 말 것).
+    # 이 앱은 예전부터 이 설정으로 동작해왔다: MySQL 드라이버가 저장 시 JVM(UTC)→세션(KST,+9)로 변환해
+    # DATETIME 컬럼에 KST 벽시계로 물리 저장하고, 조회 시 KST→UTC(-9)로 되돌려 Java 에는 항상 올바른 UTC 를 준다.
+    # UTC 로 바꾸면 이 왕복 보정이 깨져 기존 행이 9시간 미래로 노출된다(댓글 시간이 '방금 전'으로 뜨는 버그의 원인이었음).
+    # 시각의 UTC 계약은 애플리케이션 경계에서 보장한다: JVM 기본 TZ=UTC(BackendApplication) + 응답 직렬화에 'Z'(JacksonTimeConfig).
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3307}/loldb?characterEncoding=UTF-8&serverTimezone=Asia/Seoul&useServerPrepStmts=false
     username: root
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
