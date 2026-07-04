@@ -69,6 +69,9 @@ export default function PlayerPage() {
     setError('');
     setSummoner(null);
     setMatchList([]);
+    // 다른 소환사로 이동 시 이전 소환사의 쿨다운이 남지 않도록 초기화
+    if (cooldownTimer.current) clearInterval(cooldownTimer.current);
+    setCooldown(0);
     try {
       // getSummoner 응답에 랭크(soloTier 등)가 이미 포함돼 있음
       const sumRes = await getSummoner(name, tagLine, regionUpper);
