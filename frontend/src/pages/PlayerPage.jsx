@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { getSummoner } from '../api/summoner';
 import { getMatches, refreshMatches, getRefreshJob } from '../api/match';
 import SummonerProfilePage from './SummonerProfilePage';
+import { parseServerTime } from '../utils/datetime';
 
 // 갱신 작업 진행 상황 폴링 주기(ms)
 const REFRESH_POLL_INTERVAL_MS = 2500;
@@ -34,7 +35,7 @@ export default function PlayerPage() {
   // 페이지 진입 시 rankUpdatedAt 기반으로 남은 쿨다운 계산
   const initCooldown = (summonerData) => {
     if (!summonerData?.rankUpdatedAt) return;
-    const updatedAt = new Date(summonerData.rankUpdatedAt);
+    const updatedAt = parseServerTime(summonerData.rankUpdatedAt);
     const remaining = Math.ceil(180 - (Date.now() - updatedAt.getTime()) / 1000);
     if (remaining > 0) startCooldownTimer(remaining);
   };

@@ -1,10 +1,14 @@
 spring:
   application:
     name: backend
+  # 직렬화 기준 타임존도 UTC 로 통일(Date/Instant 등). LocalDateTime 은 JacksonTimeConfig 가 'Z' 를 붙여 UTC 로 내려준다.
+  jackson:
+    time-zone: UTC
   datasource:
     # DB_HOST/DB_PORT 미지정 시 로컬 docker-compose mysql(호스트 포트 3307)로 접속.
     # 컨테이너 배포 시 DB_HOST=mysql, DB_PORT=3306 으로 주입한다.
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3307}/loldb?characterEncoding=UTF-8&serverTimezone=Asia/Seoul&useServerPrepStmts=false
+    # serverTimezone=UTC: 앱 전체를 UTC 로 통일한다(JVM 기본 TZ 도 UTC). DATETIME 컬럼은 타임존 무관 저장이라 기존 데이터 재해석 없음.
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3307}/loldb?characterEncoding=UTF-8&serverTimezone=UTC&useServerPrepStmts=false
     username: root
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
