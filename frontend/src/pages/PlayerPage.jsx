@@ -36,7 +36,9 @@ export default function PlayerPage() {
   // 페이지 진입 시 rankUpdatedAt 기반으로 남은 쿨다운 계산
   const initCooldown = (summonerData) => {
     if (!summonerData?.rankUpdatedAt) return;
-    const updatedAt = new Date(summonerData.rankUpdatedAt);
+    // rankUpdatedAt 은 서버(UTC)의 타임존 없는 LocalDateTime 이라, 그대로 파싱하면
+    // 브라우저 로컬 타임존(KST)으로 오해해 ~9시간 어긋난다 → UTC(Z)로 명시해 파싱한다.
+    const updatedAt = new Date(summonerData.rankUpdatedAt + 'Z');
     const remaining = Math.ceil(180 - (Date.now() - updatedAt.getTime()) / 1000);
     if (remaining > 0) startCooldownTimer(remaining);
   };
