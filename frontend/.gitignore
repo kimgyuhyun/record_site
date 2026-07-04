@@ -23,6 +23,5 @@ dist-ssr
 *.sln
 *.sw?
 
-# CDN assets are downloaded/managed separately.
-# Keep them out of git tracking to avoid huge diffs.
-public/cdn/
+# public/cdn (DDragon 정적자산)은 git 에 포함한다 — CI 는 fresh checkout 으로 빌드하므로
+# gitignore 하면 프론트 이미지에 안 담겨 /cdn/* 가 404 난다. (다시 ignore 하지 말 것)

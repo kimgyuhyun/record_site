@@ -1,0 +1,66 @@
+## CD — GHCR 이미지를 서버로 배포(SSH). CI 성공 시 자동 배포(연속배포) + 수동 트리거(롤백/재배포).
+## 자동배포지만 배포 전 IOC 게이트·DB 백업, 배포 후 health 검증 + 실패 시 자동 롤백으로 안전장치를 둔다.
+## 서버 인증: 전용 SSH 배포키(Secret). GHCR pull: 워크플로 GITHUB_TOKEN(단기) — 서버에 장기 PAT 를 두지 않는다.
+## 필요한 Secrets:
+##   DEPLOY_SSH_KEY      배포 전용 SSH 개인키(서버 authorized_keys 에 공개키 등록)
+##   DEPLOY_HOST         서버 호스트/IP
+##   DEPLOY_KNOWN_HOSTS  서버 호스트키(ssh-keyscan 결과) — MITM 방지용 핀
+name: CD (deploy to server)
+
+on:
+  # CI(이미지 빌드+GHCR 푸시)가 main 에서 성공하면 이어서 자동 배포한다(연속배포).
+  workflow_run:
+    workflows: ["CI (build & push images)"]
+    types: [completed]
+    branches: [main]
+  # 수동 실행 — 특정 태그로 롤백/재배포할 때.
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "배포할 GHCR 이미지 태그(비우면 트리거된 commit SHA)"
+        required: false
+        default: ""
+
+concurrency:
+  group: cd-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # CI 가 성공했을 때만(workflow_run) 또는 수동 실행일 때만 배포. CI 실패 시엔 배포하지 않는다.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: read
+      packages: read              # 서버가 GHCR 에서 pull 할 때 넘겨줄 GITHUB_TOKEN 의 권한
+    steps:
+      - name: Resolve image tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            TAG="${{ github.event.workflow_run.head_sha }}"   # CI 가 방금 빌드한 그 커밋
+          else
+            TAG="${{ github.event.inputs.image_tag }}"
+            [ -n "$TAG" ] || TAG="${{ github.sha }}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "deploying tag: $TAG"
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+
+      - name: Deploy over SSH
+        run: |
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
+            "ubuntu@${{ secrets.DEPLOY_HOST }}" \
+            "set -e; cd ~/record_site && git fetch --all --prune && git checkout -f '${{ steps.tag.outputs.tag }}' && TAG='${{ steps.tag.outputs.tag }}' GHCR_USER='${{ github.actor }}' GHCR_TOKEN='${{ secrets.GITHUB_TOKEN }}' bash scripts/deploy.sh"
+
+      - name: External check (live site 200)
+        run: |
+          code=$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 15 https://kdagg.kozow.com || true)
+          echo "live site: $code"
+          [ "$code" = "200" ] || { echo "live site not 200"; exit 1; }
