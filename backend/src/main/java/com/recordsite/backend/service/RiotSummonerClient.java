@@ -5,6 +5,7 @@ import com.recordsite.backend.dto.RiotSummonerResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.util.UriUtils;
@@ -82,7 +83,13 @@ public class RiotSummonerClient {
                 .build(true)
                 .toUri();
 
-        RiotAccountResponse res = restTemplate.getForObject(uri, RiotAccountResponse.class);
+        RiotAccountResponse res;
+        try {
+            res = restTemplate.getForObject(uri, RiotAccountResponse.class);
+        } catch (HttpClientErrorException.NotFound e) {
+            // Riot 은 존재하지 않는 RiotId 에 404 를 준다 → 서비스가 SummonerNotFoundException 으로 변환하도록 null 반환.
+            return null;
+        }
         return res == null ? null : res.getPuuid();
     }
 

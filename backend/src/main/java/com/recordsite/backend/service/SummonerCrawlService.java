@@ -114,6 +114,9 @@ public class SummonerCrawlService {
     // 주어진 매치들의 참가자 puuid(originPuuid 제외)를 큐에 PENDING 으로 추가한다(이미 있으면 스킵).
     // 검색 시 시딩(MatchService)과 크롤러 확장(processNext)이 함께 사용한다.
     public void enqueueNeighborsFromMatches(Collection<String> matchIds, int depth, String originPuuid) {
+        if (!enabled) {
+            return; // 크롤러 비활성화 시 큐에 적재하지 않는다(소비자 processNext 도 같은 플래그로 멈춘다).
+        }
         if (matchIds.isEmpty()) {
             return;
         }

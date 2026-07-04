@@ -13,7 +13,9 @@ function parseSlug(slug) {
   const idx = decoded.lastIndexOf('-');
   if (idx > 0) {
     const maybeTag = decoded.slice(idx + 1);
-    if (/^[a-zA-Z0-9]+$/.test(maybeTag)) {
+    // Riot 태그는 최대 5자이며 한글·유니코드도 허용된다(예: #무지의축복).
+    // ASCII 전용 검사는 한글 태그를 떨궈 이름에 합쳐버려서 검색이 깨졌었다.
+    if (/^[\p{L}\p{N}]{1,5}$/u.test(maybeTag)) {
       return { name: decoded.slice(0, idx).trim(), tagLine: maybeTag.trim() };
     }
   }
@@ -35,6 +37,8 @@ export default function PlayerPage() {
   // 페이지 진입 시 rankUpdatedAt 기반으로 남은 쿨다운 계산
   const initCooldown = (summonerData) => {
     if (!summonerData?.rankUpdatedAt) return;
+    // rankUpdatedAt 은 서버(UTC) 시각. parseServerTime 이 오프셋을 붙여 로컬 시각으로 정확히 변환한다
+    // (백엔드가 'Z' 를 붙여 보내든 아니든 이중 'Z' 없이 안전하게 파싱한다).
     const updatedAt = parseServerTime(summonerData.rankUpdatedAt);
     const remaining = Math.ceil(180 - (Date.now() - updatedAt.getTime()) / 1000);
     if (remaining > 0) startCooldownTimer(remaining);
@@ -68,6 +72,9 @@ export default function PlayerPage() {
     setError('');
     setSummoner(null);
     setMatchList([]);
+    // 다른 소환사로 이동 시 이전 소환사의 쿨다운이 남지 않도록 초기화
+    if (cooldownTimer.current) clearInterval(cooldownTimer.current);
+    setCooldown(0);
     try {
       // getSummoner 응답에 랭크(soloTier 등)가 이미 포함돼 있음
       const sumRes = await getSummoner(name, tagLine, regionUpper);
