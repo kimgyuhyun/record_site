@@ -4,6 +4,7 @@ import {
   deleteChampionTip, updateChampionTip,
 } from '../../api/championTip';
 import { DDRAGON_VERSION } from '../../constants/ddragon';
+import { timeAgo } from '../../utils/datetime';
 
 /*
  * 챔피언 운영 팁 게시판(코멘트) — 챔피언 상세 페이지 하단.
@@ -39,19 +40,6 @@ const loadVoted = () => {
 };
 const saveVoted = (v) => {
   try { localStorage.setItem(VOTE_KEY, JSON.stringify(v)); } catch { /* 저장 실패는 무시 */ }
-};
-
-const timeAgo = (iso) => {
-  const diff = Math.max(0, Date.now() - new Date(iso).getTime());
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return '방금 전';
-  if (m < 60) return `${m}분 전`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}시간 전`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `${d}일 전`;
-  if (d < 30) return `${Math.floor(d / 7)}주 전`;
-  return `${Math.floor(d / 30)}개월 전`;
 };
 
 export default function ChampionTips({ championId, championName }) {
