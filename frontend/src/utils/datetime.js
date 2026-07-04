@@ -13,17 +13,26 @@ export function parseServerTime(value) {
 }
 
 // 절대 시각 → "3분 전" 상대 표기. 서버 시각(UTC)·epoch(ms) 모두 받는다.
+// 구간: 1분 미만=방금 전 → 1시간 미만=분 → 24시간 미만=시간 → 7일 미만=일 → 30일 미만=주일 → 그 이상=개월.
+// 경계는 아래 값 '미만'까지 이전 단위를 유지한다(예: 6일 23시간 59분은 아직 6일 전, 딱 7일부터 1주일 전).
 export function timeAgo(value) {
   const date = parseServerTime(value);
   if (!date || Number.isNaN(date.getTime())) return '';
-  const diff = Math.max(0, Date.now() - date.getTime());
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return '방금 전';
-  if (m < 60) return `${m}분 전`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}시간 전`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `${d}일 전`;
-  if (d < 30) return `${Math.floor(d / 7)}주 전`;
-  return `${Math.floor(d / 30)}개월 전`;
+  const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 1) return '방금 전';
+  if (minutes < 60) return `${minutes}분 전`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}시간 전`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}일 전`;
+
+  const weeks = Math.floor(days / 7);
+  if (days < 30) return `${weeks}주일 전`;
+
+  const months = Math.floor(days / 30);
+  return `${months}개월 전`;
 }
