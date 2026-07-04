@@ -25,7 +25,7 @@ public class DataDragonService {
     private final RunePathRepository runePathRepository;
     private final RuneRepository runeRepository;
 
-    private static final String VERSION = "16.12.1";
+    private static final String VERSION = "16.13.1";
     private static final String BASE_URL = "https://ddragon.leagueoflegends.com/cdn/" + VERSION;
 
     // 화면·게시글에 각인하는 패치 표기(예: "16.12.1" → "16.12"). 팁 작성 시 현재 패치를 박는 데 쓴다.

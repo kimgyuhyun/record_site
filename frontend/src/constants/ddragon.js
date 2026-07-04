@@ -6,7 +6,7 @@
  *
  * 버전 바꿀 때 VERSION 하나만 수정하면 됩니다.
  */
-export const DDRAGON_VERSION = '16.12.1';
+export const DDRAGON_VERSION = '16.13.1';
 
 // 이미지 (로컬 static, 패치 버전에 종속)
 export const IMG_BASE = `/cdn/${DDRAGON_VERSION}`;
