@@ -19,7 +19,11 @@ export const STATIC_IMG_BASE = '/static';
 export const DATA_CDN = `https://ddragon.leagueoflegends.com/cdn/${DDRAGON_VERSION}`;
 
 // 이미지 URL 헬퍼
-export const imgChampion    = (key)  => `${IMG_BASE}/img/champion/${key}.png`;
+// Riot 매치 데이터의 championName은 대체로 Data Dragon id와 같지만, 피들스틱스만
+// Riot="FiddleSticks" vs 자산 파일="Fiddlesticks.png"로 대소문자가 달라 404가 난다.
+// (메타 로딩 전 championName 폴백 경로에서 이 키가 들어온다.)
+const CHAMPION_KEY_FIXUPS = { FiddleSticks: 'Fiddlesticks' };
+export const imgChampion    = (key)  => `${IMG_BASE}/img/champion/${CHAMPION_KEY_FIXUPS[key] ?? key}.png`;
 export const imgItem        = (id)   => `${IMG_BASE}/img/item/${id}.png`;
 export const imgSpell       = (file) => `${IMG_BASE}/img/spell/${file}`;
 // 챔피언 스킬(Q/W/E/R) 아이콘은 로컬 static에 받아두지 않아 외부 CDN에서 직접 받는다
