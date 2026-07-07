@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import useChampionMeta from '../hooks/useChampionMeta';
 import useRanking from '../hooks/useRanking';
 import { imgChampion } from '../constants/ddragon';
@@ -30,17 +30,32 @@ const QUEUE_TABS = [
 export default function RankingPage() {
   const navigate = useNavigate();
   const { championKeyById } = useChampionMeta();
-  const [queueType, setQueueType] = useState('SOLO');
-  const [page, setPage] = useState(0);
+  // 큐/페이지는 URL 쿼리에 담는다. 소환사 페이지로 이동 후 뒤로가기 하면
+  // 이전 페이지·큐가 그대로 복원돼(page/queue), 1페이지로 리셋되지 않는다.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queueType = searchParams.get('queue') === 'FLEX' ? 'FLEX' : 'SOLO';
+  const page = Math.max(0, parseInt(searchParams.get('page'), 10) || 0);
   const { data, isLoading, isError } = useRanking(queueType, page, PAGE_SIZE);
 
   const rows = data?.content ?? [];
   const totalPages = data?.totalPages ?? 0;
 
+  // 페이징은 히스토리를 더럽히지 않도록 replace. 현재 상태만 URL에 남겨
+  // 뒤로가기 한 번으로 랭킹 → 이전 화면으로 나가도록 한다.
+  const setPage = (next) => {
+    setSearchParams(prev => {
+      prev.set('page', String(next));
+      return prev;
+    }, { replace: true });
+  };
+
   const changeQueue = (key) => {
     if (key === queueType) return;
-    setQueueType(key);
-    setPage(0); // 큐 전환 시 첫 페이지부터
+    setSearchParams(prev => {
+      prev.set('queue', key);
+      prev.set('page', '0'); // 큐 전환 시 첫 페이지부터
+      return prev;
+    }, { replace: true });
   };
 
   const goToSummoner = (row) => {
