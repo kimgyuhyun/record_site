@@ -139,10 +139,10 @@ export default function PlayerPage() {
   const finishRefresh = async () => {
     try {
       const { name, tagLine } = parseSlug(slug);
-      const [sumRes, matchRes] = await Promise.all([
-        getSummoner(name, tagLine, region.toUpperCase()),
-        getMatches(summoner.puuid),
-      ]);
+      // 소환사를 먼저 받아 그 puuid로 매치를 조회한다. 갱신 중 puuid가 바뀌었어도
+      // (계정 puuid 변경 자가치유) 이전 puuid로 빈 목록을 받는 일이 없도록 순차 처리.
+      const sumRes = await getSummoner(name, tagLine, region.toUpperCase());
+      const matchRes = await getMatches(sumRes.data.puuid);
       setSummoner(sumRes.data);
       setMatchList(matchRes.data?.content || []);
       startCooldownTimer(180);

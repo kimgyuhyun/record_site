@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.util.List;
 import java.util.Set;
@@ -28,6 +29,7 @@ public class MatchService {
     private final RiotMatchClient riotMatchClient;
     private final LeagueService leagueService;
     private final SummonerCrawlService summonerCrawlService;
+    private final StalePuuidHealer stalePuuidHealer;
     private final Executor matchCollectExecutor;
 
 
@@ -57,8 +59,20 @@ public class MatchService {
     // 중복 갱신 차단·쿨다운은 호출 측의 Redis 락(RefreshJobStore)이 담당하므로 여기선 검사하지 않는다.
     public int refreshMatchesByPuuid(String puuid, RefreshProgress progress) {
 
-        // 라이엇 API 에서 최근 매치 20개 조회
-        List<String> matchIdList = riotMatchClient.getMatchIdsByPuuid(puuid, 0, 20);
+        // 라이엇 API 에서 최근 매치 20개 조회.
+        // 저장된 puuid 가 Riot 에서 복호화 불가(계정 puuid 변경)면 400 이 온다 →
+        // 이름#태그로 현재 puuid 를 재해소·이관(자가치유)한 뒤 그 puuid 로 재시도한다.
+        List<String> matchIdList;
+        try {
+            matchIdList = riotMatchClient.getMatchIdsByPuuid(puuid, 0, 20);
+        } catch (HttpClientErrorException.BadRequest e) {
+            String healedPuuid = stalePuuidHealer.heal(puuid);
+            if (healedPuuid == null) {
+                throw e; // 치유할 수 없으면 원래 오류를 그대로 전파
+            }
+            puuid = healedPuuid;
+            matchIdList = riotMatchClient.getMatchIdsByPuuid(puuid, 0, 20);
+        }
         if (matchIdList.isEmpty()) {
             progress.onTotal(0);
             return 0;

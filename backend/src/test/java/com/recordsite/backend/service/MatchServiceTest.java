@@ -13,6 +13,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.util.List;
 import java.util.Set;
@@ -29,6 +32,7 @@ class MatchServiceTest {
     @Mock RiotMatchClient riotMatchClient;
     @Mock LeagueService leagueService;
     @Mock SummonerCrawlService summonerCrawlService;
+    @Mock StalePuuidHealer stalePuuidHealer;
 
     MatchService matchService;
 
@@ -37,7 +41,7 @@ class MatchServiceTest {
     void setUp() {
         matchService = new MatchService(
                 matchRepository, participantService, matchSaveHelper, riotMatchClient,
-                leagueService, summonerCrawlService, Runnable::run);
+                leagueService, summonerCrawlService, stalePuuidHealer, Runnable::run);
     }
 
     @Test
@@ -81,6 +85,28 @@ class MatchServiceTest {
         verify(matchSaveHelper).saveMatchWithParticipants("KR_2", puuid);
         verify(matchSaveHelper, never()).saveMatchWithParticipants("KR_1", puuid);
         verify(leagueService).updateAndSaveLeague(puuid);
+    }
+
+    @Test
+    @DisplayName("puuid가 바뀌어 400이 나면 자가치유로 새 puuid를 받아 재시도한다")
+    void refresh_stalePuuid_healsAndRetries() {
+        String stale = "stale-puuid";
+        String healed = "new-puuid";
+        HttpClientErrorException badRequest = (HttpClientErrorException)
+                HttpClientErrorException.create(HttpStatus.BAD_REQUEST, "Bad Request",
+                        HttpHeaders.EMPTY, new byte[0], null);
+
+        when(riotMatchClient.getMatchIdsByPuuid(stale, 0, 20)).thenThrow(badRequest);
+        when(stalePuuidHealer.heal(stale)).thenReturn(healed);
+        when(riotMatchClient.getMatchIdsByPuuid(healed, 0, 20)).thenReturn(List.of("KR_9"));
+        when(matchRepository.findExistingMatchIds(List.of("KR_9"))).thenReturn(Set.of());
+
+        int result = matchService.refreshMatchesByPuuid(stale, RefreshProgress.NONE);
+
+        assertEquals(1, result);
+        verify(stalePuuidHealer).heal(stale);
+        verify(matchSaveHelper).saveMatchWithParticipants("KR_9", healed); // 새 puuid로 수집
+        verify(leagueService).updateAndSaveLeague(healed);                 // 랭크도 새 puuid로 갱신
     }
 
     @Test

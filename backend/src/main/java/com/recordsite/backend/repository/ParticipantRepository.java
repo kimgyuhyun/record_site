@@ -3,6 +3,7 @@ package com.recordsite.backend.repository;
 import com.recordsite.backend.entity.Match;
 import com.recordsite.backend.entity.Participant;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -11,6 +12,11 @@ import java.util.List;
 
 @Repository
 public interface ParticipantRepository extends JpaRepository<Participant, Long>, ParticipantRepositoryCustom {
+
+    // 계정 puuid 변경 시, 그 계정이 참가한 모든 경기 기록을 새 puuid 로 이관한다(자가치유).
+    @Modifying
+    @Query("update Participant p set p.puuid = :newPuuid where p.puuid = :oldPuuid")
+    int repointPuuid(@Param("oldPuuid") String oldPuuid, @Param("newPuuid") String newPuuid);
 
     @Query("""
             select p
