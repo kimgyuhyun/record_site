@@ -12,11 +12,11 @@ function parseSlug(slug) {
   const decoded = decodeURIComponent(slug);
   const idx = decoded.lastIndexOf('-');
   if (idx > 0) {
-    const maybeTag = decoded.slice(idx + 1);
-    // Riot 태그는 최대 5자이며 한글·유니코드도 허용된다(예: #무지의축복).
-    // ASCII 전용 검사는 한글 태그를 떨궈 이름에 합쳐버려서 검색이 깨졌었다.
-    if (/^[\p{L}\p{N}]{1,5}$/u.test(maybeTag)) {
-      return { name: decoded.slice(0, idx).trim(), tagLine: maybeTag.trim() };
+    const maybeTag = decoded.slice(idx + 1).trim();
+    // Riot 태그는 최대 5자이며 한글·유니코드·공백도 허용된다(예: #무지의축복, #T 1).
+    // 공백을 빠뜨리면 "해 태#T 1" 같은 태그가 이름에 합쳐져 검색이 깨진다.
+    if (/^[\p{L}\p{N} ]{1,5}$/u.test(maybeTag)) {
+      return { name: decoded.slice(0, idx).trim(), tagLine: maybeTag };
     }
   }
   return { name: decoded.trim(), tagLine: '' };
