@@ -6,6 +6,7 @@ import jakarta.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.concurrent.ExecutorService;
@@ -18,7 +19,14 @@ public class AppConfig {
     // (ddragon CDN 등 Riot API 외 호스트는 인터셉터 내부에서 throttle 없이 통과)
     @Bean
     public RestTemplate restTemplate(RiotApiRateLimiter riotApiRateLimiter) {
-        RestTemplate restTemplate = new RestTemplate();
+        // 타임아웃이 없으면 응답이 안 오는 Riot 호출 하나가 단일 갱신 워커를 무한정 붙잡아
+        // 이후 모든 갱신이 "갱신중"에서 멈춘다. 레이트리밋 대기(acquire)는 호출 전 단계라
+        // 이 소켓 타임아웃에 걸리지 않으므로, 스로틀은 그대로 두고 네트워크 행만 끊는다.
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5_000);
+        factory.setReadTimeout(10_000);
+
+        RestTemplate restTemplate = new RestTemplate(factory);
         restTemplate.getInterceptors().add(new RiotApiClientInterceptor(riotApiRateLimiter));
         return restTemplate;
     }
