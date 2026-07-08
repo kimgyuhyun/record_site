@@ -571,10 +571,12 @@ function PlayerRow({ row, championKeyById, spellMap, runeIconById, styleIconById
 
   /* MVP/ACE 뱃지 제거 */
 
-  /* 배경 — 승리/패배 기준, 내 행은 살짝 더 진하게 */
+  /* 배경 — 승리/패배 기준, 내 행은 살짝 더 진하게.
+     기준 색은 요약 카드(cardBg)와 동일한 파랑(83,131,243)/빨강(232,64,87)으로 통일하고
+     적용 강도(투명도)만 행별로 다르게 둔다. */
   const rowBg = isMe
-    ? (isWin ? 'rgba(83,130,243,0.20)' : 'rgba(235,87,87,0.18)')
-    : (isWin ? 'rgba(83,130,243,0.08)' : 'rgba(235,87,87,0.08)');
+    ? (isWin ? 'rgba(83,131,243,0.20)' : 'rgba(232,64,87,0.18)')
+    : (isWin ? 'rgba(83,131,243,0.08)' : 'rgba(232,64,87,0.08)');
 
   return (
     <div style={{
@@ -739,8 +741,8 @@ function TeamSection({ rows, championKeyById, spellMap, runeIconById, styleIconB
   const teamBg = isRemake
     ? 'rgba(255,255,255,0.02)'
     : isWin
-      ? 'rgba(83,130,243,0.05)'
-      : 'rgba(235,87,87,0.05)';
+      ? 'rgba(83,131,243,0.05)'
+      : 'rgba(232,64,87,0.05)';
 
   return (
     <div style={{ background: teamBg }}>
