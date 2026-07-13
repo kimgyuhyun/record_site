@@ -41,6 +41,7 @@ const QUEUE_TYPE_BY_SUBTAB = { '전체': undefined, '솔로랭크': 'SOLO', '자
 export default function SummonerProfilePage({
   summoner, matchList = [],
   onRefresh, refreshing, cooldown = 0,
+  onLoadMore, hasMore = false, loadingMore = false,
 }) {
   const [mainTab, setMainTab] = useState('챔피언');
   const [subTab, setSubTab]   = useState('전체');
@@ -184,6 +185,23 @@ export default function SummonerProfilePage({
           최근 전적 ({filteredMatches.length})
         </div>
         <MatchList matches={filteredMatches} />
+
+        {/* 더 보기 — 백엔드에 다음 페이지가 남아있을 때만 노출 */}
+        {hasMore && (
+          <button
+            onClick={onLoadMore}
+            disabled={loadingMore}
+            style={{
+              width: '100%', marginTop: 8, padding: '12px 0',
+              background: '#1e2024', color: loadingMore ? '#4a5568' : '#c8d0e0',
+              border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8,
+              fontSize: 13, fontWeight: 600, cursor: loadingMore ? 'default' : 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            {loadingMore ? '불러오는 중...' : '더 보기'}
+          </button>
+        )}
       </div>
     </div>
   );
