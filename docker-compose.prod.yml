@@ -16,6 +16,11 @@ services:
       REDIS_PORT: 6379
       SPRING_CACHE_TYPE: redis
       JAVA_OPTS: "-Xmx512m"
+    # 세 망 모두 필요: default(nginx 가 프록시) + data(mysql/redis) + egress(Riot API 아웃바운드).
+    networks:
+      - default
+      - data
+      - egress
     depends_on:
       mysql:
         condition: service_healthy
@@ -27,6 +32,9 @@ services:
   frontend:
     build: ./frontend
     container_name: lol-frontend
+    # 정적 SPA 서빙뿐 — 웹 계층만. DB 도 인터넷도 필요 없다.
+    networks:
+      - default
     mem_limit: 64m
     restart: unless-stopped
 
@@ -37,6 +45,11 @@ services:
       - "80:80"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    # egress 는 인터넷 용도가 아니라 필수 제약 때문이다: internal 망만 붙은 컨테이너는
+    # 호스트 포트를 publish 할 수 없다 → 80/443 을 열려면 비-internal 망에 반드시 연결돼 있어야 한다.
+    networks:
+      - default
+      - egress
     depends_on:
       - backend
       - frontend

@@ -1,0 +1,16 @@
+# ── 보안 오버레이: egress 잠금 ──
+# 네트워크 정의·서비스 배치는 base/prod/certbot 에 있고, 이 파일은 "잠그는" 역할만 한다.
+# internal: true = 해당 망에는 외부 라우팅이 붙지 않는다(인터넷 아웃바운드 차단 + 호스트 포트 publish 불가).
+#
+#   default 잠금 → frontend 가 인터넷으로 나갈 수 없다.
+#   data    잠금 → mysql/redis 가 인터넷으로 나갈 수 없다.
+#           ※ data 를 빠뜨리면 DB 가 egress 를 되찾는 회귀가 된다. 둘 다 잠글 것.
+#   egress  는 잠그지 않는다 — backend(Riot API)/certbot(ACME) 아웃바운드와
+#           nginx 의 80/443 publish 가 이 망에 달려 있다.
+#
+# dev(docker-compose.dev.yml)에는 이 파일을 얹지 않는다 → 개발용 호스트 포트 공개가 그대로 동작.
+networks:
+  default:
+    internal: true
+  data:
+    internal: true

@@ -25,6 +25,10 @@ services:
       - certbot-webroot:/var/www/certbot
     # 12시간마다 갱신 시도(만료 30일 이내에만 실제 갱신). webroot 방식이라 nginx 를 멈추지 않는다.
     entrypoint: /bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done'
+    # egress 만 — Let's Encrypt ACME 아웃바운드가 필요하고, nginx 와는 볼륨(webroot/인증서)으로만 통신한다.
+    # internal 망에 가두면 갱신이 죽는다.
+    networks:
+      - egress
     restart: unless-stopped
 
 volumes:
