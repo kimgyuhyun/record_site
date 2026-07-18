@@ -13,8 +13,10 @@ spring:
     # UTC 로 바꾸면 이 왕복 보정이 깨져 기존 행이 9시간 미래로 노출된다(댓글 시간이 '방금 전'으로 뜨는 버그의 원인이었음).
     # 시각의 UTC 계약은 애플리케이션 경계에서 보장한다: JVM 기본 TZ=UTC(BackendApplication) + 응답 직렬화에 'Z'(JacksonTimeConfig).
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3307}/loldb?characterEncoding=UTF-8&serverTimezone=Asia/Seoul&useServerPrepStmts=false
-    username: root
-    password: ${DB_PASSWORD}
+    # 런타임 계정은 DML(SELECT/INSERT/UPDATE/DELETE)만 가진 loldb_app 이다 — 스키마를 못 바꾼다.
+    # dev 는 변수 미지정 시 예전처럼 root + DB_PASSWORD 로 폴백해 그대로 동작한다.
+    username: ${DB_APP_USER:root}
+    password: ${DB_APP_PASSWORD:${DB_PASSWORD}}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   # Redis 캐시. REDIS_HOST 미지정 시 localhost. 컨테이너 배포 시 REDIS_HOST=redis 로 주입한다.
@@ -22,6 +24,10 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      # 운영 Redis 는 requirepass 를 건다. 캐시(CacheConfig)와 전적갱신 작업큐(BRPOP)가
+      # 같은 자동설정 커넥션 팩토리를 공유하므로 이 한 줄이 두 경로 모두에 적용된다.
+      # dev(무인증)는 빈 값이 기본 — 빈 password 는 AUTH 를 보내지 않는다.
+      password: ${REDIS_PASSWORD:}
       # Redis 는 캐시 용도로만 쓴다(Repository 저장소 아님). JPA 리포지토리를 Redis 로 오인 스캔하지 않게 끔.
       repositories:
         enabled: false
@@ -35,6 +41,11 @@ spring:
     show-sql: true
   flyway:
     enabled: true
+    # Flyway 만 DDL 가능 계정으로 접속한다(datasource 는 DML 전용이라 마이그레이션을 실행할 수 없다).
+    # url 을 따로 주지 않으면 Spring Boot 가 위 datasource 의 url 에 이 자격증명만 바꿔 별도 DataSource 를 만든다.
+    # 이 계정에는 DDL 뿐 아니라 DML 도 필요하다 — flyway_schema_history 에 이력을 기록해야 하기 때문.
+    user: ${DB_MIGRATE_USER:${DB_APP_USER:root}}
+    password: ${DB_MIGRATE_PASSWORD:${DB_APP_PASSWORD:${DB_PASSWORD}}}
     # V1__init_schema 가 현재 전체 스키마를 만든다(엔티티 기준 Hibernate DDL 을 떠온 것). 따라서 빈 DB(신규 배포·CI)는
     # V1 부터 적용해 그대로 부팅된다. baseline-on-migrate 는 "이미 테이블이 있고 이력만 없는" 기존 DB 를 채택할 때만 의미.
     baseline-on-migrate: true
