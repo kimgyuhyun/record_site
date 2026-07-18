@@ -5,9 +5,13 @@ import com.recordsite.backend.dto.ChampionTipPageResponse;
 import com.recordsite.backend.dto.ChampionTipResponse;
 import com.recordsite.backend.dto.ChampionTipUpdateRequest;
 import com.recordsite.backend.entity.ChampionTip;
+import com.recordsite.backend.entity.ChampionTipInteraction;
+import com.recordsite.backend.entity.TipInteractionType;
+import com.recordsite.backend.repository.ChampionTipInteractionRepository;
 import com.recordsite.backend.repository.ChampionTipRepository;
 import com.recordsite.backend.support.TipPasswordEncoder;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -28,6 +32,7 @@ public class ChampionTipService {
     private static final String DEFAULT_LANGUAGE = "한국어";
 
     private final ChampionTipRepository championTipRepository;
+    private final ChampionTipInteractionRepository interactionRepository;
     private final TipPasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
@@ -82,20 +87,39 @@ public class ChampionTipService {
     }
 
     @Transactional
-    public void vote(Long tipId, String direction) {
+    public void vote(Long tipId, String direction, String actorKey) {
         ChampionTip tip = findOrThrow(tipId);
+        if (!"UP".equalsIgnoreCase(direction) && !"DOWN".equalsIgnoreCase(direction)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "direction 은 UP 또는 DOWN 이어야 합니다.");
+        }
+        recordInteractionOrThrow(tipId, actorKey, TipInteractionType.VOTE, "이미 이 팁에 투표했습니다.");
+
         if ("UP".equalsIgnoreCase(direction)) {
             tip.upvote();
-        } else if ("DOWN".equalsIgnoreCase(direction)) {
-            tip.downvote();
         } else {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "direction 은 UP 또는 DOWN 이어야 합니다.");
+            tip.downvote();
         }
     }
 
     @Transactional
-    public void report(Long tipId) {
-        findOrThrow(tipId).report();
+    public void report(Long tipId, String actorKey) {
+        ChampionTip tip = findOrThrow(tipId);
+        recordInteractionOrThrow(tipId, actorKey, TipInteractionType.REPORT, "이미 이 팁을 신고했습니다.");
+        tip.report();
+    }
+
+    // 1인 1회 제약. 조회 후 저장 사이의 경합은 유니크 제약이 막고, 그때 터지는
+    // DataIntegrityViolationException 도 같은 409 로 변환해 응답을 일관되게 유지한다.
+    private void recordInteractionOrThrow(Long tipId, String actorKey,
+                                          TipInteractionType type, String duplicateMessage) {
+        if (interactionRepository.existsByTipIdAndActorKeyAndInteractionType(tipId, actorKey, type)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, duplicateMessage);
+        }
+        try {
+            interactionRepository.saveAndFlush(ChampionTipInteraction.of(tipId, actorKey, type));
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, duplicateMessage);
+        }
     }
 
     private ChampionTip findOrThrow(Long tipId) {

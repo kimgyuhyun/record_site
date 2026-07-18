@@ -9,7 +9,8 @@ import { timeAgo } from '../../utils/datetime';
 /*
  * 챔피언 운영 팁 게시판(코멘트) — 챔피언 상세 페이지 하단.
  * op.gg 챔피언 팁처럼 로그인 없이 닉네임으로 한 줄 팁을 남기고 추천/비추천·신고가 달린다. 대댓글은 없다.
- * 중복 투표는 localStorage 로 브라우저 단위로만 막는다(계정이 없어 완벽한 차단은 아님).
+ * 중복 투표/신고는 서버가 IP 해시 기준으로 팁당 1회만 허용한다(거절 시 409).
+ * 여기 localStorage 는 그 위에 얹은 UI 편의 장치일 뿐이다 — 지우면 우회되므로 방어로 믿지 말 것.
  */
 
 const C = {
@@ -146,7 +147,10 @@ export default function ChampionTips({ championId, championName }) {
   const report = async (tip) => {
     if (!window.confirm('이 팁을 신고할까요?')) return;
     try { await reportChampionTip(tip.id); alert('신고했습니다.'); }
-    catch { alert('신고에 실패했습니다.'); }
+    catch (e) {
+      // 409 = 서버가 같은 사람의 중복 신고를 거절한 것. "실패"로 뭉뚱그리면 계속 재시도하게 된다.
+      alert(e?.response?.status === 409 ? '이미 신고한 팁입니다.' : '신고에 실패했습니다.');
+    }
   };
 
   const remove = async (tip) => {
