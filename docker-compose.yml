@@ -2,13 +2,14 @@
 # 단독으로 쓰지 않고 dev/prod override 와 함께 사용한다.
 #   개발: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 #   배포: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-# (DB 비밀번호: 루트 .env 의 DB_PASSWORD 하나로 mysql·backend 가 공유한다 — 기본 1234)
+# (DB_PASSWORD = MySQL root 비밀번호. 기본값 폴백을 없앴으므로 루트 .env 에 반드시 정의해야 한다.
+#  약한 기본값 1234 로 조용히 기동되던 사고를 막기 위한 것 — dev 도 .env 파일이 필요하다.)
 services:
   mysql:
     image: mysql:8.0
     container_name: lol-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-1234}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD required}
       MYSQL_DATABASE: loldb
     command: --innodb-buffer-pool-size=256M
     # data 망에만 둔다 — 웹 계층(nginx/frontend)에서 직접 도달 불가, 인터넷 egress 도 불가.
@@ -17,7 +18,7 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_PASSWORD:-1234}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_PASSWORD:?DB_PASSWORD required}"]
       interval: 10s
       timeout: 5s
       retries: 10

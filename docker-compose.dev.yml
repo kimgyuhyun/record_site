@@ -2,6 +2,12 @@
 # backend 는 IDE 에서, frontend 는 `npm run dev` 로 실행하며 localhost 로 이 인프라에 붙는다.
 # (application.yaml 기본값이 localhost:3307 / localhost:6379 라 추가 설정 없이 그대로 붙음)
 #
+# dev 자격증명 메모:
+#  - 루트 .env 에 DB_PASSWORD 가 반드시 있어야 한다(base 에서 1234 폴백을 제거했다).
+#  - dev redis 는 base 의 무인증 command 를 그대로 쓴다(requirepass 는 prod override 에만 있음).
+#    localhost 바인딩 전용이라 인증 없이 두고, 앱도 REDIS_PASSWORD 빈 값이 기본이라 그대로 붙는다.
+#  - dev DB 계정은 예전처럼 root — DB_APP_USER/DB_MIGRATE_USER 미지정 시 root 로 폴백한다.
+#
 #   기동: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 #   종료: docker compose -f docker-compose.yml -f docker-compose.dev.yml down
 services:
