@@ -1,0 +1,91 @@
+# ── 보안 오버레이: 컨테이너 런타임 하드닝 ──
+# 전 서비스 공통: no-new-privileges(setuid 바이너리로 권한 상승 금지) + cap_drop ALL 후
+# 서비스별로 기동에 실제 필요한 capability 만 되살린다. cap 목록은 추측이 아니라
+# 각 이미지를 cap_drop ALL 로 띄워보고 확정한 값이다(근거는 서비스별 주석).
+#
+# cpus: 는 상한이다(예약이 아님). 서버는 2 vCPU 라 합이 2 를 넘어도 되며,
+# 한 컨테이너가 CPU 를 독점해 나머지를 굶기는 상황만 막는다. mem_limit 은 기존 파일에 이미 있다.
+#
+# 사용: 운영 compose 세트 맨 뒤에 얹는다(scripts/deploy.sh 의 COMPOSE 배열 참고).
+services:
+  mysql:
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      # entrypoint 가 데이터 디렉터리를 만들고 소유권을 바꾼 뒤 mysql 유저로 강등한다.
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETUID
+      - SETGID
+    # read_only 는 적용하지 않는다 — 데이터 볼륨 외에도 소켓/pid/tmp 를 데이터 디렉터리 주변에 쓴다.
+    cpus: 1.0
+
+  redis:
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      # redis 유저로 강등하는 데만 필요하다(그 외 특권 동작 없음).
+      - SETUID
+      - SETGID
+    cpus: 0.5
+
+  backend:
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL          # JVM 은 특권 동작이 없다 — 하나도 되살릴 필요가 없었다.
+    read_only: true
+    tmpfs:
+      # Java 가 쓰는 경로는 /tmp 뿐(hsperfdata, 톰캣 임시 디렉터리).
+      - /tmp:noexec,nosuid,nodev
+    cpus: 1.5
+
+  frontend:
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      # 80 바인딩 + master 가 worker 를 nginx 유저로 띄우는 데 필요.
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETUID
+      - SETGID
+    # 정적 파일만 서빙하므로 파일시스템 전체를 읽기 전용으로 잠근다.
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,nodev
+      - /var/cache/nginx:noexec,nosuid,nodev
+      - /var/run:noexec,nosuid,nodev
+    cpus: 0.25
+
+  nginx:
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETUID
+      - SETGID
+    # 엣지 nginx 는 read_only 를 적용하지 않는다: certbot 이 갱신한 인증서를 반영하려고
+    # 6시간마다 `nginx -s reload` 를 돌리는데, reload 는 /var/run 등에 써야 한다.
+    # (frontend 처럼 tmpfs 로 덮으면 되지만, 인증서 갱신 경로를 건드리는 위험 대비 이득이 적다.)
+    #
+    # 비root 전환도 하지 않는다 — nginx 공식 이미지는 master 프로세스가 root 인 것을 전제로
+    # 설계돼 있다(80/443 바인딩 후 worker 를 nginx 유저로 강등). 무리하게 USER 를 바꾸면
+    # 이미지가 제공하는 entrypoint 스크립트들이 깨진다. 대신 cap 최소화로 대체한다.
+    cpus: 0.5
+
+  certbot:
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL          # 인증서 파일 쓰기는 볼륨 소유권(root)으로 충분하다 — cap 불필요.
+    cpus: 0.25
