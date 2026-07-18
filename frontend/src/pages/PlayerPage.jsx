@@ -27,6 +27,9 @@ export default function PlayerPage() {
 
   const [summoner,   setSummoner]   = useState(null);
   const [matchList,  setMatchList]  = useState([]);
+  const [page,       setPage]       = useState(0);     // 마지막으로 불러온 전적 페이지 번호
+  const [hasMore,    setHasMore]    = useState(false); // 백엔드에 다음 페이지가 남았는지
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error,      setError]      = useState('');
@@ -72,6 +75,8 @@ export default function PlayerPage() {
     setError('');
     setSummoner(null);
     setMatchList([]);
+    setPage(0);
+    setHasMore(false);
     // 다른 소환사로 이동 시 이전 소환사의 쿨다운이 남지 않도록 초기화
     if (cooldownTimer.current) clearInterval(cooldownTimer.current);
     setCooldown(0);
@@ -83,11 +88,31 @@ export default function PlayerPage() {
 
       const matchRes = await getMatches(sumRes.data.puuid);
       setMatchList(matchRes.data?.content || []);
+      setPage(0);
+      setHasMore(!(matchRes.data?.last ?? true));
     } catch (err) {
       console.error(err);
       setError('소환사를 찾을 수 없습니다. 이름과 태그를 확인하세요.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // "더 보기" — 다음 페이지 전적을 받아 기존 목록 뒤에 이어붙인다.
+  const handleLoadMore = async () => {
+    if (!summoner?.puuid || loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const res = await getMatches(summoner.puuid, nextPage);
+      setMatchList(prev => [...prev, ...(res.data?.content || [])]);
+      setPage(nextPage);
+      setHasMore(!(res.data?.last ?? true));
+    } catch (err) {
+      console.error(err);
+      setError('전적을 더 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -145,6 +170,8 @@ export default function PlayerPage() {
       const matchRes = await getMatches(sumRes.data.puuid);
       setSummoner(sumRes.data);
       setMatchList(matchRes.data?.content || []);
+      setPage(0);
+      setHasMore(!(matchRes.data?.last ?? true));
       startCooldownTimer(180);
     } catch (err) {
       console.error(err);
@@ -209,6 +236,9 @@ export default function PlayerPage() {
       onRefresh={handleRefresh}
       refreshing={refreshing}
       cooldown={cooldown}
+      onLoadMore={handleLoadMore}
+      hasMore={hasMore}
+      loadingMore={loadingMore}
     />
   );
 }

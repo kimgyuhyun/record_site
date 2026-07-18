@@ -1,8 +1,8 @@
 import apiClient from './client';
 
-// 매치 목록 조회
-export const getMatches = (puuid) =>
-  apiClient.get('/api/matches', { params: { puuid } });
+// 매치 목록 조회 (page/size 미지정 시 백엔드 기본 page=0, size=20)
+export const getMatches = (puuid, page = 0, size = 20) =>
+  apiClient.get('/api/matches', { params: { puuid, page, size } });
 
 // 매치 상세 조회
 export const getMatchSummary = (matchId) =>
