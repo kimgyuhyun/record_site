@@ -92,6 +92,13 @@ prev_frontend=$(docker inspect --format '{{.Image}}' lol-frontend 2>/dev/null ||
 
 # ── 7) 배포 (digest 고정, 서버 재빌드 금지) ──
 export BACKEND_IMAGE="$backend_digest" FRONTEND_IMAGE="$frontend_digest"
+
+# nginx 설정 내용 해시 — 값이 바뀌면 compose 가 nginx 를 재생성한다.
+# (단일 파일 bind mount 는 inode 고정이라, 파일만 바뀌면 컨테이너가 옛 내용을 계속 본다.
+#  자세한 근거는 docker-compose.prod.yml 의 NGINX_CONF_SHA 주석 참고.)
+NGINX_CONF_SHA=$(cat nginx/*.conf | sha256sum | cut -c1-16)
+export NGINX_CONF_SHA
+log "nginx conf sha → $NGINX_CONF_SHA"
 log "compose up -d --no-build"
 "${COMPOSE[@]}" up -d --no-build --remove-orphans
 
@@ -135,6 +142,19 @@ else
 fi
 
 [ "$netlock_ok" = true ] || fail "security invariant check failed (network isolation)"
+
+# ── 10) 엣지 nginx 가 "이 커밋의" 설정으로 돌고 있는지 ──
+#   위 inode 함정 때문에 설정이 반영되지 않아도 컨테이너는 멀쩡히 떠 있다(옛 설정으로).
+#   보안 헤더·레이트리밋·Host 드롭이 조용히 빠진 채 배포 성공으로 보이는 상황을 막는다.
+host_conf_sha=$(sha256sum nginx/default.https.conf | cut -c1-64)
+live_conf_sha=$(docker exec lol-nginx sha256sum /etc/nginx/conf.d/default.conf 2>/dev/null | cut -c1-64)
+if [ "$host_conf_sha" != "$live_conf_sha" ]; then
+  echo "[nginx] FAIL: edge nginx is serving a stale config" >&2
+  echo "        repo=$host_conf_sha" >&2
+  echo "        live=$live_conf_sha" >&2
+  fail "edge nginx config is stale (container did not pick up this commit's conf)"
+fi
+log "nginx conf OK: edge is running this commit's config"
 
 log "deploy OK ($TAG) — backend health UP"
 docker image prune -f >/dev/null 2>&1 || true
