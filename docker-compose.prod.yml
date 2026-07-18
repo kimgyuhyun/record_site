@@ -29,6 +29,8 @@ services:
       DB_APP_PASSWORD: ${DB_APP_PASSWORD:?DB_APP_PASSWORD required}
       DB_MIGRATE_USER: loldb_migrate
       DB_MIGRATE_PASSWORD: ${DB_MIGRATE_PASSWORD:?DB_MIGRATE_PASSWORD required}
+      # 팁 추천/신고 1인 1회 제약의 IP 해시 솔트. 값이 바뀌면 기존 이력과 매칭이 끊기므로 고정해서 쓴다.
+      TIP_ACTOR_SALT: ${TIP_ACTOR_SALT:?TIP_ACTOR_SALT required}
       JAVA_OPTS: "-Xmx512m"
     # 세 망 모두 필요: default(nginx 가 프록시) + data(mysql/redis) + egress(Riot API 아웃바운드).
     networks:
