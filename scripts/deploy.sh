@@ -16,12 +16,14 @@ FRONTEND_REPO="$REGISTRY/$OWNER/record_site-frontend"
 PROJECT_DIR="$HOME/record_site"
 BACKUP_DIR="$PROJECT_DIR/backups"
 NET=record_site_default            # compose 기본 네트워크(프로젝트명이 record_site 라서)
-# 현재 운영 스택(base+prod+certbot) + GHCR 이미지 override. 하드닝/네트워크 override 는 각 계층에서 추가한다.
+# 현재 운영 스택(base+prod+certbot) + GHCR 이미지 override + 보안 오버레이(netlock).
+# 새 오버레이를 추가하면 반드시 이 배열에도 넣어야 배포에 반영된다.
 COMPOSE=(docker compose
   -f docker-compose.yml
   -f docker-compose.prod.yml
   -f docker-compose.ghcr.yml
-  -f docker-compose.certbot.yml)
+  -f docker-compose.certbot.yml
+  -f docker-compose.netlock.yml)
 
 : "${TAG:?TAG required}"
 : "${GHCR_USER:?GHCR_USER required}"
@@ -110,6 +112,28 @@ if [ "$health_ok" != true ]; then
   fi
   fail "backend health check failed (rolled back to previous images)"
 fi
+
+# ── 9) 보안 불변식 검증: 웹 계층(frontend)의 격리 ──
+#   컨테이너 하나가 뚫려도 인터넷으로 나가거나 DB 로 옆걸음 못 하는 상태가 배포의 전제 조건이다.
+#   네트워크 오버레이가 누락/회귀되면(예: COMPOSE 배열에서 netlock 빠짐) 여기서 배포를 실패시킨다.
+#   ※ frontend 는 nginx:alpine — busybox 의 wget/nc 를 그대로 쓴다.
+netlock_ok=true
+
+if docker exec lol-frontend timeout 5 wget -q -O /dev/null http://1.1.1.1 2>/dev/null; then
+  echo "[netlock] FAIL: frontend reached the internet (1.1.1.1) — egress lock is not in effect" >&2
+  netlock_ok=false
+else
+  log "netlock OK: frontend → internet BLOCKED"
+fi
+
+if docker exec lol-frontend timeout 5 nc -z mysql 3306 2>/dev/null; then
+  echo "[netlock] FAIL: frontend reached mysql:3306 — data network is not isolated" >&2
+  netlock_ok=false
+else
+  log "netlock OK: frontend → mysql:3306 BLOCKED"
+fi
+
+[ "$netlock_ok" = true ] || fail "security invariant check failed (network isolation)"
 
 log "deploy OK ($TAG) — backend health UP"
 docker image prune -f >/dev/null 2>&1 || true

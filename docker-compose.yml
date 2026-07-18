@@ -11,6 +11,9 @@ services:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-1234}
       MYSQL_DATABASE: loldb
     command: --innodb-buffer-pool-size=256M
+    # data 망에만 둔다 — 웹 계층(nginx/frontend)에서 직접 도달 불가, 인터넷 egress 도 불가.
+    networks:
+      - data
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
@@ -26,8 +29,20 @@ services:
     container_name: lol-redis
     # 캐시 전용: 메모리 상한 + LRU 축출, 영속화 끔(꺼지면 캐시만 비워짐).
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --save ""
+    networks:
+      - data
     mem_limit: 320m
     restart: unless-stopped
+
+# ── 네트워크 2계층 분리 ──
+#   default : 웹 계층(nginx ↔ frontend ↔ backend)
+#   data    : 데이터 계층(backend ↔ mysql/redis) — 웹 계층에서 도달 불가
+#   egress  : 인터넷 아웃바운드가 필요한 서비스 전용(backend=Riot API, certbot=ACME, nginx=포트 publish)
+# default/data 의 internal 잠금은 docker-compose.netlock.yml 에서 한다(dev 는 잠그지 않아 호스트 포트 공개 유지).
+networks:
+  default:
+  data:
+  egress:
 
 volumes:
   mysql-data:
