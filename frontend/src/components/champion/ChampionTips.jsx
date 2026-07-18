@@ -130,18 +130,37 @@ export default function ChampionTips({ championId, championName }) {
   const vote = async (tip, direction) => {
     if (voted[tip.id]) return; // 이미 투표한 팁
     const delta = direction === 'UP' ? 1 : -1;
-    setTips(prev => prev.map(t => t.id === tip.id
+    const applyDelta = (sign) => setTips(prev => prev.map(t => t.id === tip.id
       ? {
           ...t,
-          upvotes: t.upvotes + (direction === 'UP' ? 1 : 0),
-          downvotes: t.downvotes + (direction === 'DOWN' ? 1 : 0),
-          score: t.score + delta,
+          upvotes: t.upvotes + (direction === 'UP' ? sign : 0),
+          downvotes: t.downvotes + (direction === 'DOWN' ? sign : 0),
+          score: t.score + delta * sign,
         }
       : t));
+
+    // 먼저 화면에 반영하고(낙관적 업데이트) 서버 응답을 기다린다.
+    applyDelta(1);
     const nextVoted = { ...voted, [tip.id]: direction };
     setVoted(nextVoted);
     saveVoted(nextVoted);
-    try { await voteChampionTip(tip.id, direction); } catch { /* 로컬 반영 유지 */ }
+
+    try {
+      await voteChampionTip(tip.id, direction);
+    } catch (e) {
+      // 409 = 이 사람은 이미 이 팁에 투표했다는 뜻. 서버에 표가 남아 있으므로
+      // 투표한 상태로 두는 것이 맞다(localStorage 를 지우고 다시 누른 경우).
+      if (e?.response?.status === 409) return;
+
+      // 그 외(네트워크 끊김·서버 오류)는 표가 실제로 안 들어갔다.
+      // 낙관적 업데이트를 되돌리지 않으면 사용자는 투표된 줄 알고 다시 시도하지 않는다.
+      applyDelta(-1);
+      const rolledBack = { ...voted };
+      delete rolledBack[tip.id];
+      setVoted(rolledBack);
+      saveVoted(rolledBack);
+      alert('투표에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    }
   };
 
   const report = async (tip) => {
