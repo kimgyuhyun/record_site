@@ -23,7 +23,8 @@ COMPOSE=(docker compose
   -f docker-compose.prod.yml
   -f docker-compose.ghcr.yml
   -f docker-compose.certbot.yml
-  -f docker-compose.netlock.yml)
+  -f docker-compose.netlock.yml
+  -f docker-compose.hardening.yml)
 
 : "${TAG:?TAG required}"
 : "${GHCR_USER:?GHCR_USER required}"

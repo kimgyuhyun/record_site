@@ -20,5 +20,13 @@ WORKDIR /app
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0"
 
 COPY --from=build /app/build/libs/*.jar app.jar
+
+# 비root 실행 — 컨테이너가 뚫려도 root 권한을 얻지 못하게 한다.
+# 시스템 계정(로그인 불가)으로 만들고, jar 은 읽기만 하면 되므로 소유권은 root 로 남긴다.
+# compose 에서 read_only + tmpfs /tmp 로 띄우므로 앱이 쓰는 경로는 /tmp 뿐이어야 한다.
+RUN groupadd --system --gid 10001 appuser \
+ && useradd --system --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin appuser
+USER appuser
+
 EXPOSE 8080
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
