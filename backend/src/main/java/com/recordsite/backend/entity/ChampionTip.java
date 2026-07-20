@@ -80,13 +80,7 @@ public class ChampionTip {
         return new ChampionTip(championId, nickname, content, patchVersion, language, passwordHash);
     }
 
-    public void upvote() {
-        this.upvotes++;
-    }
-
-    public void downvote() {
-        this.downvotes++;
-    }
+    // 추천/비추천 증가는 동시 요청의 증가분 유실을 막으려고 리포지토리의 UPDATE 쿼리로 처리한다(엔티티에 증가 메서드 없음).
 
     public void report() {
         this.reportCount++;

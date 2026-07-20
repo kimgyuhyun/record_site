@@ -86,24 +86,33 @@ public class ChampionTipService {
         championTipRepository.delete(tip);
     }
 
+    // 1인 1회 제약은 같은 사람의 중복만 막는다. 서로 다른 사람이 동시에 누르는 경합은 따로 막아야 한다 —
+    // 엔티티를 읽어 올려 +1 하면 둘 다 같은 값을 읽고 같은 값을 써서 증가분이 유실된다(Lost Update).
+    // 그래서 카운터는 DB 에서 바로 증가시킨다. 팁이 없으면 갱신 행 수가 0 이다.
+    // 증가를 기록보다 먼저 하는 이유: 먼저 기록하면 자식 행 INSERT 가 부모에 공유 잠금을 잡은 뒤
+    // 카운터 UPDATE 가 배타 잠금으로 올라가야 해서, 동시 요청끼리 잠금 승격 교착이 날 수 있다.
     @Transactional
     public void vote(Long tipId, String direction, String actorKey) {
-        ChampionTip tip = findOrThrow(tipId);
-        if (!"UP".equalsIgnoreCase(direction) && !"DOWN".equalsIgnoreCase(direction)) {
+        int updated;
+        if ("UP".equalsIgnoreCase(direction)) {
+            updated = championTipRepository.increaseUpvotes(tipId);
+        } else if ("DOWN".equalsIgnoreCase(direction)) {
+            updated = championTipRepository.increaseDownvotes(tipId);
+        } else {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "direction 은 UP 또는 DOWN 이어야 합니다.");
         }
-        recordInteractionOrThrow(tipId, actorKey, TipInteractionType.VOTE, "이미 이 팁에 투표했습니다.");
-
-        if ("UP".equalsIgnoreCase(direction)) {
-            tip.upvote();
-        } else {
-            tip.downvote();
+        if (updated == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "팁을 찾을 수 없습니다.");
         }
+        // 중복이면 여기서 409 가 나고 위의 증가까지 같은 트랜잭션으로 롤백된다.
+        recordInteractionOrThrow(tipId, actorKey, TipInteractionType.VOTE, "이미 이 팁에 투표했습니다.");
     }
 
+    // 신고는 숨김 임계값 판정이 엔티티에 있어 읽고 써야 한다. 행을 잠가 동시 신고를 직렬화한다.
     @Transactional
     public void report(Long tipId, String actorKey) {
-        ChampionTip tip = findOrThrow(tipId);
+        ChampionTip tip = championTipRepository.findByIdForUpdate(tipId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "팁을 찾을 수 없습니다."));
         recordInteractionOrThrow(tipId, actorKey, TipInteractionType.REPORT, "이미 이 팁을 신고했습니다.");
         tip.report();
     }
