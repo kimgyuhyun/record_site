@@ -34,7 +34,7 @@ OP.GG 스타일의 전적 사이트 기능을 직접 구현했습니다.
 - **Flyway** — DB 스키마 마이그레이션(MySQL)
 - **Redis** — 캐시(Spring Cache) + 전적 갱신 작업 큐
 - **MySQL 8.0**
-- Spring Boot Actuator (health), spring-dotenv, Lombok
+- Spring Boot Actuator (health) + **Micrometer** Prometheus 메트릭, spring-dotenv, Lombok
 
 ### Frontend
 - **React 19** + **Vite 7**
@@ -48,6 +48,7 @@ OP.GG 스타일의 전적 사이트 기능을 직접 구현했습니다.
 - **GitHub Actions** CI/CD → **GHCR**(GitHub Container Registry) 비공개 이미지
 - **arm64 네이티브 빌드**(GitHub-hosted ARM 러너 — 서버 aarch64 와 동일 아키텍처)
 - **Trivy** 이미지 취약점 스캔, **Certbot**(Let's Encrypt) HTTPS
+- **Prometheus + Grafana + Loki** 관측성(별도 오버레이로 얹었다 뗐다 — 아래 [모니터링](#모니터링-관측성) 참고)
 
 ---
 
@@ -257,6 +258,26 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
 > HTTPS 설정: [`docs/https-setup.md`](docs/https-setup.md)
+
+---
+
+## 모니터링 (관측성)
+
+배포한 서비스가 잘 돌고 있는지 눈으로 확인하려고 **Prometheus + Grafana + Loki** 를 붙여봤습니다.
+기존 스택은 건드리지 않도록 별도 오버레이(`docker-compose.monitoring.yml`)로 분리해서, 필요할 때만 얹었다 뗐다 할 수 있게 했습니다.
+
+- **메트릭** — 백엔드가 Micrometer 로 `/actuator/prometheus` 에 지표를 내보내고 Prometheus 가 주기적으로 수집합니다.
+- **로그** — 앱은 stdout 에 로그만 찍고, promtail 이 컨테이너 로그를 모아 Loki 로 보냅니다(앱 코드는 로그 전송을 몰라도 되도록 분리했습니다).
+- **대시보드** — 프로비저닝으로 부팅 시 자동 로드됩니다. 요청량 · 에러율 · 응답시간(p50/p95/p99), JVM 힙 · GC · 스레드, HikariCP 커넥션 풀, Riot API 호출 지연 · 429, 팁 투표 동시성(중복 차단)을 한 화면에 모았습니다.
+- **알림 규칙**(`monitoring/prometheus/alerts.yml`) — 5xx 에러율 · p99 지연 · 힙 사용률 · DB 커넥션 대기 · Riot 429 · 백엔드 다운을 Prometheus 규칙으로 감시합니다.
+
+Prometheus · Grafana · Loki 는 전부 `127.0.0.1` 루프백으로만 열어 외부에는 노출하지 않았고, 원격에서 볼 때는 SSH 터널로 붙습니다.
+
+```bash
+# 기존 스택 위에 모니터링만 얹기
+docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.monitoring.yml \
+  up -d --no-deps prometheus grafana loki promtail
+```
 
 ---
 
