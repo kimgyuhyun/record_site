@@ -29,6 +29,10 @@ services:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus-data:/prometheus
+    ports:
+      # 로컬(호스트)에서만 접근 — 타깃 UP·PromQL 디버깅용 네이티브 UI. 원격은 SSH 터널(-L 9090:127.0.0.1:9090).
+      # 외부 비노출: 127.0.0.1 바인딩이라 인터넷에서 도달 불가.
+      - "127.0.0.1:9090:9090"
     networks:
       - default      # backend:8080 스크레이프용(웹 계층)
       - monitoring   # grafana 가 조회
@@ -50,6 +54,8 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_ANALYTICS_REPORTING_ENABLED: "false"
+      # 시작 시 최신버전 확인 요청(update.grafana.org)도 끈다 — 내부망 전용이라 외부 호출을 남기지 않는다.
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
       # 슬림: 알림은 Prometheus 규칙(alerts.yml)으로 하므로 Grafana 자체 알림 엔진을 꺼 메모리/평가루프를 줄인다.
       GF_ALERTING_ENABLED: "false"
       GF_UNIFIED_ALERTING_ENABLED: "false"
@@ -79,6 +85,10 @@ services:
     volumes:
       - ./monitoring/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
       - loki-data:/loki
+    ports:
+      # 로컬에서만 접근 — Grafana 없이 LogQL 직접 질의/디버깅용. 원격은 SSH 터널(-L 3100:127.0.0.1:3100).
+      # 외부 비노출: 127.0.0.1 바인딩. 로그 수집은 promtail 이 monitoring 망 내부로 push 하므로 이 포트와 무관.
+      - "127.0.0.1:3100:3100"
     networks:
       - monitoring
     security_opt:

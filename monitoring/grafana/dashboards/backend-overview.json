@@ -194,15 +194,47 @@
       ]
     },
     {
+      "type": "timeseries",
+      "title": "Process CPU usage",
+      "description": "JVM 프로세스가 쓰는 CPU 비율(0~1). 호스트 전체가 아니라 이 컨테이너 관점.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 40 },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "legendFormat": "process cpu", "expr": "process_cpu_usage{job=\"spring-backend\"}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "JVM live threads",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 40 },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "legendFormat": "live", "expr": "jvm_threads_live_threads{job=\"spring-backend\"}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "GC pause (초당 멈춤 시간)",
+      "description": "초당 GC 로 멈춘 총 시간. 값이 치솟으면 힙 압박·긴 STW → 지연 스파이크 원인.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 40 },
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "legendFormat": "{{action}}", "expr": "sum by (action) (rate(jvm_gc_pause_seconds_sum[1m]))" }
+      ]
+    },
+    {
       "type": "row",
       "title": "Logs (Loki)",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 40 }
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 48 }
     },
     {
       "type": "logs",
       "title": "backend logs",
       "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 41 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 49 },
       "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending", "enableLogDetails": true },
       "targets": [
         { "refId": "A", "expr": "{container=\"lol-backend\"}" }

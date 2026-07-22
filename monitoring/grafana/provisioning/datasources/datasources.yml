@@ -7,9 +7,12 @@ datasources:
     access: proxy
     url: http://prometheus:9090
     isDefault: true
+    # 코드가 진실의 원천 — UI 에서 손으로 못 바꾸게 잠근다(프로비저닝 파일로만 변경).
+    editable: false
 
   - name: Loki
     uid: loki
     type: loki
     access: proxy
     url: http://loki:3100
+    editable: false
