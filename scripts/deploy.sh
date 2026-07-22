@@ -105,6 +105,15 @@ log "nginx conf sha → $NGINX_CONF_SHA"
 log "compose up -d --no-build"
 "${COMPOSE[@]}" up -d --no-build --remove-orphans
 
+# ── 7-b) 엣지 nginx 업스트림 재해석 ──
+#   nginx 는 upstream 호스트명(backend/frontend)을 "기동 시 1회만" IP 로 해석해 캐싱한다.
+#   그런데 배포마다 backend/frontend 는 새 이미지로 재생성되며 IP 가 바뀔 수 있고,
+#   nginx 는 conf 가 그대로면(NGINX_CONF_SHA 동일) 재생성되지 않아 옛 IP 를 계속 붙든다
+#   → 엣지가 죽은 IP 로 프록시해 502(Bad Gateway). health 체크는 backend:8080 직결이라 이걸 놓친다.
+#   그래서 up 직후 nginx 를 재기동해 현재 IP 로 다시 해석시킨다(이 시점엔 upstream 이 이미 떠 있어 해석 성공).
+log "restart edge nginx to re-resolve upstream IPs"
+docker restart lol-nginx >/dev/null
+
 # ── 8) 배포 후 검증: 백엔드 health UP (내부망 원샷 컨테이너) ──
 #   JRE 이미지엔 curl 이 없어, 이미 받아둔 nginx:alpine 의 busybox wget 을 재사용한다.
 health_ok=false
