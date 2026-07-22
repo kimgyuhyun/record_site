@@ -16,15 +16,18 @@ FRONTEND_REPO="$REGISTRY/$OWNER/record_site-frontend"
 PROJECT_DIR="$HOME/record_site"
 BACKUP_DIR="$PROJECT_DIR/backups"
 NET=record_site_default            # compose 기본 네트워크(프로젝트명이 record_site 라서)
-# 현재 운영 스택(base+prod+certbot) + GHCR 이미지 override + 보안 오버레이(netlock).
+# 현재 운영 스택(base+prod+certbot) + GHCR 이미지 override + 보안 오버레이(netlock/hardening) + 관측성(monitoring).
 # 새 오버레이를 추가하면 반드시 이 배열에도 넣어야 배포에 반영된다.
+# monitoring 은 맨 뒤에 둔다 — 보안 오버레이 값을 덮지 않고, 자신의 추가분(backend env·새 서비스)만 얹는다.
+# (monitoring 이 배열에 있어야 --remove-orphans 가 관측 컨테이너를 orphan 으로 지우지 않는다.)
 COMPOSE=(docker compose
   -f docker-compose.yml
   -f docker-compose.prod.yml
   -f docker-compose.ghcr.yml
   -f docker-compose.certbot.yml
   -f docker-compose.netlock.yml
-  -f docker-compose.hardening.yml)
+  -f docker-compose.hardening.yml
+  -f docker-compose.monitoring.yml)
 
 : "${TAG:?TAG required}"
 : "${GHCR_USER:?GHCR_USER required}"
