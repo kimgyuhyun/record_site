@@ -1,0 +1,15 @@
+# Grafana 데이터소스 자동 프로비저닝 — UI 에서 손으로 추가할 필요 없이 부팅 시 등록된다.
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://loki:3100

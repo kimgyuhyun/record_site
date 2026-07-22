@@ -1,0 +1,24 @@
+# Prometheus 스크레이프 설정. backend 의 Micrometer 메트릭을 pull 한다.
+# 슬림 구성: 30초 간격 — 단일 호스트에서 TSDB 쓰기량/CPU 를 절반으로 줄인다(포트폴리오 해상도로 충분).
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+# 알림 규칙 파일(에러율/지연/힙/레이트리밋). Alertmanager 는 이 예제에 포함하지 않았고,
+# 규칙 평가 결과는 Prometheus UI 의 Alerts 탭과 Grafana 에서 확인한다(포트폴리오 범위).
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  # Spring Boot backend — 컨테이너 이름이 아니라 compose 서비스명(backend)으로 DNS 해석된다.
+  - job_name: spring-backend
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['backend:8080']
+        labels:
+          service: lol-backend
+
+  # Prometheus 자기 자신(스크레이프 지연/규칙 평가 상태 모니터링용).
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']

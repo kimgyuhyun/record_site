@@ -1,0 +1,121 @@
+# 관측성(Observability) override — 메트릭(Prometheus+Grafana)과 로그(Loki+Promtail)를 얹는다.
+# ⚠️ backend 가 "컨테이너"로 떠 있어야 한다(Prometheus 가 compose 서비스명 backend:8080 을 스크레이프하고,
+#    Promtail 이 Docker 소켓으로 그 로그를 수집하기 때문). 따라서 prod override 위에 함께 올린다.
+#    (dev 는 backend 를 IDE 에서 돌려 컨테이너가 아니므로 이 조합을 쓰지 않는다.)
+#   기동:  docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d --build
+#   종료:  docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.monitoring.yml down
+#
+# 데이터 흐름
+#   [메트릭] backend:8080/actuator/prometheus  ──scrape──▶ prometheus ──query──▶ grafana
+#   [로그]   컨테이너 stdout(JSON)  ──docker.sock──▶ promtail ──push──▶ loki ──query──▶ grafana
+#
+# 노출 원칙: Grafana UI 만 127.0.0.1(로컬)로 연다. prometheus/loki/promtail 은 monitoring 망 내부 전용.
+# backend 스크레이프는 default 망(웹 계층)으로 내부에서만 도달한다 — /actuator 는 edge nginx 가 프록시하지 않음.
+services:
+  # 구조화(JSON) 로깅을 켠다 — Loki 에서 level/logger 를 필드로 쿼리하기 위함(dev 콘솔은 기본 포맷 유지 목적상 여기서만 켠다).
+  backend:
+    environment:
+      LOGGING_STRUCTURED_FORMAT_CONSOLE: logstash
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: lol-prometheus
+    command:
+      # 슬림 구성: 보관 7일 + TSDB 512MB 상한(둘 중 먼저 걸리는 쪽으로 오래된 블록 삭제).
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+      - --storage.tsdb.retention.size=512MB
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - default      # backend:8080 스크레이프용(웹 계층)
+      - monitoring   # grafana 가 조회
+    # 하드닝 — 관측 스택도 앱 컨테이너와 같은 규율을 따른다(특권 동작 없어 cap 전부 제거).
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 256m
+    cpus: 0.4
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: lol-grafana
+    environment:
+      # 관리자 계정. .env 에 GRAFANA_ADMIN_PASSWORD 를 두면 그 값을, 없으면 dev 기본값(admin)을 쓴다 — 운영은 반드시 지정할 것.
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      # 슬림: 알림은 Prometheus 규칙(alerts.yml)으로 하므로 Grafana 자체 알림 엔진을 꺼 메모리/평가루프를 줄인다.
+      GF_ALERTING_ENABLED: "false"
+      GF_UNIFIED_ALERTING_ENABLED: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3001:3000"   # 로컬에서만 접근(외부 비노출). 원격은 SSH 터널로 붙는다.
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
+      - loki
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 192m
+    cpus: 0.5
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.1.1
+    container_name: lol-loki
+    command: -config.file=/etc/loki/loki-config.yml
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki-data:/loki
+    networks:
+      - monitoring
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 192m
+    cpus: 0.4
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.1.1
+    container_name: lol-promtail
+    command: -config.file=/etc/promtail/promtail-config.yml
+    volumes:
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      # 컨테이너 로그 수집용 Docker 소켓(읽기 전용). 소켓 노출은 위험하므로 :ro 로 최소화한다.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - monitoring
+    depends_on:
+      - loki
+    # 소켓은 root 소유 rw 라 owner 권한으로 읽으므로 cap 은 필요 없다. 소켓은 :ro 로 최소화.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 96m
+    cpus: 0.25
+    restart: unless-stopped
+
+# monitoring 은 관측 스택 내부 통신 + Grafana 포트 publish 전용(비-internal).
+# prometheus/promtail 은 여기에 더해 default(웹) 망에도 붙어 backend/컨테이너에 도달한다.
+networks:
+  monitoring:
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  loki-data:

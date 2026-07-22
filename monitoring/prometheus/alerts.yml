@@ -1,0 +1,72 @@
+# RED(Rate·Errors·Duration) + 리소스 기반 알림 규칙.
+# 메트릭 이름은 Micrometer→Prometheus 변환 결과다(점→언더스코어, Timer→_seconds_*, Counter→_total).
+groups:
+  - name: backend-red
+    rules:
+      # 에러율: 최근 5분 전체 요청 중 5xx 비율이 5% 초과.
+      - alert: HighHttp5xxRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+            / sum(rate(http_server_requests_seconds_count[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "backend 5xx 에러율 5% 초과"
+          description: "최근 5분 5xx 비율 {{ $value | humanizePercentage }}."
+
+      # 지연(Duration): 전체 요청 p99 가 1초 초과. 히스토그램 버킷으로 계산한다.
+      - alert: HighRequestLatencyP99
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le) (rate(http_server_requests_seconds_bucket[5m]))) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "backend 요청 p99 지연 1초 초과"
+          description: "최근 5분 p99 = {{ $value | humanizeDuration }}."
+
+      # JVM 힙 압박: 사용/최대 90% 초과가 지속되면 GC 폭주·OOM 위험.
+      - alert: JvmHeapPressure
+        expr: |
+          sum(jvm_memory_used_bytes{area="heap"})
+            / sum(jvm_memory_max_bytes{area="heap"}) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM 힙 사용률 90% 초과"
+          description: "힙 사용률 {{ $value | humanizePercentage }}."
+
+      # HikariCP 커넥션 고갈: 대기 스레드가 발생하면 pending 이 0 초과.
+      - alert: DbConnectionPoolExhausted
+        expr: hikaricp_connections_pending > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DB 커넥션 풀 대기 발생"
+          description: "커넥션을 기다리는 스레드 {{ $value }} 개."
+
+      # Riot 레이트리밋 초과: 리미터가 뚫려 429 를 받는 중(정상 운영이면 0 이어야 한다).
+      - alert: RiotApiRateLimited
+        expr: rate(riot_api_rate_limited_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Riot API 429(레이트리밋) 발생"
+          description: "최근 5분 429 발생률 {{ $value }} /s — 리미터 한도 재점검 필요."
+
+  - name: backend-availability
+    rules:
+      # 스크레이프 실패 = 앱 다운 또는 네트워크 단절.
+      - alert: BackendDown
+        expr: up{job="spring-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "backend 스크레이프 실패(다운 의심)"
+          description: "1분간 /actuator/prometheus 응답 없음."

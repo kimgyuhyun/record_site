@@ -1,0 +1,39 @@
+# Promtail — Docker 소켓으로 컨테이너를 발견하고 각 stdout 로그를 Loki 로 push 한다.
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: warn
+
+positions:
+  # 읽은 오프셋 저장. 컨테이너는 read_only 가 아니므로 /tmp 에 둔다(재시작 시 중복 전송 방지).
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 15s
+    relabel_configs:
+      # 컨테이너 이름(앞의 / 제거)을 container 라벨로. Grafana 에서 {container="lol-backend"} 로 쿼리한다.
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: container
+      # stdout/stderr 구분.
+      - source_labels: ['__meta_docker_container_log_stream']
+        target_label: stream
+      # compose 프로젝트 라벨(있으면)로 프로젝트 단위 필터 가능.
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_project']
+        target_label: compose_project
+    pipeline_stages:
+      # backend 는 LOGGING_STRUCTURED_FORMAT_CONSOLE=logstash 로 JSON 을 찍는다.
+      # JSON 이 아닌 컨테이너(mysql/redis/nginx)면 이 스테이지는 조용히 통과하고 원문이 그대로 저장된다.
+      - json:
+          expressions:
+            level: level
+            logger: logger_name
+      # level 만 라벨로 승격(에러 필터용). 나머지는 본문에 남겨 카디널리티를 억제한다.
+      - labels:
+          level:
