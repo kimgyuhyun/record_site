@@ -30,6 +30,9 @@ dependencies {
 	// 헬스 체크 전용(actuator) — CD 배포 검증과 컨테이너 healthcheck 가 /actuator/health 로 UP 여부를 확인한다.
 	// edge nginx 는 /actuator 를 프록시하지 않으므로 외부에는 노출되지 않는다(내부망 전용).
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	// Prometheus 노출용 Micrometer 레지스트리 — /actuator/prometheus 로 메트릭을 스크레이프 형식으로 내보낸다.
+	// actuator 와 마찬가지로 내부망(default 망) 전용이라 Prometheus 컨테이너만 긁어간다.
+	implementation 'io.micrometer:micrometer-registry-prometheus'
 	// Redis 캐시: 무거운 집계/정적 데이터 응답을 캐싱해 응답 지연·DB 부하를 줄인다.
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.springframework.boot:spring-boot-starter-cache'

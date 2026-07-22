@@ -1,5 +1,7 @@
 package com.recordsite.backend.config;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpRequest;
@@ -25,6 +27,7 @@ public class RiotApiClientInterceptor implements ClientHttpRequestInterceptor {
     private static final long DEFAULT_RETRY_AFTER_MS = 1_000L;
 
     private final RiotApiRateLimiter rateLimiter;
+    private final MeterRegistry meterRegistry;
 
     @Override
     public ClientHttpResponse intercept(HttpRequest request, byte[] body,
@@ -37,9 +40,19 @@ public class RiotApiClientInterceptor implements ClientHttpRequestInterceptor {
 
         for (int attempt = 0; ; attempt++) {
             rateLimiter.acquire();
+            // 실제 네트워크 호출 구간만 계측한다(레이트리밋 대기는 제외) — Riot 측 지연을 순수하게 본다.
+            // outcome 라벨은 상태코드 계열(2xx/4xx/5xx/429)로 카디널리티를 묶어 시계열 폭증을 막는다.
+            Timer.Sample sample = Timer.start(meterRegistry);
             ClientHttpResponse response = execution.execute(request, body);
+            int status = response.getStatusCode().value();
+            sample.stop(meterRegistry.timer("riot.api.requests",
+                    "method", request.getMethod().name(), "outcome", outcome(status)));
 
-            if (response.getStatusCode().value() != TOO_MANY_REQUESTS || attempt >= MAX_RETRY_ON_429) {
+            if (status == TOO_MANY_REQUESTS) {
+                // 레이트리밋이 뚫린 횟수 — 이 값이 0 에 가깝게 유지되는 것이 리미터가 제 역할을 한다는 증거다.
+                meterRegistry.counter("riot.api.rate_limited").increment();
+            }
+            if (status != TOO_MANY_REQUESTS || attempt >= MAX_RETRY_ON_429) {
                 return response;
             }
 
@@ -49,6 +62,14 @@ public class RiotApiClientInterceptor implements ClientHttpRequestInterceptor {
             response.close();
             backoff(retryAfterMs);
         }
+    }
+
+    // 상태코드를 계열 라벨로 압축한다(개별 코드/URI 를 라벨로 쓰면 시계열이 폭증하므로).
+    private String outcome(int status) {
+        if (status == TOO_MANY_REQUESTS) {
+            return "429";
+        }
+        return (status / 100) + "xx";
     }
 
     // Retry-After 헤더(초 단위)를 ms 로 변환. 없거나 파싱 불가 시 기본 1초.

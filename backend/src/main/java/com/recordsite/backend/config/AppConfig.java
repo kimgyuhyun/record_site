@@ -18,7 +18,8 @@ public class AppConfig {
     // 모든 Riot API 호출이 레이트리밋 인터셉터를 거치도록 RestTemplate 에 등록한다.
     // (ddragon CDN 등 Riot API 외 호스트는 인터셉터 내부에서 throttle 없이 통과)
     @Bean
-    public RestTemplate restTemplate(RiotApiRateLimiter riotApiRateLimiter) {
+    public RestTemplate restTemplate(RiotApiRateLimiter riotApiRateLimiter,
+                                     io.micrometer.core.instrument.MeterRegistry meterRegistry) {
         // 타임아웃이 없으면 응답이 안 오는 Riot 호출 하나가 단일 갱신 워커를 무한정 붙잡아
         // 이후 모든 갱신이 "갱신중"에서 멈춘다. 레이트리밋 대기(acquire)는 호출 전 단계라
         // 이 소켓 타임아웃에 걸리지 않으므로, 스로틀은 그대로 두고 네트워크 행만 끊는다.
@@ -27,7 +28,7 @@ public class AppConfig {
         factory.setReadTimeout(10_000);
 
         RestTemplate restTemplate = new RestTemplate(factory);
-        restTemplate.getInterceptors().add(new RiotApiClientInterceptor(riotApiRateLimiter));
+        restTemplate.getInterceptors().add(new RiotApiClientInterceptor(riotApiRateLimiter, meterRegistry));
         return restTemplate;
     }
     // RestTemplate는 Java에서 HTTP 요청을 보내는 도구
