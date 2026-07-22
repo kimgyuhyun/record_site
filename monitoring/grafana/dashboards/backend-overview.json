@@ -75,7 +75,7 @@
     },
     {
       "type": "stat",
-      "title": "Backend up",
+      "title": "인스턴스 UP (1=정상)",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
       "fieldConfig": {
@@ -88,42 +88,63 @@
         "overrides": []
       },
       "targets": [
-        { "refId": "A", "expr": "up{job=\"spring-backend\"}" }
+        { "refId": "A", "legendFormat": "{{instance}}", "expr": "up{job=\"spring-backend\"}" }
       ]
     },
     {
       "type": "timeseries",
-      "title": "Throughput by endpoint (req/s)",
+      "title": "요청 레이트 (인스턴스별, req/s)",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
       "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
       "targets": [
-        { "refId": "A", "legendFormat": "{{method}} {{uri}}", "expr": "sum by (method, uri) (rate(http_server_requests_seconds_count[1m]))" }
+        { "refId": "A", "legendFormat": "{{instance}}", "expr": "sum by (instance) (rate(http_server_requests_seconds_count[1m]))" }
       ]
     },
     {
       "type": "timeseries",
-      "title": "Latency p50 / p95 / p99",
+      "title": "에러 레이트 (4xx / 5xx, 인스턴스별)",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "legendFormat": "5xx {{instance}}", "expr": "sum by (instance) (rate(http_server_requests_seconds_count{status=~\"5..\"}[1m]))" },
+        { "refId": "B", "legendFormat": "4xx {{instance}}", "expr": "sum by (instance) (rate(http_server_requests_seconds_count{status=~\"4..\"}[1m]))" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "응답시간 p50 / p95 / p99 (인스턴스별)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
       "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
       "targets": [
-        { "refId": "A", "legendFormat": "p50", "expr": "histogram_quantile(0.50, sum by (le) (rate(http_server_requests_seconds_bucket[5m])))" },
-        { "refId": "B", "legendFormat": "p95", "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[5m])))" },
-        { "refId": "C", "legendFormat": "p99", "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket[5m])))" }
+        { "refId": "A", "legendFormat": "p50 {{instance}}", "expr": "histogram_quantile(0.50, sum by (le, instance) (rate(http_server_requests_seconds_bucket[5m])))" },
+        { "refId": "B", "legendFormat": "p95 {{instance}}", "expr": "histogram_quantile(0.95, sum by (le, instance) (rate(http_server_requests_seconds_bucket[5m])))" },
+        { "refId": "C", "legendFormat": "p99 {{instance}}", "expr": "histogram_quantile(0.99, sum by (le, instance) (rate(http_server_requests_seconds_bucket[5m])))" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "엔드포인트별 요청 Top10 (req/s)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "legendFormat": "{{uri}}", "expr": "topk(10, sum by (uri) (rate(http_server_requests_seconds_count[5m])))" }
       ]
     },
     {
       "type": "row",
       "title": "Tip vote concurrency (Lost-Update guard)",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 }
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 }
     },
     {
       "type": "timeseries",
       "title": "Vote outcomes by status (200 성공 / 409 중복차단 / 404)",
       "description": "동시 중복 투표 시 1건만 200, 나머지는 409 로 직렬화되는지 확인하는 패널. 부하 테스트 전/후 스토리의 핵심 지표.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
       "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 20, "stacking": { "mode": "normal" } } }, "overrides": [] },
       "targets": [
         { "refId": "A", "legendFormat": "vote {{status}}", "expr": "sum by (status) (rate(http_server_requests_seconds_count{uri=\"/api/champion-tips/{tipId}/vote\"}[1m]))" }
@@ -133,7 +154,7 @@
       "type": "timeseries",
       "title": "Report outcomes by status",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
       "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 20, "stacking": { "mode": "normal" } } }, "overrides": [] },
       "targets": [
         { "refId": "A", "legendFormat": "report {{status}}", "expr": "sum by (status) (rate(http_server_requests_seconds_count{uri=\"/api/champion-tips/{tipId}/report\"}[1m]))" }
@@ -142,13 +163,13 @@
     {
       "type": "row",
       "title": "Riot API (outbound)",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 }
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 }
     },
     {
       "type": "timeseries",
       "title": "Riot API latency p95 by outcome",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 23 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 31 },
       "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
       "targets": [
         { "refId": "A", "legendFormat": "{{outcome}}", "expr": "histogram_quantile(0.95, sum by (le, outcome) (rate(riot_api_requests_seconds_bucket[5m])))" }
@@ -159,7 +180,7 @@
       "title": "Riot 429 rate-limited (초당)",
       "description": "리미터가 뚫린 횟수. 0 에 가깝게 유지되는 것이 RiotApiRateLimiter 가 제 역할을 한다는 증거.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 23 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 },
       "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "bars", "fillOpacity": 40 } }, "overrides": [] },
       "targets": [
         { "refId": "A", "legendFormat": "429/s", "expr": "sum(rate(riot_api_rate_limited_total[5m]))" }
@@ -168,73 +189,74 @@
     {
       "type": "row",
       "title": "JVM / DB / Cache",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 31 }
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 39 }
     },
     {
       "type": "timeseries",
-      "title": "JVM heap used vs max",
+      "title": "JVM 힙 메모리 (인스턴스별)",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
       "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
       "targets": [
-        { "refId": "A", "legendFormat": "heap used", "expr": "sum(jvm_memory_used_bytes{area=\"heap\"})" },
-        { "refId": "B", "legendFormat": "heap max", "expr": "sum(jvm_memory_max_bytes{area=\"heap\"})" }
+        { "refId": "A", "legendFormat": "used {{instance}}", "expr": "sum by (instance) (jvm_memory_used_bytes{area=\"heap\"})" },
+        { "refId": "B", "legendFormat": "max {{instance}}", "expr": "sum by (instance) (jvm_memory_max_bytes{area=\"heap\"})" }
       ]
     },
     {
       "type": "timeseries",
-      "title": "HikariCP connections",
+      "title": "DB 커넥션 풀 (HikariCP, 인스턴스별)",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
       "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
       "targets": [
-        { "refId": "A", "legendFormat": "active", "expr": "hikaricp_connections_active" },
-        { "refId": "B", "legendFormat": "idle", "expr": "hikaricp_connections_idle" },
-        { "refId": "C", "legendFormat": "pending", "expr": "hikaricp_connections_pending" }
+        { "refId": "A", "legendFormat": "active {{instance}}", "expr": "hikaricp_connections_active" },
+        { "refId": "B", "legendFormat": "idle {{instance}}", "expr": "hikaricp_connections_idle" },
+        { "refId": "C", "legendFormat": "pending {{instance}}", "expr": "hikaricp_connections_pending" },
+        { "refId": "D", "legendFormat": "max {{instance}}", "expr": "hikaricp_connections_max" }
       ]
     },
     {
       "type": "timeseries",
-      "title": "Process CPU usage",
+      "title": "CPU 사용률 (프로세스, 인스턴스별)",
       "description": "JVM 프로세스가 쓰는 CPU 비율(0~1). 호스트 전체가 아니라 이 컨테이너 관점.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 40 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 48 },
       "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
       "targets": [
-        { "refId": "A", "legendFormat": "process cpu", "expr": "process_cpu_usage{job=\"spring-backend\"}" }
+        { "refId": "A", "legendFormat": "{{instance}}", "expr": "process_cpu_usage{job=\"spring-backend\"}" }
       ]
     },
     {
       "type": "timeseries",
-      "title": "JVM live threads",
+      "title": "활성 스레드 수 (인스턴스별)",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 40 },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 48 },
       "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
       "targets": [
-        { "refId": "A", "legendFormat": "live", "expr": "jvm_threads_live_threads{job=\"spring-backend\"}" }
+        { "refId": "A", "legendFormat": "{{instance}}", "expr": "jvm_threads_live_threads{job=\"spring-backend\"}" }
       ]
     },
     {
       "type": "timeseries",
-      "title": "GC pause (초당 멈춤 시간)",
+      "title": "GC 멈춤 시간 (초/초, 인스턴스별)",
       "description": "초당 GC 로 멈춘 총 시간. 값이 치솟으면 힙 압박·긴 STW → 지연 스파이크 원인.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 40 },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 48 },
       "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
       "targets": [
-        { "refId": "A", "legendFormat": "{{action}}", "expr": "sum by (action) (rate(jvm_gc_pause_seconds_sum[1m]))" }
+        { "refId": "A", "legendFormat": "{{action}} {{instance}}", "expr": "sum by (instance, action) (rate(jvm_gc_pause_seconds_sum[1m]))" }
       ]
     },
     {
       "type": "row",
       "title": "Logs (Loki)",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 48 }
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 56 }
     },
     {
       "type": "logs",
       "title": "backend logs",
       "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 49 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 57 },
       "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending", "enableLogDetails": true },
       "targets": [
         { "refId": "A", "expr": "{container=\"lol-backend\"}" }
