@@ -21,9 +21,9 @@ public interface ParticipantRepository extends JpaRepository<Participant, Long>,
     @Query("""
             select p
             from Participant p
-            join fetch p.match
+            join fetch p.match m
             where p.puuid = :puuid
-            order by p.match.gameCreation desc
+            order by m.gameCreation desc
             """)
     List<Participant> findAllParticipantListByPuuid(String puuid);
     // puuid 가 같은 모든 참가자 = 그 계정이 참가한 모든 경기
