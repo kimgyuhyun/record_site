@@ -27,6 +27,17 @@ OP.GG 스타일의 전적 사이트 기능을 직접 구현했습니다.
 ## 기술 스택
 
 ### Backend
+
+![Java](https://img.shields.io/badge/Java-21-007396?style=flat-square&logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.11-6DB33F?style=flat-square&logo=springboot&logoColor=white)
+![Gradle](https://img.shields.io/badge/Gradle-02303A?style=flat-square&logo=gradle&logoColor=white)
+![Hibernate](https://img.shields.io/badge/JPA%20%2F%20Hibernate-59666C?style=flat-square&logo=hibernate&logoColor=white)
+![QueryDSL](https://img.shields.io/badge/QueryDSL-5.0-4479A1?style=flat-square)
+![MyBatis](https://img.shields.io/badge/MyBatis-3.0-C74634?style=flat-square)
+![Flyway](https://img.shields.io/badge/Flyway-CC0200?style=flat-square&logo=flyway&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=flat-square&logo=mysql&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white)
+
 - **Java 21**, **Spring Boot 3.5.11** (Gradle)
 - **Spring Data JPA** + Hibernate (`ddl-auto: validate` — 스키마는 코드가 아닌 마이그레이션으로만 관리)
 - **QueryDSL 5.0** — 동적 · 타입 안전 조회 및 projection
@@ -37,12 +48,29 @@ OP.GG 스타일의 전적 사이트 기능을 직접 구현했습니다.
 - Spring Boot Actuator (health) + **Micrometer** Prometheus 메트릭, spring-dotenv, Lombok
 
 ### Frontend
+
+![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)
+![Vite](https://img.shields.io/badge/Vite-7-646CFF?style=flat-square&logo=vite&logoColor=white)
+![React Router](https://img.shields.io/badge/React%20Router-7-CA4245?style=flat-square&logo=reactrouter&logoColor=white)
+![axios](https://img.shields.io/badge/axios-5A29E4?style=flat-square&logo=axios&logoColor=white)
+
 - **React 19** + **Vite 7**
 - **React Router 7** (SPA 라우팅)
 - **axios** (도메인별 `api/*.js` + 공통 인스턴스/인터셉터)
 - 도메인별 커스텀 훅(`hooks/`) 으로 서버 상태 · 로컬 저장(즐겨찾기 · 최근 검색) 관리
 
-### Infra / DevOps
+### Infra
+
+![Docker](https://img.shields.io/badge/Docker%20Compose-2496ED?style=flat-square&logo=docker&logoColor=white)
+![nginx](https://img.shields.io/badge/nginx-009639?style=flat-square&logo=nginx&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white)
+![GHCR](https://img.shields.io/badge/GHCR-181717?style=flat-square&logo=github&logoColor=white)
+![Trivy](https://img.shields.io/badge/Trivy-1904DA?style=flat-square&logo=trivy&logoColor=white)
+![Let's Encrypt](https://img.shields.io/badge/Let's%20Encrypt-003A70?style=flat-square&logo=letsencrypt&logoColor=white)
+![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=flat-square&logo=prometheus&logoColor=white)
+![Grafana](https://img.shields.io/badge/Grafana-F46800?style=flat-square&logo=grafana&logoColor=white)
+![Loki](https://img.shields.io/badge/Loki-F5A800?style=flat-square&logo=grafana&logoColor=white)
+
 - **Docker Compose** (base = MySQL + Redis, dev/prod override 분리)
 - **nginx** 엣지 리버스 프록시 (`/api` → 백엔드, 그 외 → 프론트 SPA)
 - **GitHub Actions** CI/CD → **GHCR**(GitHub Container Registry) 비공개 이미지
