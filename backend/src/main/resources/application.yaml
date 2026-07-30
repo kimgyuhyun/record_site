@@ -39,6 +39,11 @@ spring:
     hibernate:
       ddl-auto: validate
     show-sql: true
+    properties:
+      hibernate:
+        # 지연 로딩 N+1 완화. 연관 엔티티를 건별로 조회하지 않고 최대 100건씩 IN 절로 묶는다.
+        # fetch join 을 걸어 둔 조회는 그대로고, 걸지 않은 경로의 안전망이다.
+        default_batch_fetch_size: 100
   flyway:
     enabled: true
     # Flyway 만 DDL 가능 계정으로 접속한다(datasource 는 DML 전용이라 마이그레이션을 실행할 수 없다).
