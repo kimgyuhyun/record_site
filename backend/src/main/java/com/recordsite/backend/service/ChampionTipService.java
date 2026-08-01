@@ -7,6 +7,10 @@ import com.recordsite.backend.dto.ChampionTipUpdateRequest;
 import com.recordsite.backend.entity.ChampionTip;
 import com.recordsite.backend.entity.ChampionTipInteraction;
 import com.recordsite.backend.entity.TipInteractionType;
+import com.recordsite.backend.exception.DuplicateTipInteractionException;
+import com.recordsite.backend.exception.InvalidTipRequestException;
+import com.recordsite.backend.exception.TipNotFoundException;
+import com.recordsite.backend.exception.TipPasswordMismatchException;
 import com.recordsite.backend.repository.ChampionTipInteractionRepository;
 import com.recordsite.backend.repository.ChampionTipRepository;
 import com.recordsite.backend.support.TipPasswordEncoder;
@@ -14,10 +18,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 // 챔피언 운영 팁(코멘트)의 작성/조회/추천·비추천/신고. 로그인 없이 닉네임으로 남기며 대댓글은 없다.
 @Service
@@ -71,7 +73,7 @@ public class ChampionTipService {
     public ChampionTipResponse updateTip(Long tipId, ChampionTipUpdateRequest request) {
         ChampionTip tip = findOrThrow(tipId);
         if (request.password() == null || !passwordEncoder.matches(request.password(), tip.getPasswordHash())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "비밀번호가 일치하지 않습니다.");
+            throw new TipPasswordMismatchException();
         }
         tip.editContent(require(request.content(), "팁 내용", CONTENT_MAX));
         return ChampionTipResponse.from(tip); // @Transactional 변경 감지로 저장됨
@@ -81,7 +83,7 @@ public class ChampionTipService {
     public void deleteTip(Long tipId, String password) {
         ChampionTip tip = findOrThrow(tipId);
         if (password == null || !passwordEncoder.matches(password, tip.getPasswordHash())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "비밀번호가 일치하지 않습니다.");
+            throw new TipPasswordMismatchException();
         }
         championTipRepository.delete(tip);
     }
@@ -99,10 +101,10 @@ public class ChampionTipService {
         } else if ("DOWN".equalsIgnoreCase(direction)) {
             updated = championTipRepository.increaseDownvotes(tipId);
         } else {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "direction 은 UP 또는 DOWN 이어야 합니다.");
+            throw new InvalidTipRequestException("direction 은 UP 또는 DOWN 이어야 합니다.");
         }
         if (updated == 0) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "팁을 찾을 수 없습니다.");
+            throw new TipNotFoundException();
         }
         // 중복이면 여기서 409 가 나고 위의 증가까지 같은 트랜잭션으로 롤백된다.
         recordInteractionOrThrow(tipId, actorKey, TipInteractionType.VOTE, "이미 이 팁에 투표했습니다.");
@@ -112,7 +114,7 @@ public class ChampionTipService {
     @Transactional
     public void report(Long tipId, String actorKey) {
         ChampionTip tip = championTipRepository.findByIdForUpdate(tipId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "팁을 찾을 수 없습니다."));
+                .orElseThrow(TipNotFoundException::new);
         recordInteractionOrThrow(tipId, actorKey, TipInteractionType.REPORT, "이미 이 팁을 신고했습니다.");
         tip.report();
     }
@@ -122,18 +124,18 @@ public class ChampionTipService {
     private void recordInteractionOrThrow(Long tipId, String actorKey,
                                           TipInteractionType type, String duplicateMessage) {
         if (interactionRepository.existsByTipIdAndActorKeyAndInteractionType(tipId, actorKey, type)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, duplicateMessage);
+            throw new DuplicateTipInteractionException(duplicateMessage);
         }
         try {
             interactionRepository.saveAndFlush(ChampionTipInteraction.of(tipId, actorKey, type));
         } catch (DataIntegrityViolationException e) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, duplicateMessage);
+            throw new DuplicateTipInteractionException(duplicateMessage);
         }
     }
 
     private ChampionTip findOrThrow(Long tipId) {
         return championTipRepository.findById(tipId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "팁을 찾을 수 없습니다."));
+                .orElseThrow(TipNotFoundException::new);
     }
 
     private String blankToNull(String value) {
@@ -143,23 +145,24 @@ public class ChampionTipService {
     // 비밀번호는 앞뒤 공백까지 그대로 쓴다(공백도 유효 문자). 길이만 검증한다.
     private String requirePassword(String password) {
         if (password == null || password.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "비밀번호를 입력하세요.");
+            throw new InvalidTipRequestException("비밀번호를 입력하세요.");
         }
         if (password.length() < PASSWORD_MIN || password.length() > PASSWORD_MAX) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+            throw new InvalidTipRequestException(
                     "비밀번호는 " + PASSWORD_MIN + "~" + PASSWORD_MAX + "자여야 합니다.");
         }
         return password;
     }
 
-    // 공백 제거 후 비어있지 않고 길이 제한 이내인지 검증한다. 위반 시 400.
+    // 공백 제거 후 비어있지 않고 길이 제한 이내인지 검증한다.
+    // 요청 DTO 의 @NotBlank/@Size 와 겹치지만 규칙상 양쪽 다 둔다 — 형식 검증은 DTO, 도메인 규칙은 여기.
     private String require(String value, String field, int max) {
         String trimmed = value == null ? "" : value.trim();
         if (trimmed.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field + "을(를) 입력하세요.");
+            throw new InvalidTipRequestException(field + "을(를) 입력하세요.");
         }
         if (trimmed.length() > max) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field + "은(는) " + max + "자 이내여야 합니다.");
+            throw new InvalidTipRequestException(field + "은(는) " + max + "자 이내여야 합니다.");
         }
         return trimmed;
     }
