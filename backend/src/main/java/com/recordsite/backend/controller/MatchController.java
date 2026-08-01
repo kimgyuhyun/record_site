@@ -9,7 +9,9 @@ import com.recordsite.backend.service.MatchTimelineService;
 import com.recordsite.backend.service.RefreshJobStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,14 +21,22 @@ import java.util.List;
 @RequestMapping("/api/matches")
 @RequiredArgsConstructor
 public class MatchController {
+
+    // 페이지 크기 상한. 클라이언트가 size 를 크게 보내도 여기서 잘라 한 번에 퍼가는 양을 서버가 통제한다.
+    private static final int MAX_PAGE_SIZE = 50;
+
     private final MatchService matchService;
     private final MatchTimelineService matchTimelineService;
     private final RefreshJobStore refreshJobStore;
 
     @GetMapping(params = "puuid")
     public ResponseEntity<Page<MatchRecordDto>> getMatchList(
-            @RequestParam String puuid, Pageable pageable) throws Exception {
-        Page<MatchRecordDto> matchRecordDto = matchService.getMatchRecordsByPuuid(puuid, pageable);
+            @RequestParam String puuid,
+            @PageableDefault(size = 20) Pageable pageable) throws Exception {
+        int cappedSize = Math.min(pageable.getPageSize(), MAX_PAGE_SIZE);
+        Pageable capped = PageRequest.of(pageable.getPageNumber(), cappedSize, pageable.getSort());
+
+        Page<MatchRecordDto> matchRecordDto = matchService.getMatchRecordsByPuuid(puuid, capped);
         return ResponseEntity.ok(matchRecordDto);
     }
 
