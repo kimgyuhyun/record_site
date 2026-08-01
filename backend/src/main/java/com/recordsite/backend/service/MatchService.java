@@ -17,10 +17,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 
+// 클래스 레벨 @Transactional 을 두지 않는다 — 갱신 경로(refreshMatchesByPuuid)는 Riot API 왕복과
+// 수집 팬아웃 대기를 포함하므로, 트랜잭션으로 감싸면 그 시간 내내 DB 커넥션을 하나 붙잡는다.
+// 동시 갱신이 몇 건만 겹쳐도 풀이 말라 갱신과 무관한 조회까지 함께 멈춘다.
+// 쓰기 경계는 각자 갖고 있다: 매치 저장·puuid 치유는 REQUIRES_NEW, 조회는 아래 readOnly 메서드.
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class MatchService {
 
     private final MatchRepository matchRepository;

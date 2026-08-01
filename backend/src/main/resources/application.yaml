@@ -39,6 +39,10 @@ spring:
     hibernate:
       ddl-auto: validate
     show-sql: true
+    # 영속성 컨텍스트를 뷰 렌더링까지 열어두지 않는다(기본값 true).
+    # 켜져 있으면 요청이 끝날 때까지 DB 커넥션을 붙잡아, 응답 직렬화 시간까지 풀 점유에 포함된다.
+    # Service 가 DTO 를 반환하므로(지연 로딩 초기화가 트랜잭션 안에서 끝난다) 꺼도 조회 경로가 깨지지 않는다.
+    open-in-view: false
     properties:
       hibernate:
         # 지연 로딩 N+1 완화. 연관 엔티티를 건별로 조회하지 않고 최대 100건씩 IN 절로 묶는다.
