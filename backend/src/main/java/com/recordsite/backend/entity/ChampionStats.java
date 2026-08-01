@@ -16,7 +16,7 @@ public class ChampionStats {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long statId; // db 자체 id
 
-    @OneToOne // 일대일 매핑
+    @OneToOne(fetch = FetchType.LAZY) // 일대일 매핑. 기본값이 EAGER 라 명시한다.
     @JoinColumn(name = "champion_id") // champion 엔티티에 기본키를 champion_id 외래키로 사용함
     private Champion champion;
 

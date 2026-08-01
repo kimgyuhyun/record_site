@@ -54,7 +54,10 @@ public class Champion {
     private int infoMagic; // 마법 공격 성향
     private int infoDifficulty; // 조작 난이도
 
-    @OneToOne(mappedBy = "champion", cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "champion", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    // ⚠️ 역방향(mappedBy) @OneToOne 은 LAZY 를 붙여도 바이트코드 향상 없이는 즉시 로딩된다.
+    //    연관 행의 존재 여부를 알아야 null 을 판정할 수 있어 프록시를 만들 수 없기 때문이다.
+    //    선언은 맞춰두되 실제 지연 로딩을 기대하지 말 것(주인 쪽 ChampionStats.champion 은 실제로 지연된다).
     // 일대일 매핑
     // 자식 엔티티에서 나를 champion이라는 이름에 필드로 참조함 즉, 자식식 엔티티에서 champion 테이블에 기본키를 외래키로 사용함
     // mappedBy를 선언하는쪽은 부모 테이블이고 fk안가지고 자식 테이블쪽이 fk를 가짐
