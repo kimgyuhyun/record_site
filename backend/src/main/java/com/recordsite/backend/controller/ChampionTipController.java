@@ -8,6 +8,7 @@ import com.recordsite.backend.dto.ChampionTipUpdateRequest;
 import com.recordsite.backend.service.ChampionTipService;
 import com.recordsite.backend.support.TipActorKeyResolver;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -35,7 +36,7 @@ public class ChampionTipController {
 
     // 팁 작성. 본문 { championId, nickname, content }
     @PostMapping
-    public ResponseEntity<ChampionTipResponse> createTip(@RequestBody ChampionTipCreateRequest request) {
+    public ResponseEntity<ChampionTipResponse> createTip(@Valid @RequestBody ChampionTipCreateRequest request) {
         return ResponseEntity.ok(championTipService.createTip(request));
     }
 
@@ -57,14 +58,14 @@ public class ChampionTipController {
     // 수정 — 비밀번호 일치 시 내용 변경. 본문 { password, content }
     @PutMapping("/{tipId}")
     public ResponseEntity<ChampionTipResponse> update(@PathVariable Long tipId,
-                                                      @RequestBody ChampionTipUpdateRequest request) {
+                                                      @Valid @RequestBody ChampionTipUpdateRequest request) {
         return ResponseEntity.ok(championTipService.updateTip(tipId, request));
     }
 
     // 삭제 — 작성 시 정한 비밀번호가 일치해야 한다. 본문 { password }
     @DeleteMapping("/{tipId}")
     public ResponseEntity<Void> delete(@PathVariable Long tipId,
-                                       @RequestBody ChampionTipPasswordRequest request) {
+                                       @Valid @RequestBody ChampionTipPasswordRequest request) {
         championTipService.deleteTip(tipId, request.password());
         return ResponseEntity.ok().build();
     }
