@@ -1,14 +1,13 @@
 package com.recordsite.backend.service;
 
 import com.recordsite.backend.entity.ChampionTip;
+import com.recordsite.backend.exception.DuplicateTipInteractionException;
 import com.recordsite.backend.repository.ChampionTipRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -106,7 +105,7 @@ class ChampionTipConcurrencyTest {
     }
 
     @Test
-    @DisplayName("같은 사람이 동시에 20번 추천해도 1회만 반영되고 나머지는 409 다")
+    @DisplayName("같은 사람이 동시에 20번 추천해도 1회만 반영되고 나머지는 중복으로 거부된다")
     void duplicateVotesFromSameVoterCountOnce() throws InterruptedException {
         Long tipId = saveTip();
         String actorKey = newActorKey();
@@ -117,8 +116,8 @@ class ChampionTipConcurrencyTest {
 
         assertThat(findTip(tipId).getUpvotes()).isEqualTo(1);
         assertThat(errors).hasSize(threadCount - 1);
-        assertThat(errors).allSatisfy(e ->
-                assertThat(((ResponseStatusException) e).getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+        // 상태 코드는 GlobalExceptionHandler 가 붙인다 — 서비스는 중복 예외까지만 책임진다.
+        assertThat(errors).allSatisfy(e -> assertThat(e).isInstanceOf(DuplicateTipInteractionException.class));
     }
 
     @Test
