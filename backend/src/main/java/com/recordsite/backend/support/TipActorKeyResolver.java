@@ -8,6 +8,8 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.HexFormat;
@@ -46,10 +48,30 @@ public class TipActorKeyResolver {
         return hash(clientIp(request));
     }
 
-    // 엣지를 거치지 않는 로컬 개발에서는 헤더가 없으므로 소켓 주소로 폴백한다.
+    // 전달 헤더는 그 헤더를 채우는 프록시가 보냈을 때만 신뢰한다. 신뢰 판정 없이 읽으면 프록시를 우회해
+    // 들어온 요청의 헤더까지 그대로 믿게 되고, 그러면 누구나 헤더를 바꿔가며 actor key 를 무한히 만들어
+    // 1인 1회 제약을 무력화할 수 있다.
+    //
+    // 이 배포에서 엣지 nginx 는 항상 도커 내부망(사설 대역)에서 붙고 백엔드 포트는 호스트에 공개되지 않는다.
+    // 그래서 "직전 홉이 사설/루프백 주소인가"로 프록시 여부를 판정한다. 공인 주소에서 직접 들어온 요청은
+    // 엣지를 거치지 않았다는 뜻이므로 헤더를 버리고 소켓 주소를 쓴다.
+    // 엣지를 거치지 않는 로컬 개발에서는 헤더 자체가 없어 그대로 소켓 주소로 폴백된다.
     private String clientIp(HttpServletRequest request) {
+        if (!fromTrustedProxy(request)) {
+            return request.getRemoteAddr();
+        }
         String forwarded = request.getHeader(CLIENT_IP_HEADER);
         return (forwarded == null || forwarded.isBlank()) ? request.getRemoteAddr() : forwarded.trim();
+    }
+
+    private boolean fromTrustedProxy(HttpServletRequest request) {
+        try {
+            // IP 리터럴이라 DNS 조회가 일어나지 않는다.
+            InetAddress remote = InetAddress.getByName(request.getRemoteAddr());
+            return remote.isLoopbackAddress() || remote.isSiteLocalAddress() || remote.isLinkLocalAddress();
+        } catch (UnknownHostException e) {
+            return false;
+        }
     }
 
     private String hash(String clientIp) {
