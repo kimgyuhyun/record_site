@@ -102,6 +102,17 @@ export BACKEND_IMAGE="$backend_digest" FRONTEND_IMAGE="$frontend_digest"
 NGINX_CONF_SHA=$(cat nginx/*.conf | sha256sum | cut -c1-16)
 export NGINX_CONF_SHA
 log "nginx conf sha → $NGINX_CONF_SHA"
+
+# 관측 스택 설정 해시 — nginx 와 같은 inode 함정을 prometheus/loki/promtail 이 그대로 갖는다.
+# 서비스별로 나누지 않고 4개를 하나로 묶는다: 하나만 바뀌어도 세 컨테이너가 같이 재생성되지만
+# 관측 스택이라 서비스 영향이 없고 로직이 단순해진다.
+# 파일 순서는 고정한다 — 와일드카드로 순서가 흔들리면 내용이 같아도 해시가 달라져 매 배포마다 재생성된다.
+MONITORING_CONF_SHA=$(cat monitoring/prometheus/prometheus.yml \
+                          monitoring/prometheus/alerts.yml \
+                          monitoring/loki/loki-config.yml \
+                          monitoring/promtail/promtail-config.yml | sha256sum | cut -c1-16)
+export MONITORING_CONF_SHA
+log "monitoring conf sha → $MONITORING_CONF_SHA"
 log "compose up -d --no-build"
 "${COMPOSE[@]}" up -d --no-build --remove-orphans
 
@@ -167,6 +178,20 @@ if [ "$host_conf_sha" != "$live_conf_sha" ]; then
   fail "edge nginx config is stale (container did not pick up this commit's conf)"
 fi
 log "nginx conf OK: edge is running this commit's config"
+
+# ── 10-b) 관측 스택이 "이 커밋의" 설정으로 돌고 있는지 ──
+#   스크레이프 타깃·알림 규칙이 반영 안 돼도 컨테이너는 멀쩡히 뜬다 — 조용히 눈이 머는 상황을 막는다.
+#   prometheus 하나만 대조하면 충분하다: 4개가 MONITORING_CONF_SHA 하나로 묶여 함께 재생성되므로
+#   prometheus 가 최신이면 loki/promtail 도 최신이다.
+host_prom_sha=$(sha256sum monitoring/prometheus/prometheus.yml | cut -c1-64)
+live_prom_sha=$(docker exec lol-prometheus sha256sum /etc/prometheus/prometheus.yml 2>/dev/null | cut -c1-64)
+if [ "$host_prom_sha" != "$live_prom_sha" ]; then
+  echo "[monitoring] FAIL: prometheus is serving a stale config" >&2
+  echo "        repo=$host_prom_sha" >&2
+  echo "        live=$live_prom_sha" >&2
+  fail "prometheus config is stale (container did not pick up this commit's conf)"
+fi
+log "monitoring conf OK: prometheus is running this commit's config"
 
 log "deploy OK ($TAG) — backend health UP"
 docker image prune -f >/dev/null 2>&1 || true
