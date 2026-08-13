@@ -17,7 +17,9 @@ Thumbs.db
 # Docker
 docker-compose.override.yml
 
+# 개발 규칙 문서는 C:\dev-standards 에만 두고 이 저장소(공개)에 복사하지 않는다 — 실수로 복사됐을 때 커밋 방지
+standards/
+
 # Claude Code worktrees (다른 워크트리의 git clone 전체가 들어있어 절대 커밋 금지)
 .claude/
 AGENTS.md
-CLAUDE.md
