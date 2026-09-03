@@ -64,10 +64,15 @@ jobs:
             echo "ALERT_WEBHOOK_URL 시크릿이 없어 알림을 보내지 못했다"
             exit 1
           fi
-          body="**[record_site] 외부 접근 실패**
-https://kdagg.kozow.com 이 3회 연속 200 이 아닙니다 (마지막 응답: ${LAST_CODE:-none}).
-서버 안 워치독이 조용하다면 호스트 자체가 죽었을 수 있습니다.
-실행 로그: $RUN_URL"
+          # 여러 줄 문자열을 셸 문법 그대로 이어 쓰면 안 된다. `run: |` 은 YAML 블록
+          # 스칼라라서, 블록보다 덜 들여쓴 줄이 나오는 순간 블록이 거기서 끝나고 그 뒤가
+          # YAML 로 해석돼 워크플로 파일 자체가 파싱에 실패한다(실제로 한 번 그렇게 깨졌다).
+          # printf 로 조립하면 모든 줄이 블록 안에 들여쓰기된 채로 남는다.
+          body=$(printf '%s\n' \
+            "**[record_site] 외부 접근 실패**" \
+            "https://kdagg.kozow.com 이 3회 연속 200 이 아닙니다 (마지막 응답: ${LAST_CODE:-none})." \
+            "서버 안 워치독이 조용하다면 호스트 자체가 죽었을 수 있습니다." \
+            "실행 로그: $RUN_URL")
           # --arg 로 넘겨 따옴표·개행이 섞여도 JSON 이 깨지지 않게 한다.
           jq -n --arg c "$body" '{content:$c}' \
             | curl -sS -m 10 -X POST -H 'Content-Type: application/json' -d @- "$WEBHOOK"
