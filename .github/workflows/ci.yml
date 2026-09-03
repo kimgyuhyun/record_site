@@ -124,8 +124,15 @@ jobs:
       # 설치를 `curl | sudo sh` 로 하던 것도 걷어냈다. main 브랜치의 스크립트를 검증 없이
       # root 로 실행하던 것인데, 이 잡은 GHCR push 권한 토큰을 쥐고 있어 이미지 오염 경로가 된다.
       # 액션은 커밋 SHA 로 고정한다(태그는 재지정될 수 있다).
+      # TRIVY_PLATFORM 이 필요한 이유: 여기서 만드는 이미지는 linux/arm64 하나뿐이다
+      # (서버가 aarch64 라 멀티아치를 만들지 않는다). buildx 는 push 만 하고 로컬 도커에
+      # 이미지를 남기지 않으므로 Trivy 는 레지스트리에서 받아오는데, 그때 기본값인
+      # linux/amd64 자식을 찾다가 "no child with platform linux/amd64" 로 죽는다.
+      # (종전 `curl | sh` 설치 방식은 arm 러너에 arm64 바이너리가 깔려 우연히 맞았던 것이다.)
       - name: Trivy scan (backend)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_PLATFORM: linux/arm64
         with:
           image-ref: ${{ env.IMAGE_BACKEND }}:${{ github.sha }}
           scanners: vuln
@@ -135,6 +142,8 @@ jobs:
 
       - name: Trivy scan (frontend)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_PLATFORM: linux/arm64
         with:
           image-ref: ${{ env.IMAGE_FRONTEND }}:${{ github.sha }}
           scanners: vuln
