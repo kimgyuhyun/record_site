@@ -1,16 +1,82 @@
-# ── 보안 오버레이: egress 잠금 ──
-# 네트워크 정의·서비스 배치는 base/prod/certbot 에 있고, 이 파일은 "잠그는" 역할만 한다.
+# ── 보안 오버레이: egress 잠금 + 아웃바운드 허용목록 ──
 # internal: true = 해당 망에는 외부 라우팅이 붙지 않는다(인터넷 아웃바운드 차단 + 호스트 포트 publish 불가).
 #
 #   default 잠금 → frontend 가 인터넷으로 나갈 수 없다.
 #   data    잠금 → mysql/redis 가 인터넷으로 나갈 수 없다.
 #           ※ data 를 빠뜨리면 DB 가 egress 를 되찾는 회귀가 된다. 둘 다 잠글 것.
-#   egress  는 잠그지 않는다 — backend(Riot API)/certbot(ACME) 아웃바운드와
+#   proxy   잠금 → backend 는 여기에만 붙는다. 아웃바운드는 egress-proxy 경유만 가능하다.
+#   egress  는 잠그지 않는다 — egress-proxy(Riot/ddragon)/certbot(ACME) 아웃바운드와
 #           nginx 의 80/443 publish 가 이 망에 달려 있다.
 #
+# ── 아웃바운드 허용목록 (PLATFORM 3절 [상황] "아웃바운드 통신을 제어한다") ──
+# 망 분리는 아웃바운드가 필요 없는 서비스를 끊을 뿐, egress 망에 붙은 서비스의 목적지는
+# 제한하지 못한다. backend 는 종전에 egress 에 통째로 붙어 있어서, 침해되면 data 망의
+# DB 를 읽어 어디로든 보낼 수 있었다. 그래서 backend 를 egress 에서 빼고 internal 인
+# proxy 망에 두고, 아웃바운드는 squid(허용목록) 를 거쳐야만 나가게 한다.
+#
+# 프록시 서비스 정의와 backend 의 망·환경변수를 전부 이 파일에 두는 이유:
+# 둘이 같은 파일에 있어야 항상 같이 붙고 같이 빠진다. 갈라두면 "프록시는 없는데
+# 프록시로 나가라는 설정만 켜진" 상태를 만들 수 있고, 그러면 전적검색이 통째로 죽는다.
+#
 # dev(docker-compose.dev.yml)에는 이 파일을 얹지 않는다 → 개발용 호스트 포트 공개가 그대로 동작.
+services:
+  backend:
+    networks:
+      - default          # nginx 가 프록시
+      - data             # mysql/redis
+      - proxy            # 아웃바운드 — egress 를 여기서 뺀다
+    environment:
+      # JAVA_OPTS 가 아니라 JAVA_TOOL_OPTIONS 를 쓰는 이유: prod.yml 이 JAVA_OPTS 에
+      # -Xmx512m 을 넣어 두었는데, 같은 키를 여기서 다시 쓰면 그 값을 덮어써서 힙 상한이
+      # 조용히 사라진다. JAVA_TOOL_OPTIONS 는 JVM 이 별도로 읽어 더해준다.
+      #
+      # RestTemplate 은 SimpleClientHttpRequestFactory(=HttpURLConnection) 를 쓰므로
+      # 이 표준 시스템 프로퍼티를 그대로 따른다.
+      # nonProxyHosts 에 루프백만 둔다 — backend 가 HTTP 로 부르는 내부 서비스는 없다
+      # (MySQL·Redis 는 HTTP 가 아니라 이 설정과 무관하다).
+      JAVA_TOOL_OPTIONS: >-
+        -Dhttp.proxyHost=egress-proxy -Dhttp.proxyPort=3128
+        -Dhttps.proxyHost=egress-proxy -Dhttps.proxyPort=3128
+        -Dhttp.nonProxyHosts=localhost|127.*|[::1]
+
+  # 허용목록 기반 HTTP/HTTPS 포워드 프록시. 허용 목적지와 근거는 proxy/squid.conf 에 있다.
+  egress-proxy:
+    image: ubuntu/squid:6.6-24.04_edge
+    # 같은 태그가 다른 이미지로 조용히 바뀌지 않게 한다(PLATFORM 2절).
+    pull_policy: missing
+    container_name: lol-egress-proxy
+    environment:
+      # squid.conf 는 단일 파일 bind mount 라 inode 로 고정된다. CD 의 git checkout -f 가
+      # 파일을 새 inode 로 갈아끼우면 컨테이너는 삭제된 옛 파일을 계속 읽는다 —
+      # 즉 허용목록을 좁혀도 반영되지 않는다. 이 값이 바뀌면 compose 가 재생성한다.
+      # (deploy.sh 가 주입하고, 반영 여부까지 배포 후에 대조한다.)
+      EGRESS_CONF_SHA: ${EGRESS_CONF_SHA:-unset}
+    volumes:
+      - ./proxy/squid.conf:/etc/squid/squid.conf:ro
+    networks:
+      - proxy            # backend 가 접속
+      - egress           # 실제 아웃바운드
+    # uid/gid 13 = 이미지의 proxy 계정. root 로 띄우고 강등시키는 대신 처음부터
+    # 비특권으로 실행한다 — 그래야 SETUID/SETGID 를 되살리지 않고 cap 을 전부 비울 수 있다.
+    # (root 로 띄우면 cap_drop ALL 상태에서 setgid 가 막혀 기동에 실패한다. 실측함.)
+    user: "13:13"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /var/run:noexec,nosuid,nodev,size=8m
+      - /var/cache/squid:noexec,nosuid,nodev,size=16m,mode=1777
+      - /var/log/squid:noexec,nosuid,nodev,size=16m,mode=1777
+    mem_limit: 128m
+    cpus: 0.25
+    restart: unless-stopped
+
 networks:
   default:
     internal: true
   data:
+    internal: true
+  proxy:
     internal: true

@@ -103,16 +103,22 @@ NGINX_CONF_SHA=$(cat nginx/*.conf | sha256sum | cut -c1-16)
 export NGINX_CONF_SHA
 log "nginx conf sha → $NGINX_CONF_SHA"
 
-# 관측 스택 설정 해시 — nginx 와 같은 inode 함정을 prometheus/loki/promtail 이 그대로 갖는다.
+# 관측 스택 설정 해시 — nginx 와 같은 inode 함정을 prometheus/loki/alloy 가 그대로 갖는다.
 # 서비스별로 나누지 않고 4개를 하나로 묶는다: 하나만 바뀌어도 세 컨테이너가 같이 재생성되지만
 # 관측 스택이라 서비스 영향이 없고 로직이 단순해진다.
 # 파일 순서는 고정한다 — 와일드카드로 순서가 흔들리면 내용이 같아도 해시가 달라져 매 배포마다 재생성된다.
 MONITORING_CONF_SHA=$(cat monitoring/prometheus/prometheus.yml \
                           monitoring/prometheus/alerts.yml \
                           monitoring/loki/loki-config.yml \
-                          monitoring/promtail/promtail-config.yml | sha256sum | cut -c1-16)
+                          monitoring/alloy/config.alloy | sha256sum | cut -c1-16)
 export MONITORING_CONF_SHA
 log "monitoring conf sha → $MONITORING_CONF_SHA"
+
+# 아웃바운드 허용목록 해시 — squid.conf 도 단일 파일 마운트라 같은 inode 함정을 갖는다.
+# 이게 없으면 허용목록을 좁혀도 옛 설정이 계속 돈다(가장 위험한 방향의 무반영이다).
+EGRESS_CONF_SHA=$(sha256sum proxy/squid.conf | cut -c1-16)
+export EGRESS_CONF_SHA
+log "egress conf sha → $EGRESS_CONF_SHA"
 log "compose up -d --no-build"
 "${COMPOSE[@]}" up -d --no-build --remove-orphans
 
@@ -164,7 +170,45 @@ else
   log "netlock OK: frontend → mysql:3306 BLOCKED"
 fi
 
-[ "$netlock_ok" = true ] || fail "security invariant check failed (network isolation)"
+# ── 9-b) 아웃바운드 허용목록 검증 ──
+#   backend 는 proxy 망(internal)에만 있고 아웃바운드는 egress-proxy(squid) 경유만 가능해야 한다.
+#   이 셋을 다 봐야 하는 이유:
+#     ① 직접 나갈 수 있으면 허용목록이 무의미하다(compose 가 networks 를 합집합으로 병합해서
+#        prod.yml 에 egress 가 남으면 조용히 이렇게 된다 — 실제로 겪은 함정이다).
+#     ② 허용 목적지가 막히면 전적검색이 통째로 죽는데 health 체크는 DB·Redis 만 봐서 못 잡는다.
+#     ③ 차단 목적지도 봐야 한다. ②만 보면 "전부 허용" 로 잘못 설정된 squid 도 통과한다.
+#   busybox nc 로 squid 에 직접 CONNECT 를 던진다 — DNS 를 squid 가 하므로 internal 망에서도
+#   동작한다(wget/curl 은 호스트명을 스스로 해석하려다 실패해 거짓 결과를 낸다).
+PROXY_NET=record_site_proxy
+connect_probe(){   # <호스트> → squid 응답 첫 줄
+  docker run --rm --network "$PROXY_NET" nginx:alpine sh -c \
+    "printf 'CONNECT $1:443 HTTP/1.1\r\nHost: $1:443\r\n\r\n' | timeout 10 nc egress-proxy 3128 2>/dev/null | head -1" 2>/dev/null
+}
+
+if docker run --rm --network "$PROXY_NET" nginx:alpine timeout 5 wget -q -O /dev/null http://1.1.1.1 2>/dev/null; then
+  echo "[egress] FAIL: backend 계층이 프록시 없이 인터넷에 직접 도달했다 — 허용목록이 무력화된 상태" >&2
+  netlock_ok=false
+else
+  log "egress OK: proxy 망 → 인터넷 직접 BLOCKED"
+fi
+
+allowed_resp=$(connect_probe ddragon.leagueoflegends.com)
+case "$allowed_resp" in
+  *"200 Connection established"*) log "egress OK: 허용 목적지(ddragon) → 프록시 경유 통과" ;;
+  *) echo "[egress] FAIL: 허용 목적지가 프록시를 통과하지 못했다 (응답: ${allowed_resp:-없음})" >&2
+     echo "        전적검색이 죽은 상태로 배포될 수 있다 — squid 설정과 backend 의 proxy 망 부착을 확인하라" >&2
+     netlock_ok=false ;;
+esac
+
+denied_resp=$(connect_probe pool.supportxmr.com)
+case "$denied_resp" in
+  *"403"*) log "egress OK: 차단 목적지(채굴풀) → 403 DENIED" ;;
+  *) echo "[egress] FAIL: 차단돼야 할 목적지가 막히지 않았다 (응답: ${denied_resp:-없음})" >&2
+     echo "        허용목록이 실제로 적용되지 않았다는 뜻이다" >&2
+     netlock_ok=false ;;
+esac
+
+[ "$netlock_ok" = true ] || fail "security invariant check failed (network isolation / egress allow-list)"
 
 # ── 10) 엣지 nginx 가 "이 커밋의" 설정으로 돌고 있는지 ──
 #   위 inode 함정 때문에 설정이 반영되지 않아도 컨테이너는 멀쩡히 떠 있다(옛 설정으로).
@@ -182,7 +226,7 @@ log "nginx conf OK: edge is running this commit's config"
 # ── 10-b) 관측 스택이 "이 커밋의" 설정으로 돌고 있는지 ──
 #   스크레이프 타깃·알림 규칙이 반영 안 돼도 컨테이너는 멀쩡히 뜬다 — 조용히 눈이 머는 상황을 막는다.
 #   prometheus 하나만 대조하면 충분하다: 4개가 MONITORING_CONF_SHA 하나로 묶여 함께 재생성되므로
-#   prometheus 가 최신이면 loki/promtail 도 최신이다.
+#   prometheus 가 최신이면 loki/alloy 도 최신이다.
 host_prom_sha=$(sha256sum monitoring/prometheus/prometheus.yml | cut -c1-64)
 live_prom_sha=$(docker exec lol-prometheus sha256sum /etc/prometheus/prometheus.yml 2>/dev/null | cut -c1-64)
 if [ "$host_prom_sha" != "$live_prom_sha" ]; then
@@ -192,6 +236,58 @@ if [ "$host_prom_sha" != "$live_prom_sha" ]; then
   fail "prometheus config is stale (container did not pick up this commit's conf)"
 fi
 log "monitoring conf OK: prometheus is running this commit's config"
+
+# ── 10-c) 아웃바운드 프록시가 "이 커밋의" 허용목록으로 돌고 있는지 ──
+#   9-b 의 CONNECT 검사는 "지금 도는 설정"이 맞게 동작하는지만 본다. 그 설정이 이 커밋의
+#   것인지는 별개다 — 허용목록을 좁힌 커밋을 배포했는데 옛 넓은 목록이 그대로 도는
+#   상황이 inode 함정으로 실제 가능하다.
+host_squid_sha=$(sha256sum proxy/squid.conf | cut -c1-64)
+live_squid_sha=$(docker exec lol-egress-proxy sha256sum /etc/squid/squid.conf 2>/dev/null | cut -c1-64)
+if [ "$host_squid_sha" != "$live_squid_sha" ]; then
+  echo "[egress] FAIL: egress-proxy is serving a stale allow-list" >&2
+  echo "        repo=$host_squid_sha" >&2
+  echo "        live=$live_squid_sha" >&2
+  fail "egress proxy config is stale (container did not pick up this commit's conf)"
+fi
+log "egress conf OK: allow-list is this commit's config"
+
+# ── 10-d) 컨테이너 하드닝·포트 노출 불변식 ──
+#   여기까지의 검사는 전부 네트워크에 관한 것이었다. cap_drop·no-new-privileges·리소스
+#   상한·read_only 는 오버레이 하나만 빠져도 조용히 사라지는데 컨테이너는 멀쩡히 뜬다.
+#   설정 파일이 아니라 돌고 있는 컨테이너를 보고 판정한다.
+bash "$PROJECT_DIR/scripts/check-hardening.sh" || fail "container hardening invariant check failed"
+
+# ── 11) 감시 스크립트 cron 등록 (멱등) ──
+#   워치독과 경보 릴레이는 서버에 cron 으로 상주해야 의미가 있는데, 등록을 수동 절차로
+#   남기면 서버를 다시 만들 때 조용히 빠진다 — 그러면 "감시가 있다고 믿는 무인 서버"가
+#   된다. 배포가 성공할 때마다 다시 심어 그 상태를 만들 수 없게 한다.
+#   기존 항목은 지우고 다시 넣으므로 경로나 주기를 바꿔도 중복이 쌓이지 않는다.
+install_cron(){
+  local marker="# record_site monitoring (managed by scripts/deploy.sh)"
+  local kept
+  kept=$(crontab -l 2>/dev/null \
+         | grep -vF "$marker" \
+         | grep -v 'scripts/watchdog.sh' \
+         | grep -v 'scripts/alert-relay.sh' || true)
+  {
+    [ -n "$kept" ] && printf '%s\n' "$kept"
+    printf '%s\n' "$marker"
+    printf '*/5 * * * * cd %s && bash scripts/watchdog.sh >> %s/logs/cron.log 2>&1\n' "$PROJECT_DIR" "$PROJECT_DIR"
+    printf '*/5 * * * * cd %s && bash scripts/alert-relay.sh >> %s/logs/cron.log 2>&1\n' "$PROJECT_DIR" "$PROJECT_DIR"
+  } | crontab -
+}
+if command -v crontab >/dev/null 2>&1; then
+  install_cron && log "cron 등록 OK: watchdog + alert-relay (5분 주기)"
+  # 등록만 하고 끝내면 "등록은 됐는데 실행하면 깨지는" 상태를 다음 사고 때 발견하게 된다.
+  # 여기서 한 번 돌려 지금 실제로 동작하는지 확인한다(결과로 배포를 실패시키지는 않는다).
+  if bash "$PROJECT_DIR/scripts/watchdog.sh"; then
+    log "watchdog 첫 실행 OK"
+  else
+    log "WARNING: watchdog 첫 실행 실패 — logs/cron.log 확인 필요"
+  fi
+else
+  log "WARNING: crontab 이 없어 감시 스크립트를 등록하지 못했다"
+fi
 
 log "deploy OK ($TAG) — backend health UP"
 docker image prune -f >/dev/null 2>&1 || true

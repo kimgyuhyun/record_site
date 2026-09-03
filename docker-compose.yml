@@ -17,6 +17,9 @@ services:
       - data
     volumes:
       - mysql-data:/var/lib/mysql
+      # 최소권한 계정 생성 스크립트. 볼륨을 새로 만들 때만 1회 실행되고, 필요한 값이
+      # 없으면 스스로 건너뛴다(dev 는 그대로 root 폴백). 디렉터리 마운트라 inode 함정과 무관.
+      - ./mysql/initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_PASSWORD:?DB_PASSWORD required}"]
       interval: 10s

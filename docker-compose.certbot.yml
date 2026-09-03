@@ -29,6 +29,10 @@ services:
     # internal 망에 가두면 갱신이 죽는다.
     networks:
       - egress
+    # 상한이 없으면 하나의 폭주가 호스트 전체를 멈춘다(PLATFORM 2절). cpus 는
+    # hardening 오버레이에 있는데 메모리만 빠져 있었다. 12시간에 한 번 도는 갱신 작업이라
+    # 실제 사용량은 수십 MB 수준이고, 이 값은 폭주를 막는 상한이지 예약이 아니다.
+    mem_limit: 128m
     restart: unless-stopped
 
 volumes:

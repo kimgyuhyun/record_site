@@ -22,7 +22,7 @@ import java.util.UUID;
 // 헤더가 없으면(로컬 개발) 여기서 만든다.
 //
 // MDC 에 넣은 값은 구조적 로깅(LOGGING_STRUCTURED_FORMAT_CONSOLE=logstash)이 JSON 필드로 자동 포함하므로
-// 별도 로그 패턴 설정이 필요 없다. promtail 이 그 JSON 을 그대로 Loki 로 넘긴다.
+// 별도 로그 패턴 설정이 필요 없다. Alloy 가 그 JSON 을 그대로 Loki 로 넘긴다.
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class CorrelationIdFilter implements Filter {

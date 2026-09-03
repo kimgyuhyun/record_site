@@ -12,11 +12,17 @@
 set -euo pipefail
 cd "$HOME/record_site"
 
+# ⚠️ deploy.sh 의 COMPOSE 배열과 반드시 같아야 한다. 하나라도 빠지면 backend 가 그 오버레이
+#    없이 재생성된다 — netlock 이 빠지면 아웃바운드 허용목록(proxy 망)이 사라져 Riot 호출이
+#    통째로 실패하고, hardening 이 빠지면 cap_drop·read_only 가 벗겨진 채 되살아난다.
 COMPOSE=(docker compose
   -f docker-compose.yml
   -f docker-compose.prod.yml
   -f docker-compose.ghcr.yml
-  -f docker-compose.certbot.yml)
+  -f docker-compose.certbot.yml
+  -f docker-compose.netlock.yml
+  -f docker-compose.hardening.yml
+  -f docker-compose.monitoring.yml)
 
 NEWKEY="${1:-}"
 if [ -z "$NEWKEY" ]; then

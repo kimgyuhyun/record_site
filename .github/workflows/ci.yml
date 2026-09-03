@@ -112,13 +112,32 @@ jobs:
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
 
-      # 취약점 스캔은 지금은 report-only(||true) — 결과만 로그로 남기고 빌드는 실패시키지 않는다.
-      # 뒤에 기준이 안정되면 --exit-code 1 + severity 게이트로 조여 배포 차단으로 전환한다.
-      - name: Trivy vulnerability scan (report-only)
-        run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
-          for img in "$IMAGE_BACKEND:$GITHUB_SHA" "$IMAGE_FRONTEND:$GITHUB_SHA"; do
-            echo "::group::Trivy $img"
-            trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 0 --no-progress "$img" || true
-            echo "::endgroup::"
-          done
+      # 취약점 스캔 게이트. 종전에는 report-only(`--exit-code 0` + `|| true`)라 CRITICAL 이
+      # 있어도 그대로 배포됐다 — 결과를 아무도 안 보면 스캔은 있으나 마나다. 이제 실패시킨다:
+      # CI 가 실패하면 이미지가 push 되지 않고, CD 는 CI 성공에만 걸려 있으므로 배포가 막힌다.
+      #
+      # 기준 calibration:
+      #   severity CRITICAL      HIGH 까지 막으면 베이스 이미지 사정으로 상시 빨간불이 된다.
+      #   ignore-unfixed true    패치가 없는 취약점은 고칠 방법이 없어 막아도 무한 실패만 남는다.
+      #                          "고칠 수 있는데 안 고친 CRITICAL" 만 배포를 막는다.
+      #
+      # 설치를 `curl | sudo sh` 로 하던 것도 걷어냈다. main 브랜치의 스크립트를 검증 없이
+      # root 로 실행하던 것인데, 이 잡은 GHCR push 권한 토큰을 쥐고 있어 이미지 오염 경로가 된다.
+      # 액션은 커밋 SHA 로 고정한다(태그는 재지정될 수 있다).
+      - name: Trivy scan (backend)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE_BACKEND }}:${{ github.sha }}
+          scanners: vuln
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Trivy scan (frontend)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE_FRONTEND }}:${{ github.sha }}
+          scanners: vuln
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'

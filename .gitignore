@@ -23,3 +23,6 @@ standards/
 # Claude Code worktrees (다른 워크트리의 git clone 전체가 들어있어 절대 커밋 금지)
 .claude/
 AGENTS.md
+
+# 감시 스크립트가 남기는 로컬 로그·상태 파일(서버에서만 생성됨)
+logs/

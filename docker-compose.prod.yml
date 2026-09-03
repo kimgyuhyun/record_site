@@ -4,6 +4,16 @@
 #   기동: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 #   종료: docker compose -f docker-compose.yml -f docker-compose.prod.yml down
 services:
+  # 볼륨을 새로 만들 때 최소권한 계정을 자동 생성하기 위해 mysql 에도 같은 값을 넘긴다
+  # (mysql/initdb/10-least-privilege.sh 가 읽는다). 계정명은 backend 쪽과 반드시 같아야 한다.
+  # 이미 데이터가 있는 볼륨에서는 initdb 가 돌지 않으므로 운영 DB 에는 영향이 없다.
+  mysql:
+    environment:
+      DB_APP_USER: loldb_app
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?DB_APP_PASSWORD required}
+      DB_MIGRATE_USER: loldb_migrate
+      DB_MIGRATE_PASSWORD: ${DB_MIGRATE_PASSWORD:?DB_MIGRATE_PASSWORD required}
+
   # 운영에서만 Redis 인증을 건다(dev 는 base 의 무인증 command 를 그대로 쓴다 — localhost 전용).
   # :? 로 필수화한 이유: 빈 문자열이면 --requirepass 가 무인증으로 조용히 폴백한다.
   redis:
@@ -32,11 +42,19 @@ services:
       # 팁 추천/신고 1인 1회 제약의 IP 해시 솔트. 값이 바뀌면 기존 이력과 매칭이 끊기므로 고정해서 쓴다.
       TIP_ACTOR_SALT: ${TIP_ACTOR_SALT:?TIP_ACTOR_SALT required}
       JAVA_OPTS: "-Xmx512m"
-    # 세 망 모두 필요: default(nginx 가 프록시) + data(mysql/redis) + egress(Riot API 아웃바운드).
+    # default(nginx 가 프록시) + data(mysql/redis). 인터넷 아웃바운드는 여기에 없다.
+    #
+    # ⚠️ egress 를 여기서 "빼둔" 것이 핵심이다. 아웃바운드는 netlock 오버레이가 붙이는
+    #    proxy 망(허용목록 squid) 경유로만 나간다. compose 는 서비스의 networks 를
+    #    합집합으로 병합하므로(실측 확인), 여기에 egress 를 남겨두면 netlock 이 proxy 를
+    #    더해도 egress 가 그대로 남아 허용목록이 통째로 무력화된다 — 조용히.
+    #
+    #    그래서 이 파일만 단독으로 쓰면 backend 는 인터넷에 나갈 수 없고 Riot 호출이
+    #    전부 실패한다. 의도된 fail-closed 다. 운영 조합의 정본은 scripts/deploy.sh 의
+    #    COMPOSE 배열이며 거기에는 netlock 이 항상 들어 있다.
     networks:
       - default
       - data
-      - egress
     depends_on:
       mysql:
         condition: service_healthy

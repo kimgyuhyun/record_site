@@ -48,7 +48,8 @@ LoL 전적 검색 사이트(소환사·매치·챔피언 통계·팁 게시판).
 - `backend/` Spring Boot (config/controller/domain/dto/entity/exception/repository/service/support 레이어드), 마이그레이션은 `src/main/resources/db/migration/`
 - `frontend/` React + Vite SPA, `src/api/*` 도메인별 API 클라이언트, `scripts/download-ddragon.mjs` 로 Data Dragon 에셋 내려받음
 - `nginx/` 엣지 설정 — `default.conf`(HTTP) / `default.https.conf`(TLS, 실사용)
-- `monitoring/` prometheus·loki·promtail 설정과 grafana 프로비저닝
+- `proxy/` squid 아웃바운드 허용목록 설정(backend 의 유일한 인터넷 경로)
+- `monitoring/` prometheus·loki·alloy 설정과 grafana 프로비저닝
 - `scripts/` `deploy.sh`(서버 배포 본체) · `refresh-riot-key.sh`(Riot 키 교체)
 - `docs/` https-setup.md(최초 인증서 발급 절차) · refresh-job-queue.md(갱신 큐 설계 근거) — 그 외 설명은 README.md 에 있다
 
@@ -57,7 +58,7 @@ LoL 전적 검색 사이트(소환사·매치·챔피언 통계·팁 게시판).
 - 백엔드는 IDE 또는 `cd backend && ./gradlew bootRun`, 프론트는 `cd frontend && npm run dev` (5173, `/api` → 8080 프록시)
 - 테스트: `cd backend && ./gradlew test` — 동시성 테스트가 실제 MySQL 을 요구하므로 위 dev 인프라가 떠 있어야 한다
 - 실제 배포는 main push 시 CI(이미지 빌드→GHCR)가 성공하면 CD 가 서버에 SSH 로 붙어 `git checkout -f <sha>` 후 `scripts/deploy.sh` 를 실행한다. 로컬에서 서버로 배포하는 경로는 없다
-- **절대 하면 안 됨**: 맨손 `docker compose up` — netlock 오버레이 없이 올리면 `default`/`data` 망의 `internal` 잠금이 빠져 프론트 아웃바운드가 열린다(OTT 프로젝트에서 같은 구멍이 실제 침해로 이어졌다). 운영 조합의 정본은 `scripts/deploy.sh` 의 `COMPOSE` 배열이다
+- **절대 하면 안 됨**: 맨손 `docker compose up` — netlock 오버레이 없이 올리면 `default`/`data` 망의 `internal` 잠금이 빠져 프론트 아웃바운드가 열리고(OTT 프로젝트에서 같은 구멍이 실제 침해로 이어졌다), backend 의 아웃바운드 허용목록(squid)도 통째로 빠진다. 운영 조합의 정본은 `scripts/deploy.sh` 의 `COMPOSE` 배열이다
 - `.env`(RIOT_API_KEY, DB_PASSWORD, REDIS_PASSWORD, DB_APP_*/DB_MIGRATE_*, TIP_ACTOR_SALT)는 커밋되지 않는다. base compose 가 `:?` 로 필수화해 두어 값이 없으면 기동이 실패한다
 
 ## compose 파일 용도
@@ -65,15 +66,15 @@ LoL 전적 검색 사이트(소환사·매치·챔피언 통계·팁 게시판).
 - `.dev.yml` 개발용(인프라 호스트 포트만 열기) / `.prod.yml` 운영용(backend·frontend·nginx 추가)
 - `.ghcr.yml` 서버 재빌드 금지 + GHCR 이미지(digest) 고정
 - `.certbot.yml` TLS 종단 전환 + 인증서 자동갱신
-- `.netlock.yml` `default`/`data` 망 egress 차단 (운영 필수)
+- `.netlock.yml` `default`/`data`/`proxy` 망 egress 차단 + backend 아웃바운드 허용목록 프록시(squid) (운영 필수)
 - `.hardening.yml` cap_drop·no-new-privileges·read_only·cpu 상한
-- `.monitoring.yml` Prometheus/Grafana/Loki/Promtail (배포 스크립트에 항상 포함 — 빠지면 `--remove-orphans` 가 지운다)
+- `.monitoring.yml` Prometheus/Grafana/Loki/Alloy (배포 스크립트에 항상 포함 — 빠지면 `--remove-orphans` 가 지운다)
 
 ## 함정
-- 단일 파일 bind mount 는 inode 로 고정된다. CD 의 `git checkout -f` 가 파일을 새 inode 로 갈아끼우면 컨테이너는 삭제된 옛 파일을 계속 읽는다(`nginx -s reload` 도 소용없다). 그래서 `deploy.sh` 가 내용 해시를 `NGINX_CONF_SHA`/`MONITORING_CONF_SHA` 로 주입해 컨테이너를 재생성시킨다 — **단일 파일 마운트를 새로 추가하면 그 파일도 해시 대상에 넣어야 한다**
+- 단일 파일 bind mount 는 inode 로 고정된다. CD 의 `git checkout -f` 가 파일을 새 inode 로 갈아끼우면 컨테이너는 삭제된 옛 파일을 계속 읽는다(`nginx -s reload` 도 소용없다). 그래서 `deploy.sh` 가 내용 해시를 `NGINX_CONF_SHA`/`MONITORING_CONF_SHA`/`EGRESS_CONF_SHA` 로 주입해 컨테이너를 재생성시킨다 — **단일 파일 마운트를 새로 추가하면 그 파일도 해시 대상에 넣어야 한다**
 - 해시 계산에 들어가는 파일 목록은 순서를 고정한다. 와일드카드로 순서가 흔들리면 내용이 같아도 매 배포마다 재생성된다
 - 오버레이를 새로 만들면 `deploy.sh` 의 `COMPOSE` 배열에 반드시 추가한다. 빠지면 반영이 안 되는 정도가 아니라 `--remove-orphans` 가 그 컨테이너를 지운다
-- `scripts/refresh-riot-key.sh` 의 `COMPOSE` 배열은 "deploy.sh 와 동일하게 유지"가 원칙인데 현재 netlock/hardening/monitoring 이 빠져 있다. 이 스크립트를 손대거나 실행하기 전에 먼저 확인한다
+- `scripts/refresh-riot-key.sh` 의 `COMPOSE` 배열은 deploy.sh 와 동일하게 유지한다. 빠지면 backend 가 그 오버레이 없이 재생성되는데, netlock 이 빠지면 `proxy` 망이 없어 Riot 호출이 통째로 실패한다(하드닝도 같이 벗겨진다)
 - nginx 는 upstream 호스트명을 기동 시 1회만 IP 로 해석한다. 배포로 backend/frontend 가 재생성되면 옛 IP 를 붙들어 502 가 난다 — `deploy.sh` 가 up 직후 `lol-nginx` 를 재시작해서 푼다. health 체크는 backend 직결이라 이 고장을 못 잡는다
 - 클라이언트 IP 는 `X-Real-IP` 만 신뢰한다. `X-Forwarded-For` 는 nginx 가 클라이언트가 보낸 값 뒤에 덧붙이는 방식이라 위조된 앞쪽 값을 그대로 읽게 된다
 - `TIP_ACTOR_SALT` 를 바꾸면 기존 추천·신고 이력과 매칭이 끊긴다. 고정해서 쓴다

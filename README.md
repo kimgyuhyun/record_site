@@ -221,6 +221,9 @@ npm run dev               # → http://localhost:5173 ( /api 는 :8080 으로 �
 | `REDIS_PASSWORD` | Redis `requirepass` (**운영 필수**) | 빈 값(dev 무인증) |
 | `DB_APP_USER` / `DB_APP_PASSWORD` | 런타임 앱 계정(DML 전용). 운영 필수 | `root` / `DB_PASSWORD` |
 | `DB_MIGRATE_USER` / `DB_MIGRATE_PASSWORD` | Flyway 마이그레이션 계정(DDL 가능). 운영 필수 | 앱 계정으로 폴백 |
+| `TIP_ACTOR_SALT` | 팁 추천·신고 IP 해시 솔트 (**운영 필수**, 바꾸면 기존 이력과 매칭이 끊김) | 기동 시 임시 생성(dev) |
+| `ALERT_WEBHOOK_URL` | 워치독·경보 릴레이가 쓰는 Discord 웹훅 (**운영 필수**) | 없음(로컬 로그만) |
+| `GRAFANA_ADMIN_PASSWORD` | Grafana 관리자 비밀번호 (**운영 필수** — 값이 없으면 기동 실패) | 없음 |
 
 운영은 최소권한을 위해 DB 계정을 둘로 나눕니다 — 런타임(`loldb_app`)은 DML 만, 스키마 변경(`loldb_migrate`)만 DDL.
 개발은 변수를 비워두면 예전처럼 `root` 로 폴백해 추가 설정 없이 동작합니다.
@@ -295,7 +298,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 기존 스택은 건드리지 않도록 별도 오버레이(`docker-compose.monitoring.yml`)로 분리해서, 필요할 때만 얹었다 뗐다 할 수 있게 했습니다.
 
 - **메트릭** — 백엔드가 Micrometer 로 `/actuator/prometheus` 에 지표를 내보내고 Prometheus 가 주기적으로 수집합니다.
-- **로그** — 앱은 stdout 에 로그만 찍고, promtail 이 컨테이너 로그를 모아 Loki 로 보냅니다(앱 코드는 로그 전송을 몰라도 되도록 분리했습니다).
+- **로그** — 앱은 stdout 에 로그만 찍고, Alloy 가 도커의 json-file 로그를 읽어 Loki 로 보냅니다(앱 코드는 로그 전송을 몰라도 되도록 분리했습니다). Alloy 는 도커 소켓을 쓰지 않습니다 — 소켓이 붙은 컨테이너는 뚫리면 호스트 장악으로 이어지기 때문입니다.
 - **대시보드** — 프로비저닝으로 부팅 시 자동 로드됩니다. 요청량 · 에러율 · 응답시간(p50/p95/p99), JVM 힙 · GC · 스레드, HikariCP 커넥션 풀, Riot API 호출 지연 · 429, 팁 투표 동시성(중복 차단)을 한 화면에 모았습니다.
 - **알림 규칙**(`monitoring/prometheus/alerts.yml`) — 5xx 에러율 · p99 지연 · 힙 사용률 · DB 커넥션 대기 · Riot 429 · 백엔드 다운을 Prometheus 규칙으로 감시합니다.
 
@@ -304,7 +307,7 @@ Prometheus · Grafana · Loki 는 전부 `127.0.0.1` 루프백으로만 열어 �
 ```bash
 # 기존 스택 위에 모니터링만 얹기
 docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.monitoring.yml \
-  up -d --no-deps prometheus grafana loki promtail
+  up -d --no-deps prometheus grafana loki alloy
 ```
 
 ---

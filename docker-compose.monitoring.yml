@@ -1,21 +1,28 @@
-# 관측성(Observability) override — 메트릭(Prometheus+Grafana)과 로그(Loki+Promtail)를 얹는다.
+# 관측성(Observability) override — 메트릭(Prometheus+Grafana)과 로그(Loki+Alloy)를 얹는다.
 # ⚠️ backend 가 "컨테이너"로 떠 있어야 한다(Prometheus 가 compose 서비스명 backend:8080 을 스크레이프하고,
-#    Promtail 이 Docker 소켓으로 그 로그를 수집하기 때문). 따라서 prod override 위에 함께 올린다.
+#    Alloy 가 그 컨테이너의 json-file 로그를 읽기 때문). 따라서 prod override 위에 함께 올린다.
 #    (dev 는 backend 를 IDE 에서 돌려 컨테이너가 아니므로 이 조합을 쓰지 않는다.)
 #   기동:  docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d --build
 #   종료:  docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.monitoring.yml down
 #
 # 데이터 흐름
 #   [메트릭] backend:8080/actuator/prometheus  ──scrape──▶ prometheus ──query──▶ grafana
-#   [로그]   컨테이너 stdout(JSON)  ──docker.sock──▶ promtail ──push──▶ loki ──query──▶ grafana
+#   [로그]   컨테이너 stdout  ──json-file 파일──▶ alloy ──push──▶ loki ──query──▶ grafana
+#            (docker.sock 을 쓰지 않는다 — 이유는 아래 alloy 서비스 주석 참고)
 #
-# 노출 원칙: Grafana UI 만 127.0.0.1(로컬)로 연다. prometheus/loki/promtail 은 monitoring 망 내부 전용.
+# 노출 원칙: Grafana/Prometheus/Loki UI 는 127.0.0.1(로컬)로만 연다. alloy 는 포트를 열지 않는다.
 # backend 스크레이프는 default 망(웹 계층)으로 내부에서만 도달한다 — /actuator 는 edge nginx 가 프록시하지 않음.
 services:
   # 구조화(JSON) 로깅을 켠다 — Loki 에서 level/logger 를 필드로 쿼리하기 위함(dev 콘솔은 기본 포맷 유지 목적상 여기서만 켠다).
   backend:
     environment:
       LOGGING_STRUCTURED_FORMAT_CONSOLE: logstash
+    # 아래 labels + logging 은 Alloy 가 컨테이너 이름을 알아내는 유일한 수단이다.
+    # docker.sock 을 걷어내면서 ID→이름 조회가 불가능해졌으므로, 반대로 도커에게
+    # 로그 각 줄에 이름을 써넣게 시킨다. 이 두 줄이 빠진 컨테이너는 수집되지 않는다.
+    # ⚠️ logging 설정 변경은 해당 컨테이너를 1회 재생성시킨다(최초 적용 시 1회뿐).
+    labels: { log_service: backend }
+    logging: { driver: json-file, options: { labels: log_service } }
 
   prometheus:
     image: prom/prometheus:v2.54.1
@@ -53,9 +60,11 @@ services:
     image: grafana/grafana:11.2.0
     container_name: lol-grafana
     environment:
-      # 관리자 계정. .env 에 GRAFANA_ADMIN_PASSWORD 를 두면 그 값을, 없으면 dev 기본값(admin)을 쓴다 — 운영은 반드시 지정할 것.
+      # 관리자 계정. 다른 시크릿과 같이 :? 로 필수화한다 — 이 파일만 :- 폴백(admin)을 쓰고 있어서
+      # 값을 빠뜨리면 조용히 admin/admin 으로 떴다. base compose 가 DB_PASSWORD 에 대해
+      # "약한 기본값으로 조용히 기동되던 사고를 막는다"고 적어둔 것과 같은 이유다.
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD required}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_ANALYTICS_REPORTING_ENABLED: "false"
       # 시작 시 최신버전 확인 요청(update.grafana.org)도 끈다 — 내부망 전용이라 외부 호출을 남기지 않는다.
@@ -95,10 +104,11 @@ services:
       - loki-data:/loki
     ports:
       # 로컬에서만 접근 — Grafana 없이 LogQL 직접 질의/디버깅용. 원격은 SSH 터널(-L 3100:127.0.0.1:3100).
-      # 외부 비노출: 127.0.0.1 바인딩. 로그 수집은 promtail 이 monitoring 망 내부로 push 하므로 이 포트와 무관.
+      # 외부 비노출: 127.0.0.1 바인딩. 로그 수집은 alloy 가 logpipe 망 내부로 push 하므로 이 포트와 무관.
       - "127.0.0.1:3100:3100"
     networks:
-      - monitoring
+      - monitoring   # grafana 조회 + 위 호스트 publish (비-internal 이라 publish 가 가능하다)
+      - logpipe      # alloy 가 push 하는 전용 망(internal)
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -107,37 +117,95 @@ services:
     cpus: 0.4
     restart: unless-stopped
 
-  promtail:
-    image: grafana/promtail:3.1.1
-    container_name: lol-promtail
-    command: -config.file=/etc/promtail/promtail-config.yml
+  # [SECURITY] promtail 을 걷어내고 Alloy 로 바꿨다. promtail 은 컨테이너를 찾으려고
+  # /var/run/docker.sock 을 마운트해야 했는데, 소켓이 붙은 컨테이너는 뚫리면 곧 호스트
+  # 장악이다(:ro 는 파일시스템 쓰기만 막고 소켓 connect() 는 그대로 된다 — 종전 주석의
+  # "「:ro」로 최소화한다"는 실제보다 안전하다고 말하고 있었다).
+  # Alloy 는 소켓 대신 도커가 남긴 json-file 로그 파일을 읽기 전용으로 tail 한다.
+  # 자세한 배경과 파이프라인은 monitoring/alloy/config.alloy 머리말 참고.
+  alloy:
+    image: grafana/alloy:v1.5.1
+    container_name: lol-alloy
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      # 이미지 기본 저장 경로(/var/lib/alloy/data)를 쓰지 않는 이유: 그 디렉터리는
+      # 이미지에서 alloy 유저 소유 0700 인데 cap_drop:ALL 이라 DAC_OVERRIDE 가 없어
+      # root 라도 쓰기가 막힌다. 이미지에 없는 경로에 볼륨을 붙이면 도커가
+      # root:root 0755 로 만들어 주므로 그냥 된다.
+      - --storage.path=/alloy-data
+      # 그라파나로 나가는 사용통계 전송 차단(logpipe 가 internal 이라 어차피 못 나가지만 명시).
+      - --disable-reporting
     environment:
-      # promtail-config.yml 은 단일 파일 bind mount 라 inode 로 고정된다 —
+      # config.alloy 는 단일 파일 bind mount 라 inode 로 고정된다 —
       # 값이 바뀌면 compose 가 재생성해 새 파일을 다시 마운트한다(deploy.sh 가 주입).
       MONITORING_CONF_SHA: ${MONITORING_CONF_SHA:-unset}
+    # /var/lib/docker/containers 가 root:root 0700 이라 root 로 읽어야 한다.
+    # cap_drop ALL 상태라 root 라도 커널 권한은 없고, 접근은 읽기 전용 마운트뿐이다.
+    user: root
     volumes:
-      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
-      # 컨테이너 로그 수집용 Docker 소켓(읽기 전용). 소켓 노출은 위험하므로 :ro 로 최소화한다.
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      # 도커 소켓이 아니라 로그 파일만. 열람 범위는 "전 컨테이너 로그"까지이고
+      # 컨테이너 조작·호스트 접근은 불가하다.
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - alloy-data:/alloy-data
     networks:
-      - monitoring
+      # logpipe 하나만 — loki 로 push 하는 것 외에 나갈 곳이 없다(internal).
+      - logpipe
     depends_on:
       - loki
-    # 소켓은 root 소유 rw 라 owner 권한으로 읽으므로 cap 은 필요 없다. 소켓은 :ro 로 최소화.
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    mem_limit: 96m
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,nodev
+    mem_limit: 128m
     cpus: 0.25
     restart: unless-stopped
 
-# monitoring 은 관측 스택 내부 통신 + Grafana 포트 publish 전용(비-internal).
-# prometheus/promtail 은 여기에 더해 default(웹) 망에도 붙어 backend/컨테이너에 도달한다.
+  # ── 수집 대상 컨테이너에 이름표 달기 ──
+  # backend 는 위에서 이미 붙였다(구조화 로깅 설정과 같이 두는 편이 읽기 쉬워서).
+  # 여기 없는 컨테이너(prometheus/grafana/loki/alloy/certbot)는 의도적으로 수집하지 않는다 —
+  # 관측 스택이 자기 로그를 수집하면 되먹임이 되고, 볼 일도 거의 없다.
+  mysql:
+    labels: { log_service: mysql }
+    logging: { driver: json-file, options: { labels: log_service } }
+
+  redis:
+    labels: { log_service: redis }
+    logging: { driver: json-file, options: { labels: log_service } }
+
+  frontend:
+    labels: { log_service: frontend }
+    logging: { driver: json-file, options: { labels: log_service } }
+
+  nginx:
+    labels: { log_service: nginx }
+    logging: { driver: json-file, options: { labels: log_service } }
+
+  # 아웃바운드 프록시의 access_log 는 특히 중요하다 — 차단된 목적지가 TCP_DENIED 로 남으므로
+  # 침해 시 "어디로 나가려 했는지"가 그대로 증거가 된다. netlock 오버레이가 있어야 존재하는
+  # 서비스이지만, 라벨을 여기 두는 것은 다른 수집 대상과 같은 규칙이라서다.
+  egress-proxy:
+    labels: { log_service: egress-proxy }
+    logging: { driver: json-file, options: { labels: log_service } }
+
+# monitoring 은 관측 스택 내부 통신 + Grafana/Prometheus/Loki 포트 publish 전용(비-internal).
+# prometheus 는 여기에 더해 default(웹) 망에도 붙어 backend 를 스크레이프한다.
+#
+# logpipe 는 alloy → loki 푸시 전용이며 internal 이다. alloy 를 monitoring 에 붙이지 않는
+# 이유: monitoring 은 호스트 포트를 publish 해야 해서 internal 로 잠글 수 없고, 그러면
+# 로그 수집기가 인터넷 아웃바운드를 갖게 된다. 나갈 이유가 없는 컨테이너는 나갈 수 없게 둔다
+# (PLATFORM 3절: 아웃바운드가 실제로 필요한 서비스만 아웃바운드 망에 붙인다).
 networks:
   monitoring:
+  logpipe:
+    internal: true
 
 volumes:
   prometheus-data:
   grafana-data:
   loki-data:
+  alloy-data:
