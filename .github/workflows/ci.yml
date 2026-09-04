@@ -138,6 +138,9 @@ jobs:
           scanners: vuln
           severity: CRITICAL
           ignore-unfixed: true
+          # 예외 목록은 파일 하나로 모은다. 각 항목에 만료일이 있어 날짜가 지나면
+          # 자동으로 다시 배포를 막는다 — 예외가 영구히 잊히지 않게 하는 장치다.
+          trivyignores: .trivyignore.yaml
           exit-code: '1'
 
       - name: Trivy scan (frontend)
@@ -149,4 +152,7 @@ jobs:
           scanners: vuln
           severity: CRITICAL
           ignore-unfixed: true
+          # 예외 목록은 파일 하나로 모은다. 각 항목에 만료일이 있어 날짜가 지나면
+          # 자동으로 다시 배포를 막는다 — 예외가 영구히 잊히지 않게 하는 장치다.
+          trivyignores: .trivyignore.yaml
           exit-code: '1'
