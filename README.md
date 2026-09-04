@@ -222,8 +222,8 @@ npm run dev               # → http://localhost:5173 ( /api 는 :8080 으로 �
 | `DB_APP_USER` / `DB_APP_PASSWORD` | 런타임 앱 계정(DML 전용). 운영 필수 | `root` / `DB_PASSWORD` |
 | `DB_MIGRATE_USER` / `DB_MIGRATE_PASSWORD` | Flyway 마이그레이션 계정(DDL 가능). 운영 필수 | 앱 계정으로 폴백 |
 | `TIP_ACTOR_SALT` | 팁 추천·신고 IP 해시 솔트 (**운영 필수**, 바꾸면 기존 이력과 매칭이 끊김) | 기동 시 임시 생성(dev) |
-| `ALERT_WEBHOOK_URL` | 워치독·경보 릴레이가 쓰는 Discord 웹훅 (**운영 필수**) | 없음(로컬 로그만) |
-| `GRAFANA_ADMIN_PASSWORD` | Grafana 관리자 비밀번호 (**운영 필수** — 값이 없으면 기동 실패) | 없음 |
+| `ALERT_WEBHOOK_URL` | 워치독·경보 릴레이가 쓰는 Discord 웹훅. 없으면 알림이 서버 안 로그에만 남는다 | 없음 |
+| `GRAFANA_ADMIN_PASSWORD` | Grafana **최초** 관리자 비밀번호. grafana-data 볼륨을 새로 만들 때만 쓰이고, 이후 비밀번호는 Grafana UI 에서 관리된다 | `admin` |
 
 운영은 최소권한을 위해 DB 계정을 둘로 나눕니다 — 런타임(`loldb_app`)은 DML 만, 스키마 변경(`loldb_migrate`)만 DDL.
 개발은 변수를 비워두면 예전처럼 `root` 로 폴백해 추가 설정 없이 동작합니다.

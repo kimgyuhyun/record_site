@@ -60,11 +60,19 @@ services:
     image: grafana/grafana:11.2.0
     container_name: lol-grafana
     environment:
-      # 관리자 계정. 다른 시크릿과 같이 :? 로 필수화한다 — 이 파일만 :- 폴백(admin)을 쓰고 있어서
-      # 값을 빠뜨리면 조용히 admin/admin 으로 떴다. base compose 가 DB_PASSWORD 에 대해
-      # "약한 기본값으로 조용히 기동되던 사고를 막는다"고 적어둔 것과 같은 이유다.
+      # 관리자 계정. ⚠️ 이 두 값은 grafana-data 볼륨을 "처음 만들 때" 한 번만 쓰인다.
+      # 그 뒤로 실제 비밀번호는 Grafana 자신의 DB(볼륨 안)에 있고, UI 에서 바꾼 값이 정본이다.
+      # 즉 돌고 있는 설치에서는 이 값을 바꿔도 아무 일도 일어나지 않는다.
+      #
+      # 그래서 다른 시크릿처럼 :? 로 필수화하지 않는다. 한 번 필수로 바꿔봤더니 실익 없이
+      # 배포만 막았다(현재 운영 비밀번호는 이미 볼륨 안에 사용자가 설정해 둔 값이다).
+      #
+      # 단, 볼륨을 새로 만드는 경우(인스턴스 재구축·재해복구)에는 이 값이 그대로 최초
+      # 관리자 비밀번호가 된다. 그때는 .env 에 GRAFANA_ADMIN_PASSWORD 를 먼저 넣거나,
+      # 첫 로그인 직후 UI 에서 즉시 바꿀 것 — 아니면 admin/admin 으로 열린 채로 남는다.
+      # (127.0.0.1 바인딩이라 인터넷에서 직접 도달하지는 않는다.)
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD required}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_ANALYTICS_REPORTING_ENABLED: "false"
       # 시작 시 최신버전 확인 요청(update.grafana.org)도 끈다 — 내부망 전용이라 외부 호출을 남기지 않는다.
