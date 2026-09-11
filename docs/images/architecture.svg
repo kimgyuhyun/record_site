@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" width="960" height="600" font-family="Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748B"/>
+    </marker>
+    <style>
+      .box { fill: #FFFFFF; stroke: #CBD5E1; stroke-width: 1.5; }
+      .hl { stroke: #2563EB; stroke-width: 2; }
+      .group { fill: #F8FAFC; stroke: #94A3B8; stroke-width: 1.2; stroke-dasharray: 6 5; }
+      .ext { fill: #F1F5F9; stroke: #94A3B8; stroke-width: 1.2; stroke-dasharray: 5 4; }
+      .main { font-size: 18px; font-weight: 700; fill: #0F172A; text-anchor: middle; }
+      .sub { font-size: 13px; fill: #64748B; text-anchor: middle; }
+      .label { font-size: 13px; fill: #64748B; }
+      .line { fill: none; stroke: #64748B; stroke-width: 1.6; }
+      .badge { fill: #2563EB; }
+      .num { font-size: 13px; font-weight: 700; fill: #FFFFFF; text-anchor: middle; dominant-baseline: central; }
+    </style>
+  </defs>
+
+  <!-- 뱃지 번호는 README "핵심 설계" 절 번호 (2 매치망 크롤러는 비활성이라 그림에 없음) -->
+  <rect width="960" height="600" fill="#FFFFFF"/>
+
+  <!-- Browser -> nginx -> backend / frontend -->
+  <rect class="box" x="24" y="144" width="120" height="64" rx="8"/>
+  <text class="main" x="84" y="182">Browser</text>
+
+  <rect class="box" x="184" y="144" width="140" height="64" rx="8"/>
+  <text class="main" x="254" y="172">nginx</text>
+  <text class="sub" x="254" y="194">TLS · IP 레이트리밋</text>
+
+  <rect class="box" x="184" y="290" width="140" height="64" rx="8"/>
+  <text class="main" x="254" y="318">React SPA</text>
+  <text class="sub" x="254" y="340">nginx 정적 서빙</text>
+
+  <path class="line" d="M144,176 H182" marker-end="url(#a)"/>
+  <path class="line" d="M324,176 H378" marker-end="url(#a)"/>
+  <text class="label" x="330" y="168">/api</text>
+  <path class="line" d="M254,208 V288" marker-end="url(#a)"/>
+  <text class="label" x="262" y="252">/</text>
+
+  <!-- backend 프로세스 -->
+  <rect class="group" x="364" y="108" width="220" height="316" rx="10"/>
+  <text class="label" x="380" y="132">backend · 단일 인스턴스</text>
+
+  <rect class="box" x="380" y="148" width="188" height="56" rx="8"/>
+  <text class="main" x="474" y="171">REST API</text>
+  <text class="sub" x="474" y="192">갱신 요청 → 큐 · 즉시 응답</text>
+
+  <rect class="box hl" x="380" y="216" width="188" height="56" rx="8"/>
+  <text class="main" x="474" y="239">갱신 워커</text>
+  <text class="sub" x="474" y="260">BRPOP · 전용 스레드 1개</text>
+  <circle class="badge" cx="568" cy="216" r="12"/><text class="num" x="568" y="216">1</text>
+
+  <rect class="box hl" x="380" y="284" width="188" height="56" rx="8"/>
+  <text class="main" x="474" y="307">랭킹 스냅샷</text>
+  <text class="sub" x="474" y="328">1시간 주기 · 상위 300명</text>
+  <circle class="badge" cx="568" cy="284" r="12"/><text class="num" x="568" y="284">4</text>
+
+  <rect class="box hl" x="380" y="352" width="188" height="56" rx="8"/>
+  <text class="main" x="474" y="375">공유 레이트리미터</text>
+  <text class="sub" x="474" y="396">18 req/s · 95 req/2분</text>
+  <circle class="badge" cx="568" cy="352" r="12"/><text class="num" x="568" y="352">3</text>
+
+  <!-- data 망 -->
+  <rect class="group" x="612" y="12" width="332" height="178" rx="10"/>
+  <text class="label" x="628" y="36">data 망 · internal · egress 차단</text>
+
+  <rect class="box" x="636" y="52" width="288" height="56" rx="8"/>
+  <text class="main" x="780" y="75">MySQL 8.0</text>
+  <text class="sub" x="780" y="96">스키마는 Flyway만 · 앱 계정은 DML 전용</text>
+
+  <rect class="box hl" x="636" y="118" width="288" height="56" rx="8"/>
+  <text class="main" x="780" y="141">Redis</text>
+  <text class="sub" x="780" y="162">갱신 작업 큐 · 캐시 TTL 5분~12시간</text>
+  <circle class="badge" cx="924" cy="118" r="12"/><text class="num" x="924" y="118">5</text>
+
+  <path class="line" d="M568,176 H600 M568,244 H600 M568,312 H600 M600,80 V312"/>
+  <path class="line" d="M600,80 H634" marker-end="url(#a)"/>
+  <path class="line" d="M600,146 H634" marker-end="url(#a)"/>
+
+  <!-- 아웃바운드 -->
+  <rect class="box" x="636" y="352" width="288" height="56" rx="8"/>
+  <text class="main" x="780" y="375">squid 프록시</text>
+  <text class="sub" x="780" y="396">proxy 망 · 목적지 허용목록 3개</text>
+
+  <rect class="ext" x="636" y="436" width="288" height="48" rx="8"/>
+  <text class="sub" x="780" y="465">Riot API (kr · asia) · Data Dragon</text>
+
+  <path class="line" d="M568,380 H634" marker-end="url(#a)"/>
+  <path class="line" d="M780,408 V434" marker-end="url(#a)"/>
+
+  <!-- CI/CD -->
+  <rect class="group" x="24" y="500" width="920" height="84" rx="10"/>
+  <text class="main" x="72" y="548">CI/CD</text>
+
+  <rect class="box" x="120" y="518" width="160" height="48" rx="8"/>
+  <text class="main" x="200" y="548" style="font-size:15px">GitHub Actions</text>
+
+  <rect class="box" x="316" y="518" width="264" height="48" rx="8"/>
+  <text class="main" x="448" y="548" style="font-size:15px">테스트 · arm64 빌드 · Trivy 게이트</text>
+
+  <rect class="box" x="616" y="518" width="100" height="48" rx="8"/>
+  <text class="main" x="666" y="548" style="font-size:15px">GHCR</text>
+
+  <rect class="box" x="752" y="518" width="172" height="48" rx="8"/>
+  <text class="main" x="838" y="548" style="font-size:15px">서버 배포 · 자동 롤백</text>
+
+  <path class="line" d="M280,542 H314" marker-end="url(#a)"/>
+  <path class="line" d="M580,542 H614" marker-end="url(#a)"/>
+  <path class="line" d="M716,542 H750" marker-end="url(#a)"/>
+</svg>
