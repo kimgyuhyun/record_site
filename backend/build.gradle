@@ -23,6 +23,14 @@ description = 'LoL Record Site Backend'
 // 부트를 올릴 때 이 줄이 BOM 기본값보다 낮아지지 않는지도 확인할 것.
 ext['tomcat.version'] = '10.1.55'
 
+// netty 도 같은 이유로 따로 올린다. Spring Boot 3.5.11 이 끌고 오는 4.1.131 에 CVE-2026-75595
+// (CRITICAL) 이 있다. netty 는 spring-boot-starter-data-redis 가 쓰는 Lettuce 를 통해 들어온다.
+// 코드 변경 없이 Trivy 게이트가 빨간불이 됐다 — 취약점 DB 에 이 CVE 가 새로 들어온 것이다.
+//
+// 수정 버전 4.1.137 은 Maven Central 에 있다(확인함). 받을 수 있는 수정 버전이 있으므로
+// 예외 목록이 아니라 버전을 올린다. spring-boot-dependencies 가 이 속성으로 netty-bom 을 맞춘다.
+ext['netty.version'] = '4.1.137.Final'
+
 java {
 	toolchain {
 		languageVersion = JavaLanguageVersion.of(21)
