@@ -9,40 +9,44 @@ LoL 전적 검색 사이트(소환사·매치·챔피언 통계·팁 게시판).
 → CD(SSH 접속 후 `scripts/deploy.sh` 자동 실행). 로그인 기능은 없다.
 
 ## 프로젝트 규칙
-- 코드와 데이터 구조 규칙은 `C:\dev-standards\standards\ARCHITECTURE.md` 를 따른다.
-- 배포, 보안, 파이프라인, 관측 규칙은 `C:\dev-standards\standards\PLATFORM.md` 를 따른다.
-- 각 규칙은 [절대]와 [상황]으로 표시돼 있다. [절대]는 예외 없음. [상황]은 적용 조건과 미적용 조건이 함께 있으니, 미적용 조건에 해당하면 규칙을 어기는 것이 맞다.
-- [상황] 규칙의 미적용 조건을 근거로 규칙을 어길 때는 그 이유를 코드 주석이나 커밋 메시지에 한 줄 남긴다.
-- 규칙끼리 충돌하거나 판단이 서지 않으면 임의로 정하지 말고 물어본다.
-- 규칙 문서는 이 저장소 밖 `C:\dev-standards` 에 있다. 저장소 안에 복사하지 않는다. 이 저장소는 공개이므로 규칙 문서 내용을 커밋하거나 README에 옮겨 적지 않는다(`.gitignore` 의 `standards/` 줄은 실수로 복사됐을 때를 막기 위한 것이다).
+
+@C:/dev-standards/templates/CLAUDE-common.md
+
+- 위 공통 규칙 블록(규칙 문서 경로, 표시 읽는 법, "언제 무엇을 읽는가" 표)이 보이지 않으면 작업 전에 `C:\dev-standards\templates\CLAUDE-common.md` 를 직접 읽는다.
+- 이 저장소는 공개이므로 규칙 문서 내용을 커밋하거나 README에 옮겨 적지 않는다(`.gitignore` 의 `standards/` 줄은 실수로 복사됐을 때를 막기 위한 것이다).
 - 이 프로젝트는 규칙 문서보다 먼저 만들어졌다. 기존 코드가 규칙과 다른 곳이 남아 있으므로, 주변 코드를 근거로 규칙을 판단하지 않는다.
 
-### 언제 무엇을 읽는가
-아래 작업을 시작하기 전에 해당 절을 먼저 읽는다. 기억에 의존해 규칙을 적용하지 않는다. `C:\dev-standards\standards\RATIONALE.md` 는 통독하지 않고 표에 적힌 절만 읽는다.
+### 프로젝트 전제
+
+PLATFORM 0절의 항목이다. 규칙이 이 값에 따라 갈리므로 비워두지 않는다. 값이 바뀌는 변경은 이 표를 먼저 고친 뒤 시작한다.
+
+| 항목 | 값 |
+|---|---|
+| 앱 인스턴스 수 | 1 (무중단 배포 스크립트 없음, 배포 중 다운타임 허용). 갱신 워커가 전용 스레드 1개라 인스턴스를 늘리려면 이 전제부터 깨야 한다 |
+| 프론트엔드 형태 | 정적 SPA. `lol-frontend` 컨테이너가 빌드 결과를 서빙하고 웹 망(`default`)에만 붙는다 |
+| 사이트 경계 | 공용 무료 도메인(`kdagg.kozow.com`, 프론트와 API 가 같은 오리진). 로그인이 없어 세션 쿠키가 없다 |
+| 인증 방식 | 로그인 없음. 팁 수정·삭제는 글마다 비밀번호(해시 저장)로 확인한다 |
+| 결제 형태 | 없음 |
+| Runner 위치 | GitHub 호스팅만. CD 는 `ubuntu-latest` 러너가 SSH 로 서버에 붙어 `scripts/deploy.sh` 를 실행한다(`DEPLOY_SSH_KEY`, 호스트키 핀 `DEPLOY_KNOWN_HOSTS`). `.env` 는 서버에 있다 |
+| 엣지 프록시 | 없음. nginx 가 TLS 를 끝내고(certbot), 클라이언트 IP 는 `X-Real-IP` 만 신뢰한다 |
+| 실사용자와 개인정보 | 없음(혼자 쓰는 수준, 계정 없음). 저장 항목: 팁 작성자 닉네임·본문·비밀번호 해시(`ChampionTip`), 추천·신고자 IP 를 솔트로 해시한 식별자(`ChampionTipInteraction.actorKey`), Riot 공개 게임 데이터(소환사 Riot ID·PUUID, 매치 참가자) |
+| Redis 역할 | 캐시 + 전적 갱신 작업 큐(Redis List). 영속화 꺼짐(`--save ""`), 재시작하면 대기 중인 갱신 요청이 사라진다. 한 인스턴스에 `allkeys-lru` 라 메모리가 차면 큐 키도 쫓겨난다(ARCHITECTURE 10절은 큐가 있는 인스턴스에 noeviction 을 요구한다) |
+| DB 엔진 | MySQL 8 (InnoDB) |
+| 메시지 브로커 | Redis 작업 큐. ARCHITECTURE 13절 중 소비자 멱등, 커밋 후 발행, 재시도 횟수 제한만 적용한다 |
+| 환경 구성 | 로컬 + 프로덕션. 검증 환경 없음 |
+| 가상 스레드 | 사용 안 함 (`spring.threads.virtual.enabled` 설정 없음) |
+
+### 이 프로젝트에서 추가로 읽을 절
 
 | 시작하는 작업 | 먼저 읽을 절 |
 |---|---|
-| 엔티티, DTO, Controller, Service 새로 만들기 | ARCHITECTURE 1, 2, 7 |
-| 트랜잭션 경계 잡기, JPA·QueryDSL·네이티브 중에 고르기 | ARCHITECTURE 3, 4 |
-| Riot API 호출이 끼는 흐름(전적 갱신, 크롤러, 라이브게임) 수정 | ARCHITECTURE 4, 5, RATIONALE 3-3 — 외부 호출을 트랜잭션 안에 두지 않는다 |
-| 전적 갱신 재요청·중복 수집 처리, 매치 저장 재실행 | ARCHITECTURE 6, RATIONALE 3-3 |
-| 팁 추천·신고 카운터, 같은 행 동시 갱신 | ARCHITECTURE 9, RATIONALE 3-2 |
-| 인덱스 추가·삭제 | ARCHITECTURE 8, RATIONALE 3-1 — 실행 계획과 실측 시간을 전후로 캡처해야 한다. 나중에 만들 수 없으니 착수 전에 읽는다 |
-| 매치 목록·랭킹·티어리스트 조회 성능, 페이징, N+1, 커넥션 풀 | ARCHITECTURE 11, 12 |
-| Redis 캐시 추가·TTL 변경 | ARCHITECTURE 10 |
-| 갱신 작업 큐(Redis List)와 워커 수정, 큐 수단 교체 검토 | ARCHITECTURE 13 |
-| 예외 클래스 추가, 에러 응답 형태 변경 | ARCHITECTURE 14 |
-| 테스트 작성 | ARCHITECTURE 15, RATIONALE 3-6 — 계층이 아니라 로직으로 대상을 정한다. 짠 뒤에는 일부러 깨뜨려 빨간불이 나는지 확인한다 |
+| Riot API 호출이 끼는 흐름(전적 갱신, 크롤러, 라이브게임) 수정 | ARCHITECTURE 4, 5, 17 — 외부 호출을 트랜잭션 안에 두지 않는다 |
+| 전적 갱신 재요청·중복 수집 처리, 매치 저장 재실행 | ARCHITECTURE 6 — 재현 절차는 defect-repro 스킬 |
+| 팁 추천·신고 카운터, 같은 행 동시 갱신 | ARCHITECTURE 9 — 재현 절차는 defect-repro 스킬 |
+| 갱신 작업 큐(Redis List)와 워커 수정, 큐 수단 교체 검토 | ARCHITECTURE 13, 10 |
 | 요청 DTO 검증, 팁 비밀번호, 클라이언트 IP 기반 식별 | PLATFORM 5 |
-| nginx 레이트리밋·보안헤더·CORS, DB 계정 권한 | PLATFORM 4 |
-| compose 파일, Dockerfile, nginx 설정 수정 | PLATFORM 2, 3 |
 | 네트워크 오버레이(netlock) 또는 새 컨테이너 추가 | PLATFORM 3 — 어느 망에 붙일지와 egress 필요 여부를 먼저 정한다 |
-| CI/CD 워크플로 수정, 의존성 추가 | PLATFORM 6, 7 |
-| Flyway 마이그레이션 작성과 배포 | PLATFORM 8 — 파괴적 변경은 애플리케이션 배포와 같은 릴리스에 넣지 않는다 |
-| `.env` 값 추가·변경, Riot 키 교체, 유출 대응 | PLATFORM 1 |
-| 지표, 로그, 알림 규칙 추가 | PLATFORM 9 |
-| 부하 테스트 | PLATFORM 10, RATIONALE 3-4 — 기준선을 먼저 측정하고 합격 기준을 테스트 전에 적는다 |
-| 배포 후 보안 점검 | PLATFORM 11, RATIONALE 3-5 |
+| `.env` 값 추가·변경, Riot 키 교체 | PLATFORM 1 |
 
 ## 폴더
 - `backend/` Spring Boot (config/controller/domain/dto/entity/exception/repository/service/support 레이어드), 마이그레이션은 `src/main/resources/db/migration/`
