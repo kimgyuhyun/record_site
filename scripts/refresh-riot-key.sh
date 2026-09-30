@@ -19,7 +19,6 @@ COMPOSE=(docker compose
   -f docker-compose.yml
   -f docker-compose.prod.yml
   -f docker-compose.ghcr.yml
-  -f docker-compose.certbot.yml
   -f docker-compose.netlock.yml
   -f docker-compose.hardening.yml
   -f docker-compose.monitoring.yml)

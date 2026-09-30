@@ -26,14 +26,12 @@ ok(){   echo "  [ok]   $*"; }
 # 루트FS 읽기전용을 요구하는 컨테이너와, 이유가 있어 면제된 컨테이너.
 # 목록에 없는 컨테이너가 나타나면 실패시킨다 — 새 서비스를 추가하고 기대치를 정하지
 # 않으면 "검사받지 않는 컨테이너"가 조용히 생기기 때문이다.
-RO_REQUIRED="lol-backend lol-frontend lol-alloy lol-egress-proxy"
+RO_REQUIRED="lol-backend lol-frontend lol-nginx lol-alloy lol-egress-proxy"
 # 면제 사유(hardening/monitoring 오버레이 주석과 같은 내용):
 #   lol-mysql      데이터 디렉터리 주변에 소켓·pid·tmp 를 쓴다
 #   lol-redis      데이터 디렉터리에 쓴다
-#   lol-nginx      certbot 갱신 반영을 위해 6시간마다 reload 하며 /var/run 에 쓴다
-#   lol-certbot    갱신한 인증서를 볼륨에 쓴다
 #   lol-prometheus / lol-grafana / lol-loki  각자 데이터 볼륨에 쓴다
-RO_EXEMPT="lol-mysql lol-redis lol-nginx lol-certbot lol-prometheus lol-grafana lol-loki"
+RO_EXEMPT="lol-mysql lol-redis lol-prometheus lol-grafana lol-loki"
 
 has_word(){ case " $2 " in *" $1 "*) return 0;; *) return 1;; esac; }
 
@@ -93,18 +91,19 @@ done
 [ "$failed" -eq 0 ] && ok "컨테이너 ${#containers[@]}개 — nnp/cap/limits/read_only/tmpfs 모두 통과"
 
 # ── 호스트에 열린 포트 ──
-# 인터넷에 여는 포트는 443 과 리다이렉트용 80 뿐이다(PLATFORM 3절).
+# 이 프로젝트는 모든 인터페이스에 여는 포트가 하나도 없다. 80/443 은 server-infra 의
+# Caddy 가 열고, 요청은 edge 망으로 들어온다(PLATFORM 3절).
 # 나머지는 127.0.0.1 에만 묶여 있어야 한다. dev 오버레이를 서버에서 잘못 올리면
 # 여기서 걸린다(MySQL 3307 / Redis 6379 가 0.0.0.0 으로 열린다).
 echo "[hardening] 호스트 포트 노출 검사"
 bad_ports=$(docker ps --filter "label=com.docker.compose.project=$COMPOSE_PROJECT" \
               --format '{{.Names}} {{.Ports}}' 2>/dev/null \
             | grep -oE '0\.0\.0\.0:[0-9]+|\[::\]:[0-9]+' | grep -oE '[0-9]+$' \
-            | sort -u | grep -vE '^(80|443)$' || true)
+            | sort -u || true)
 if [ -n "$bad_ports" ]; then
-  fail "80/443 외의 포트가 모든 인터페이스에 열려 있다: $(echo "$bad_ports" | tr '\n' ' ')"
+  fail "모든 인터페이스에 열린 포트가 있다: $(echo "$bad_ports" | tr '\n' ' ')"
 else
-  ok "공개 포트는 80/443 뿐"
+  ok "모든 인터페이스에 열린 포트 없음"
 fi
 
 # ── 호스트 SSH 자세 (경고만) ──
