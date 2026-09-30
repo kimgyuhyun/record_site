@@ -43,6 +43,13 @@ configurations {
 	}
 }
 
+// 의존성 잠금. 전이 의존성까지 gradle.lockfile 에 고정해서 같은 커밋은 언제 빌드해도 같은 버전으로 해석된다.
+// 해석 결과가 락과 다르면 빌드가 실패한다 — 그게 이 설정의 목적이다.
+// 버전을 올릴 때(ext 로 덮는 tomcat·netty 포함)는 로컬에서 ./gradlew dependencies --write-locks 로 갱신한다.
+dependencyLocking {
+	lockAllConfigurations()
+}
+
 repositories {
 	mavenCentral()
 }

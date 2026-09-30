@@ -5,7 +5,7 @@ FROM eclipse-temurin:21-jdk@sha256:4d06038800655fe1211760cd561de70ef2ed7a47f5d69
 WORKDIR /app
 
 # 래퍼/빌드 스크립트 먼저 복사해 의존성 레이어를 캐싱한다.
-COPY gradlew gradlew.bat settings.gradle build.gradle ./
+COPY gradlew gradlew.bat settings.gradle build.gradle gradle.lockfile ./
 COPY gradle ./gradle
 RUN chmod +x gradlew && ./gradlew dependencies --no-daemon -q || true
 
