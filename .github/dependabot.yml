@@ -1,0 +1,58 @@
+version: 2
+updates:
+  # 프론트엔드 (React + Vite / npm)
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    groups:
+      frontend-minor:
+        update-types: ["minor", "patch"]
+    open-pull-requests-limit: 5
+    ignore:
+      # 메이저 버전 업그레이드는 breaking change 위험이 커서 자동 PR 제외(수동 처리)
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # 백엔드 (Spring Boot / gradle)
+  # build.gradle 의 ext['tomcat.version']·ext['netty.version'] 은 Dependabot 이 관리하지 않는다.
+  # 부트 버전 PR 을 받으면 BOM 기본값이 이 덮어쓴 값보다 높아지지 않았는지 확인한다.
+  - package-ecosystem: "gradle"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    groups:
+      backend-minor:
+        update-types: ["minor", "patch"]
+    open-pull-requests-limit: 5
+    ignore:
+      # 메이저 버전 업그레이드는 breaking change 위험이 커서 자동 PR 제외(수동 처리)
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # Docker 베이스 이미지
+  # npm/gradle과 달리 Docker는 advisory 매핑이 없어 security update PR이 따로 오지 않는다.
+  # 이 스케줄이 곧 유일한 패치 주기이므로 daily로 둔다(다이제스트가 실제로 움직일 때만 PR이 열린다).
+  - package-ecosystem: "docker"
+    directory: "/frontend"
+    schedule:
+      interval: "daily"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    schedule:
+      interval: "daily"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions 워크플로우
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
