@@ -4,7 +4,7 @@
 루트 경로에 공백이 있으므로 셸에서 경로를 쓸 때는 반드시 따옴표로 감싼다.
 
 LoL 전적 검색 사이트(소환사·매치·챔피언 통계·팁 게시판). Spring Boot 3.5(Java 21, JPA+QueryDSL, Flyway)
-+ React 19/Vite SPA + MySQL 8 / Redis(캐시 + 전적갱신 작업 큐) + nginx(엣지 TLS) + certbot.
++ React 19/Vite SPA + MySQL 8 / Redis(캐시 + 전적갱신 작업 큐) + nginx(앱 입구, TLS 는 server-infra 의 Caddy).
 단일 호스트 Docker Compose(백엔드 1인스턴스), GitHub Actions CI(arm64 빌드→GHCR push+Trivy)
 → CD(SSH 접속 후 `scripts/deploy.sh` 자동 실행). 로그인 기능은 없다.
 
@@ -28,7 +28,7 @@ PLATFORM 0절의 항목이다. 규칙이 이 값에 따라 갈리므로 비워�
 | 인증 방식 | 로그인 없음. 팁 수정·삭제는 글마다 비밀번호(해시 저장)로 확인한다 |
 | 결제 형태 | 없음 |
 | Runner 위치 | GitHub 호스팅만. CD 는 `ubuntu-latest` 러너가 SSH 로 서버에 붙어 `scripts/deploy.sh` 를 실행한다(`DEPLOY_SSH_KEY`, 호스트키 핀 `DEPLOY_KNOWN_HOSTS`). `.env` 는 서버에 있다 |
-| 엣지 프록시 | 없음. nginx 가 TLS 를 끝내고(certbot), 클라이언트 IP 는 `X-Real-IP` 만 신뢰한다 |
+| 엣지 프록시 | 있음. 별도 저장소 `server-infra` 의 Caddy(`edge-caddy`)가 80/443 과 TLS 를 맡고, internal 망 `edge`(10.250.0.0/24)로 `lol-nginx` 에 넘긴다. `lol-nginx` 는 그 대역에서 온 `X-Forwarded-For` 로만 실제 IP 를 복원하고(Caddy 가 클라이언트 값을 버리고 덮어쓴다), 백엔드는 계속 `X-Real-IP` 만 신뢰한다. 속도 제한 키도 복원된 IP 다 |
 | 실사용자와 개인정보 | 없음(혼자 쓰는 수준, 계정 없음). 저장 항목: 팁 작성자 닉네임·본문·비밀번호 해시(`ChampionTip`), 추천·신고자 IP 를 솔트로 해시한 식별자(`ChampionTipInteraction.actorKey`), Riot 공개 게임 데이터(소환사 Riot ID·PUUID, 매치 참가자) |
 | Redis 역할 | 캐시 + 전적 갱신 작업 큐(Redis List). 영속화 꺼짐(`--save ""`), 재시작하면 대기 중인 갱신 요청이 사라진다. 한 인스턴스에 `allkeys-lru` 라 메모리가 차면 큐 키도 쫓겨난다(ARCHITECTURE 10절은 큐가 있는 인스턴스에 noeviction 을 요구한다) |
 | DB 엔진 | MySQL 8 (InnoDB) |
@@ -51,11 +51,11 @@ PLATFORM 0절의 항목이다. 규칙이 이 값에 따라 갈리므로 비워�
 ## 폴더
 - `backend/` Spring Boot (config/controller/domain/dto/entity/exception/repository/service/support 레이어드), 마이그레이션은 `src/main/resources/db/migration/`
 - `frontend/` React + Vite SPA, `src/api/*` 도메인별 API 클라이언트, `scripts/download-ddragon.mjs` 로 Data Dragon 에셋 내려받음
-- `nginx/` 엣지 설정 — `default.conf`(HTTP) / `default.https.conf`(TLS, 실사용)
+- `nginx/` 앱 입구 설정 — `default.conf`(Caddy 뒤에서 평문 HTTP 로 받는다. 실제 IP 복원·속도 제한·보안 헤더·이상 Host 드롭)
 - `proxy/` squid 아웃바운드 허용목록 설정(backend 의 유일한 인터넷 경로)
 - `monitoring/` prometheus·loki·alloy 설정과 grafana 프로비저닝
 - `scripts/` `deploy.sh`(서버 배포 본체) · `refresh-riot-key.sh`(Riot 키 교체)
-- `docs/` https-setup.md(최초 인증서 발급 절차) · refresh-job-queue.md(갱신 큐 설계 근거) — 그 외 설명은 README.md 에 있다
+- `docs/` refresh-job-queue.md(갱신 큐 설계 근거) — 그 외 설명은 README.md 에 있다
 
 ## 실행/배포
 - 개발 인프라만 기동: `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d` (MySQL 3307 / Redis 6379 호스트 공개)
@@ -69,7 +69,6 @@ PLATFORM 0절의 항목이다. 규칙이 이 값에 따라 갈리므로 비워�
 - `docker-compose.yml` 베이스(mysql+redis, 망 3개 정의 — 단독 실행 금지)
 - `.dev.yml` 개발용(인프라 호스트 포트만 열기) / `.prod.yml` 운영용(backend·frontend·nginx 추가)
 - `.ghcr.yml` 서버 재빌드 금지 + GHCR 이미지(digest) 고정
-- `.certbot.yml` TLS 종단 전환 + 인증서 자동갱신
 - `.netlock.yml` `default`/`data`/`proxy` 망 egress 차단 + backend 아웃바운드 허용목록 프록시(squid) (운영 필수)
 - `.hardening.yml` cap_drop·no-new-privileges·read_only·cpu 상한
 - `.monitoring.yml` Prometheus/Grafana/Loki/Alloy (배포 스크립트에 항상 포함 — 빠지면 `--remove-orphans` 가 지운다)
@@ -81,6 +80,8 @@ PLATFORM 0절의 항목이다. 규칙이 이 값에 따라 갈리므로 비워�
 - `scripts/refresh-riot-key.sh` 의 `COMPOSE` 배열은 deploy.sh 와 동일하게 유지한다. 빠지면 backend 가 그 오버레이 없이 재생성되는데, netlock 이 빠지면 `proxy` 망이 없어 Riot 호출이 통째로 실패한다(하드닝도 같이 벗겨진다)
 - nginx 는 upstream 호스트명을 기동 시 1회만 IP 로 해석한다. 배포로 backend/frontend 가 재생성되면 옛 IP 를 붙들어 502 가 난다 — `deploy.sh` 가 up 직후 `lol-nginx` 를 재시작해서 푼다. health 체크는 backend 직결이라 이 고장을 못 잡는다
 - 클라이언트 IP 는 `X-Real-IP` 만 신뢰한다. `X-Forwarded-For` 는 nginx 가 클라이언트가 보낸 값 뒤에 덧붙이는 방식이라 위조된 앞쪽 값을 그대로 읽게 된다
+- `lol-nginx` 가 보는 접속 주소는 Caddy 다. `nginx/default.conf` 의 `set_real_ip_from`(edge 대역)이 빠지거나 대역이 server-infra 와 어긋나면 모든 요청이 Caddy IP 하나로 수렴한다 — 속도 제한이 서비스 전체 총량이 되고, 팁 추천·신고가 전원 한 사람으로 묶인다. 에러는 나지 않는다
+- `edge` 망은 server-infra 가 만드는 external 망이다. 서버에 server-infra 가 먼저 떠 있지 않으면(최소 `docker compose up --no-start`) 배포가 compose 단계에서 실패한다
 - `TIP_ACTOR_SALT` 를 바꾸면 기존 추천·신고 이력과 매칭이 끊긴다. 고정해서 쓴다
 - Riot 개발 키는 24시간마다 만료된다. 전적검색이 통째로 죽으면 먼저 키 만료를 의심하고 `scripts/refresh-riot-key.sh` 로 교체한다
 - 스키마는 Flyway 만으로 관리한다(`ddl-auto: validate`). 엔티티 변경과 마이그레이션 파일은 같은 커밋에 넣고, 운영 DB 에 직접 DDL 을 치지 않는다
