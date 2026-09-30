@@ -273,7 +273,7 @@ src/main/resources/db/migration/V{yyyyMMddHHmmss}__{설명}.sql
 
 ## CI/CD & 배포
 
-**CI** — `main` 푸시 시 GitHub Actions 가 arm64 네이티브로 백엔드/프론트 이미지를 빌드해 GHCR 에 푸시합니다
+**CI** — PR 에서는 백엔드 테스트만 돌고, `main` 푸시 시 GitHub Actions 가 arm64 네이티브로 백엔드/프론트 이미지를 빌드해 GHCR 에 푸시합니다
 (이미지 태그 = commit SHA + `latest`). Trivy 로 취약점을 스캔합니다(현재 report-only).
 
 **CD** — CI 성공 시 이어서 서버로 SSH 자동 배포합니다. `scripts/deploy.sh` 가 다음 안전장치를 수행합니다.
