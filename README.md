@@ -174,8 +174,7 @@ record site/
 │   └── package.json
 ├── nginx/                   앱 입구 nginx 설정(Caddy 뒤, http)
 ├── scripts/
-│   ├── deploy.sh            서버 배포 스크립트(digest 고정 · IOC 게이트 · DB 백업 · health 검증 · 자동 롤백)
-│   └── refresh-riot-key.sh  Riot 개발 키 갱신 헬퍼
+│   └── deploy.sh            서버 배포 스크립트(.env.enc 복호화 · digest 고정 · IOC 게이트 · DB 백업 · health 검증 · 자동 롤백)
 ├── docs/                    설계 · 운영 문서
 ├── docker-compose*.yml      base + dev/prod/ghcr override + 보안·관측 오버레이
 └── .github/workflows/       ci.yml (빌드·푸시) / cd.yml (배포)
@@ -238,7 +237,9 @@ npm run dev               # → http://localhost:5173 ( /api 는 :8080 으로 �
 운영은 최소권한을 위해 DB 계정을 둘로 나눕니다 — 런타임(`loldb_app`)은 DML 만, 스키마 변경(`loldb_migrate`)만 DDL.
 개발은 변수를 비워두면 예전처럼 `root` 로 폴백해 추가 설정 없이 동작합니다.
 
-> 시크릿(`.env`)은 git 에 커밋하지 않습니다.
+> 평문 시크릿(`.env`)은 git 에 커밋하지 않습니다. 운영 값은 SOPS+age 로 암호화한 `.env.enc` 로 커밋하고,
+> 배포 때 서버가 자기 키로 복호화해 `.env` 를 만듭니다(복호화 키는 서버와 비밀번호 관리자에만 있고 CI 에는 없습니다).
+> 그래서 운영 값을 바꿀 때는 서버 `.env` 가 아니라 `.env.enc` 를 고쳐 커밋합니다 — 서버에서 고친 값은 다음 배포가 덮어씁니다.
 
 ---
 

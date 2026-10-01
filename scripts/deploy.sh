@@ -37,6 +37,22 @@ cd "$PROJECT_DIR"
 log(){ echo "[deploy $(date -u +%H:%M:%S)] $*"; }
 fail(){ echo "[deploy ERROR] $*" >&2; exit 1; }
 
+# ── 0) .env 생성 — 이 커밋의 .env.enc(SOPS+age)를 서버의 키로 복호화 ──
+#   값의 정본은 커밋된 .env.enc 하나다. 서버 .env 는 매 배포마다 여기서 다시 만들어지므로
+#   손으로 고친 값은 다음 배포에 사라진다 — 값을 바꾸려면 .env.enc 를 고쳐 커밋한다.
+#   키는 sops 기본 위치(~/.config/sops/age/keys.txt)에만 있고 GitHub 에는 없다. 러너가 GitHub
+#   호스팅이라 런타임 시크릿은 호스트에서 복호화한다(러너가 뚫려도 .env 는 새지 않는다).
+#   임시 파일(600)에 쓴 뒤 mv 로 바꾼다 — 복호화가 실패해도 기존 .env 가 반쯤 쓰인 채 남지 않는다.
+command -v sops >/dev/null 2>&1 || fail "sops not installed"
+[ -f .env.enc ] || fail ".env.enc not found in this commit"
+rm -f .env.tmp
+if ! (umask 077; sops --decrypt --input-type dotenv --output-type dotenv .env.enc > .env.tmp); then
+  rm -f .env.tmp
+  fail "sops decrypt of .env.enc failed"
+fi
+mv .env.tmp .env
+log ".env decrypted from .env.enc"
+
 # ── 1) GHCR 로그인(단기 토큰) ──
 log "docker login $REGISTRY"
 echo "$GHCR_TOKEN" | docker login "$REGISTRY" -u "$GHCR_USER" --password-stdin
