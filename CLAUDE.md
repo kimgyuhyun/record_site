@@ -27,7 +27,7 @@ PLATFORM 0절의 항목이다. 규칙이 이 값에 따라 갈리므로 비워�
 | 사이트 경계 | 공용 무료 도메인(`kdagg.kozow.com`, 프론트와 API 가 같은 오리진). 로그인이 없어 세션 쿠키가 없다 |
 | 인증 방식 | 로그인 없음. 팁 수정·삭제는 글마다 비밀번호(해시 저장)로 확인한다 |
 | 결제 형태 | 없음 |
-| Runner 위치 | GitHub 호스팅만. CD 는 `ubuntu-latest` 러너가 SSH 로 서버에 붙어 `scripts/deploy.sh` 를 실행한다(`DEPLOY_SSH_KEY`, 호스트키 핀 `DEPLOY_KNOWN_HOSTS`). `.env` 는 서버에 있다 |
+| Runner 위치 | GitHub 호스팅만. CD 는 `ubuntu-latest` 러너가 SSH 로 서버에 붙어 `scripts/deploy.sh` 를 실행한다(`DEPLOY_SSH_KEY`, 호스트키 핀 `DEPLOY_KNOWN_HOSTS`). `.env` 는 서버가 커밋된 `.env.enc`(SOPS+age)를 배포 때 복호화해 만든다. 복호화 키는 서버와 Bitwarden 에만 있고 러너에는 없다 |
 | 엣지 프록시 | 있음. 별도 저장소 `server-infra` 의 Caddy(`edge-caddy`)가 80/443 과 TLS 를 맡고, internal 망 `edge`(10.250.0.0/24)로 `lol-nginx` 에 넘긴다. `lol-nginx` 는 그 대역에서 온 `X-Forwarded-For` 로만 실제 IP 를 복원하고(Caddy 가 클라이언트 값을 버리고 덮어쓴다), 백엔드는 계속 `X-Real-IP` 만 신뢰한다. 속도 제한 키도 복원된 IP 다 |
 | 실사용자와 개인정보 | 없음(혼자 쓰는 수준, 계정 없음). 저장 항목: 팁 작성자 닉네임·본문·비밀번호 해시(`ChampionTip`), 추천·신고자 IP 를 솔트로 해시한 식별자(`ChampionTipInteraction.actorKey`), Riot 공개 게임 데이터(소환사 Riot ID·PUUID, 매치 참가자) |
 | Redis 역할 | 캐시 + 전적 갱신 작업 큐(Redis List). 영속화 꺼짐(`--save ""`), 재시작하면 대기 중인 갱신 요청이 사라진다. 한 인스턴스에 `allkeys-lru` 라 메모리가 차면 큐 키도 쫓겨난다(ARCHITECTURE 10절은 큐가 있는 인스턴스에 noeviction 을 요구한다) |
@@ -54,7 +54,7 @@ PLATFORM 0절의 항목이다. 규칙이 이 값에 따라 갈리므로 비워�
 - `nginx/` 앱 입구 설정 — `default.conf`(Caddy 뒤에서 평문 HTTP 로 받는다. 실제 IP 복원·속도 제한·보안 헤더·이상 Host 드롭)
 - `proxy/` squid 아웃바운드 허용목록 설정(backend 의 유일한 인터넷 경로)
 - `monitoring/` prometheus·loki·alloy 설정과 grafana 프로비저닝
-- `scripts/` `deploy.sh`(서버 배포 본체) · `refresh-riot-key.sh`(Riot 키 교체)
+- `scripts/` `deploy.sh`(서버 배포 본체, `.env.enc` 복호화 포함)
 - `docs/` refresh-job-queue.md(갱신 큐 설계 근거) — 그 외 설명은 README.md 에 있다
 
 ## 실행/배포
@@ -63,7 +63,7 @@ PLATFORM 0절의 항목이다. 규칙이 이 값에 따라 갈리므로 비워�
 - 테스트: `cd backend && ./gradlew test` — 동시성 테스트가 실제 MySQL 을 요구하므로 위 dev 인프라가 떠 있어야 한다
 - 실제 배포는 main push 시 CI(이미지 빌드→GHCR)가 성공하면 CD 가 서버에 SSH 로 붙어 `git checkout -f <sha>` 후 `scripts/deploy.sh` 를 실행한다. 로컬에서 서버로 배포하는 경로는 없다
 - **절대 하면 안 됨**: 맨손 `docker compose up` — netlock 오버레이 없이 올리면 `default`/`data` 망의 `internal` 잠금이 빠져 프론트 아웃바운드가 열리고(OTT 프로젝트에서 같은 구멍이 실제 침해로 이어졌다), backend 의 아웃바운드 허용목록(squid)도 통째로 빠진다. 운영 조합의 정본은 `scripts/deploy.sh` 의 `COMPOSE` 배열이다
-- `.env`(RIOT_API_KEY, DB_PASSWORD, REDIS_PASSWORD, DB_APP_*/DB_MIGRATE_*, TIP_ACTOR_SALT)는 커밋되지 않는다. base compose 가 `:?` 로 필수화해 두어 값이 없으면 기동이 실패한다
+- 운영 시크릿(RIOT_API_KEY, DB_PASSWORD, REDIS_PASSWORD, DB_APP_*/DB_MIGRATE_*, TIP_ACTOR_SALT, ALERT_WEBHOOK_URL)의 정본은 SOPS+age 로 암호화해 커밋한 `.env.enc` 다. 평문 `.env` 는 커밋되지 않는다. base compose 가 `:?` 로 필수화해 두어 값이 없으면 기동이 실패한다
 
 ## compose 파일 용도
 - `docker-compose.yml` 베이스(mysql+redis, 망 3개 정의 — 단독 실행 금지)
@@ -77,13 +77,12 @@ PLATFORM 0절의 항목이다. 규칙이 이 값에 따라 갈리므로 비워�
 - 단일 파일 bind mount 는 inode 로 고정된다. CD 의 `git checkout -f` 가 파일을 새 inode 로 갈아끼우면 컨테이너는 삭제된 옛 파일을 계속 읽는다(`nginx -s reload` 도 소용없다). 그래서 `deploy.sh` 가 내용 해시를 `NGINX_CONF_SHA`/`MONITORING_CONF_SHA`/`EGRESS_CONF_SHA` 로 주입해 컨테이너를 재생성시킨다 — **단일 파일 마운트를 새로 추가하면 그 파일도 해시 대상에 넣어야 한다**
 - 해시 계산에 들어가는 파일 목록은 순서를 고정한다. 와일드카드로 순서가 흔들리면 내용이 같아도 매 배포마다 재생성된다
 - 오버레이를 새로 만들면 `deploy.sh` 의 `COMPOSE` 배열에 반드시 추가한다. 빠지면 반영이 안 되는 정도가 아니라 `--remove-orphans` 가 그 컨테이너를 지운다
-- `scripts/refresh-riot-key.sh` 의 `COMPOSE` 배열은 deploy.sh 와 동일하게 유지한다. 빠지면 backend 가 그 오버레이 없이 재생성되는데, netlock 이 빠지면 `proxy` 망이 없어 Riot 호출이 통째로 실패한다(하드닝도 같이 벗겨진다)
 - nginx 는 upstream 호스트명을 기동 시 1회만 IP 로 해석한다. 배포로 backend/frontend 가 재생성되면 옛 IP 를 붙들어 502 가 난다 — `deploy.sh` 가 up 직후 `lol-nginx` 를 재시작해서 푼다. health 체크는 backend 직결이라 이 고장을 못 잡는다
 - 클라이언트 IP 는 `X-Real-IP` 만 신뢰한다. `X-Forwarded-For` 는 nginx 가 클라이언트가 보낸 값 뒤에 덧붙이는 방식이라 위조된 앞쪽 값을 그대로 읽게 된다
 - `lol-nginx` 가 보는 접속 주소는 Caddy 다. `nginx/default.conf` 의 `set_real_ip_from`(edge 대역)이 빠지거나 대역이 server-infra 와 어긋나면 모든 요청이 Caddy IP 하나로 수렴한다 — 속도 제한이 서비스 전체 총량이 되고, 팁 추천·신고가 전원 한 사람으로 묶인다. 에러는 나지 않는다
 - `edge` 망은 server-infra 가 만드는 external 망이다. 서버에 server-infra 가 먼저 떠 있지 않으면(최소 `docker compose up --no-start`) 배포가 compose 단계에서 실패한다
 - `TIP_ACTOR_SALT` 를 바꾸면 기존 추천·신고 이력과 매칭이 끊긴다. 고정해서 쓴다
-- Riot 개발 키는 24시간마다 만료된다. 전적검색이 통째로 죽으면 먼저 키 만료를 의심하고 `scripts/refresh-riot-key.sh` 로 교체한다
+- 서버 `.env` 는 배포마다 `.env.enc` 로 다시 만들어진다. 서버에서 손으로 고친 값은 다음 배포에 조용히 사라진다. 값 추가·변경(Riot 키 교체 포함)은 로컬에서 `sops .env.enc` 로 고쳐 커밋·배포한다 — 개인키는 Bitwarden "record_site env key" 에서 잠깐 꺼내 `SOPS_AGE_KEY_FILE` 로 지정하고, 끝나면 지운다
 - 스키마는 Flyway 만으로 관리한다(`ddl-auto: validate`). 엔티티 변경과 마이그레이션 파일은 같은 커밋에 넣고, 운영 DB 에 직접 DDL 을 치지 않는다
 - 동시성 테스트(`ChampionTipConcurrencyTest`)는 실제 행 잠금을 보기 때문에 H2 로는 재현되지 않는다. 진짜 MySQL 이 필요하다
 - 백엔드는 1인스턴스이고 무중단 배포 스크립트가 없다. 갱신 워커도 전용 스레드 1개다 — 이 전제에 기대는 코드가 있으므로 인스턴스를 늘리는 변경은 전제를 먼저 깬다
