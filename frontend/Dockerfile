@@ -1,6 +1,6 @@
 # ── 1단계: Vite 빌드 ──
 # 베이스 이미지는 digest 로 고정한다. 태그가 가리키는 이미지가 바뀌어도 빌드가 조용히 달라지지 않고 Dependabot PR 로 드러난다.
-FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS build
+FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS build
 WORKDIR /app
 
 # 의존성 레이어 캐싱
