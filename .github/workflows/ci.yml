@@ -175,3 +175,23 @@ jobs:
           docker push "$IMAGE_BACKEND:latest"
           docker push "$IMAGE_FRONTEND:$GITHUB_SHA"
           docker push "$IMAGE_FRONTEND:latest"
+
+      # 배포할 이미지는 CI 가 digest 로 지목한다(PLATFORM 7절). CD 는 태그를 해석하지 않고
+      # 이 아티팩트의 digest 로만 pull·배포한다. 전달 수단이 아티팩트인 이유: CD 는 workflow_run 으로
+      # 트리거되는데 그 이벤트는 잡 output 을 나르지 않는다.
+      # 보존 기간(저장소 기본 90일)이 workflow_dispatch 롤백(ci_run_id)이 닿는 한계다.
+      - name: Capture image digests
+        if: github.ref == 'refs/heads/main'
+        run: |
+          IMAGE_REPO="$IMAGE_BACKEND"  IMAGE_TAG="$GITHUB_SHA" COMMIT_SHA="$GITHUB_SHA" \
+            OUT_FILE=digests/backend.txt  bash .github/scripts/capture-image-digest.sh
+          IMAGE_REPO="$IMAGE_FRONTEND" IMAGE_TAG="$GITHUB_SHA" COMMIT_SHA="$GITHUB_SHA" \
+            OUT_FILE=digests/frontend.txt bash .github/scripts/capture-image-digest.sh
+
+      - name: Upload image digests
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: image-digests
+          path: digests/
+          if-no-files-found: error

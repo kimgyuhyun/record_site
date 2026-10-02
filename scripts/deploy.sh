@@ -4,9 +4,13 @@
 # (배포하는 이미지와 compose/nginx 설정이 같은 커밋으로 일치하도록 서버를 그 sha 에 고정한다.)
 #
 # 필요한 환경변수:
-#   TAG        배포할 이미지 태그(= commit sha)
-#   GHCR_USER  GHCR 로그인 사용자명(인증은 토큰이 하므로 값 자체는 크게 중요치 않음)
-#   GHCR_TOKEN 워크플로 GITHUB_TOKEN(단기) — 서버에 장기 PAT 를 남기지 않기 위해 매 배포마다 주입/폐기
+#   TAG          배포할 커밋 SHA(로그·식별용. 이미지를 고르는 데는 쓰지 않는다)
+#   BACKEND_REF  배포할 backend 이미지  — ghcr.io/kimgyuhyun/record_site-backend@sha256:<64hex>
+#   FRONTEND_REF 배포할 frontend 이미지 — ghcr.io/kimgyuhyun/record_site-frontend@sha256:<64hex>
+#                둘 다 CI 가 Trivy 를 통과시켜 push 한 직후 캡처한 digest 다(cd.yml 이 아티팩트에서 읽어 넘긴다).
+#                이 스크립트는 태그로 pull 하지도, 태그를 digest 로 해석하지도 않는다(PLATFORM 7절).
+#   GHCR_USER    GHCR 로그인 사용자명(인증은 토큰이 하므로 값 자체는 크게 중요치 않음)
+#   GHCR_TOKEN   워크플로 GITHUB_TOKEN(단기) — 서버에 장기 PAT 를 남기지 않기 위해 매 배포마다 주입/폐기
 set -euo pipefail
 
 REGISTRY=ghcr.io
@@ -30,6 +34,8 @@ COMPOSE=(docker compose
   -f docker-compose.monitoring.yml)
 
 : "${TAG:?TAG required}"
+: "${BACKEND_REF:?BACKEND_REF (ghcr digest ref from CI) required}"
+: "${FRONTEND_REF:?FRONTEND_REF (ghcr digest ref from CI) required}"
 : "${GHCR_USER:?GHCR_USER required}"
 : "${GHCR_TOKEN:?GHCR_TOKEN required}"
 
@@ -57,19 +63,19 @@ log ".env decrypted from .env.enc"
 log "docker login $REGISTRY"
 echo "$GHCR_TOKEN" | docker login "$REGISTRY" -u "$GHCR_USER" --password-stdin
 
-# ── 2) 이미지 pull (commit-sha 태그) ──
-tag_backend="$BACKEND_REPO:$TAG"
-tag_frontend="$FRONTEND_REPO:$TAG"
-log "pull $tag_backend";  docker pull "$tag_backend"
-log "pull $tag_frontend"; docker pull "$tag_frontend"
-
-# ── 3) digest 고정 (태그 덮어쓰기 공격 무력화 — 스캔한 그 이미지 그대로 배포) ──
-backend_digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$tag_backend")
-frontend_digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$tag_frontend")
-[ -n "$backend_digest" ]  || fail "cannot resolve backend digest"
-[ -n "$frontend_digest" ] || fail "cannot resolve frontend digest"
-log "backend  → $backend_digest"
-log "frontend → $frontend_digest"
+# ── 2) 이미지 pull (CI 가 넘긴 digest 로만) ──
+#   예전에는 commit-sha 태그로 pull 한 뒤 RepoDigests[0] 으로 digest 를 되뽑았다. 그러면 태그→digest
+#   해석이 이 서버에서 pull 하는 순간에 일어나, CI 가 스캔을 마친 뒤 태그가 덮어써지면 그 이미지가
+#   배포됐다. RepoDigests 는 이전 배포가 남긴 이름이 섞이고 순서도 정해져 있지 않아 0 번이 우리
+#   레포라는 보장도 없었다. 이제 레포와 digest 형식이 정확히 맞는 참조만 받는다.
+check_ref(){   # <ref> <repo> — "<repo>@sha256:<64hex>" 형식이면 참
+  local ref="$1" repo="$2"
+  [ "${ref%@sha256:*}" = "$repo" ] && [[ "${ref#"$repo"@sha256:}" =~ ^[0-9a-f]{64}$ ]]
+}
+check_ref "$BACKEND_REF"  "$BACKEND_REPO"  || fail "BACKEND_REF is not a $BACKEND_REPO digest ref: $BACKEND_REF"
+check_ref "$FRONTEND_REF" "$FRONTEND_REPO" || fail "FRONTEND_REF is not a $FRONTEND_REPO digest ref: $FRONTEND_REF"
+log "pull $BACKEND_REF";  docker pull "$BACKEND_REF"
+log "pull $FRONTEND_REF"; docker pull "$FRONTEND_REF"
 
 # ── 4) IOC 스캔 게이트 (배포 전) — solo-project 감염 지표 검사 ──
 #   파일명: xmrig/javae/minerd/cpuminer/kdevtmpfsi/kinsing/grepb32
@@ -91,8 +97,8 @@ ioc_scan(){
   fi
   log "IOC scan clean: $name"
 }
-ioc_scan "$tag_backend"  backend  || fail "IOC gate blocked backend image"
-ioc_scan "$tag_frontend" frontend || fail "IOC gate blocked frontend image"
+ioc_scan "$BACKEND_REF"  backend  || fail "IOC gate blocked backend image"
+ioc_scan "$FRONTEND_REF" frontend || fail "IOC gate blocked frontend image"
 
 # ── 5) DB 백업 (배포 전) — .env 의 DB_PASSWORD 사용(비번은 MYSQL_PWD 로 넘겨 argv 노출 회피) ──
 mkdir -p "$BACKUP_DIR"
@@ -110,7 +116,7 @@ prev_backend=$(docker inspect --format '{{.Image}}' lol-backend 2>/dev/null || t
 prev_frontend=$(docker inspect --format '{{.Image}}' lol-frontend 2>/dev/null || true)
 
 # ── 7) 배포 (digest 고정, 서버 재빌드 금지) ──
-export BACKEND_IMAGE="$backend_digest" FRONTEND_IMAGE="$frontend_digest"
+export BACKEND_IMAGE="$BACKEND_REF" FRONTEND_IMAGE="$FRONTEND_REF"
 
 # nginx 설정 내용 해시 — 값이 바뀌면 compose 가 nginx 를 재생성한다.
 # (단일 파일 bind mount 는 inode 고정이라, 파일만 바뀌면 컨테이너가 옛 내용을 계속 본다.
