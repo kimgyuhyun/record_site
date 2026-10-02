@@ -11,7 +11,7 @@ ARG JAR_SOURCE=builder
 # ── 1단계(builder): Gradle 빌드 (JDK 21) ──
 # 테스트는 DB가 필요하고 이미지 빌드 단계에선 띄울 수 없어 제외(-x test)한다.
 # 베이스 이미지는 digest 로 고정한다. 태그가 가리키는 이미지가 바뀌어도 빌드가 조용히 달라지지 않고 Dependabot PR 로 드러난다.
-FROM eclipse-temurin:21-jdk@sha256:4d06038800655fe1211760cd561de70ef2ed7a47f5d69255e9834414602b7026 AS builder
+FROM eclipse-temurin:23-jdk@sha256:83177670e43c17769a5402a60601545318e45e63adf634fb5022340e516cded4 AS builder
 WORKDIR /app
 
 # 래퍼/빌드 스크립트 먼저 복사해 의존성 레이어를 캐싱한다.
@@ -32,7 +32,7 @@ COPY app.jar /app/app.jar
 FROM ${JAR_SOURCE} AS jarsrc
 
 # ── 2단계: 런타임 (JRE 21, 가벼움) ──
-FROM eclipse-temurin:21-jre@sha256:d7051a45dd955e4d5d1db4d3f4269fe13d1c6dff8cc6b7ef89fc8577b96c1982
+FROM eclipse-temurin:23-jre@sha256:4972459272d4050ab14700677ac7a7511194f1d9ed333b95e886c3c8c80dedae
 WORKDIR /app
 
 # 컨테이너 메모리 한도에 맞춰 힙을 자동 설정. 필요 시 compose 의 JAVA_TOOL_OPTIONS 로 override.
