@@ -61,6 +61,15 @@ updates:
     schedule:
       interval: "daily"
 
+  # compose 이미지(mysql·redis·nginx·squid·관측 스택). 루트의 docker-compose*.yml 이 대상이다.
+  # 위 "docker" 는 Dockerfile 만 읽고 compose 파일은 보지 않는다. 이게 없으면 compose 의
+  # tag@digest 고정이 갱신 경로 없이 그대로 굳는다. 주기·메이저 정책은 docker 와 같다.
+  # mysql·redis 메이저 PR(데이터 형식이 바뀌는 업그레이드)은 특히 그대로 머지하지 않는다.
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "daily"
+
   # GitHub Actions 워크플로우
   - package-ecosystem: "github-actions"
     directory: "/"

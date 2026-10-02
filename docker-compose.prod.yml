@@ -73,7 +73,8 @@ services:
     restart: unless-stopped
 
   nginx:
-    image: nginx:alpine
+    image: nginx:1.31-alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2
+    pull_policy: missing
     container_name: lol-nginx
     environment:
       # 설정 파일 내용의 해시. nginx 는 설정을 단일 파일 bind mount 로 읽는데,

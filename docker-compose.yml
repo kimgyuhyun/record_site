@@ -4,9 +4,16 @@
 #   배포: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 # (DB_PASSWORD = MySQL root 비밀번호. 기본값 폴백을 없앴으므로 루트 .env 에 반드시 정의해야 한다.
 #  약한 기본값 1234 로 조용히 기동되던 사고를 막기 위한 것 — dev 도 .env 파일이 필요하다.)
+#
+# 이미지 고정 규칙(모든 compose 파일 공통, PLATFORM 2절):
+#   image 는 "버전태그@sha256:<멀티아치 index digest>" 로 쓰고 pull_policy: missing 을 붙인다.
+#   태그만 두면 서버에 받아 둔 이미지가 무엇인지는 언제 처음 받았는지에 달려 있고, 새 서버에서는
+#   그날의 태그 내용이 뜬다. digest 가 내용을 고정하므로 missing 이면 없을 때 그 digest 만 받는다.
+#   digest 갱신은 Dependabot(docker-compose) PR 로 온다. 태그는 사람이 읽으라고 남긴다.
 services:
   mysql:
-    image: mysql:8.0
+    image: mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
+    pull_policy: missing
     container_name: lol-mysql
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD required}
@@ -29,7 +36,8 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+    pull_policy: missing
     container_name: lol-redis
     # 캐시 전용: 메모리 상한 + LRU 축출, 영속화 끔(꺼지면 캐시만 비워짐).
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --save ""

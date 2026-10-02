@@ -41,8 +41,8 @@ services:
 
   # 허용목록 기반 HTTP/HTTPS 포워드 프록시. 허용 목적지와 근거는 proxy/squid.conf 에 있다.
   egress-proxy:
-    image: ubuntu/squid:6.6-24.04_edge
-    # 같은 태그가 다른 이미지로 조용히 바뀌지 않게 한다(PLATFORM 2절).
+    image: ubuntu/squid:6.6-24.04_edge@sha256:8a3baed477e2c282ab8aa5edad442f69873246964f225c5c2ae8364b6610963c
+    # 같은 태그가 다른 이미지로 조용히 바뀌지 않게 한다(PLATFORM 2절, docker-compose.yml 머리말).
     pull_policy: missing
     container_name: lol-egress-proxy
     environment:
