@@ -9,15 +9,18 @@ export default function SearchResultPage() {
   const query  = searchParams.get('name') || '';
   const region = searchParams.get('region') || 'kr';
 
-  const [results,  setResults]  = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [notFound, setNotFound] = useState(false);
+  // 응답이 어느 검색의 것인지 key 로 남긴다. key 가 지금 검색과 다르면 아직 로딩 중이다.
+  const key = `${query}|${region}`;
+  const [result, setResult] = useState({ key: null, results: [], notFound: false });
+  const loading = result.key !== key;
+  const { results, notFound } = result;
 
   useEffect(() => {
     if (!query) { navigate('/'); return; }
-    setLoading(true);
+    let cancelled = false;
     searchSummonerByName(query)
       .then(res => {
+        if (cancelled) return;
         const list = res.data || [];
         if (list.length === 1) {
           // 1건이면 바로 프로필로 이동
@@ -25,12 +28,11 @@ export default function SearchResultPage() {
           navigate(`/find/${region}/${encodeURIComponent(`${s.name}-${s.tagLine}`)}`, { replace: true });
           return;
         }
-        setResults(list);
-        setNotFound(list.length === 0);
+        setResult({ key, results: list, notFound: list.length === 0 });
       })
-      .catch(() => setNotFound(true))
-      .finally(() => setLoading(false));
-  }, [query, region]);
+      .catch(() => { if (!cancelled) setResult({ key, results: [], notFound: true }); });
+    return () => { cancelled = true; };
+  }, [key, query, region, navigate]);
 
   const handleSelect = (s) => {
     navigate(`/find/${region}/${encodeURIComponent(`${s.name}-${s.tagLine}`)}`);
