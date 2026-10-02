@@ -7,23 +7,19 @@ import { getChampionRotation } from '../api/champion';
  *  - 로딩/에러 상태를 명시적으로 관리한다.
  */
 export default function useChampionRotation() {
-  const [freeChampionIds, setFreeChampionIds] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isError, setIsError] = useState(false);
+  // 마운트 때 한 번만 요청하므로 응답이 왔는지(done)만 보면 된다.
+  const [result, setResult] = useState({ done: false, freeChampionIds: [], isError: false });
 
   useEffect(() => {
     let cancelled = false;
-    setIsLoading(true);
-    setIsError(false);
     getChampionRotation()
       .then(res => {
         if (cancelled) return;
-        setFreeChampionIds(res.data?.freeChampionIds ?? []);
+        setResult({ done: true, freeChampionIds: res.data?.freeChampionIds ?? [], isError: false });
       })
-      .catch(() => { if (!cancelled) setIsError(true); })
-      .finally(() => { if (!cancelled) setIsLoading(false); });
+      .catch(() => { if (!cancelled) setResult(prev => ({ ...prev, done: true, isError: true })); });
     return () => { cancelled = true; };
   }, []);
 
-  return { freeChampionIds, isLoading, isError };
+  return { freeChampionIds: result.freeChampionIds, isLoading: !result.done, isError: result.isError };
 }
