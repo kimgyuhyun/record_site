@@ -280,19 +280,22 @@ src/main/resources/db/migration/V{yyyyMMddHHmmss}__{설명}.sql
 
 ## CI/CD & 배포
 
-**CI** — PR 에서는 백엔드 테스트만 돌고, `main` 푸시 시 GitHub Actions 가 arm64 네이티브로 백엔드/프론트 이미지를 빌드해 GHCR 에 푸시합니다
-(이미지 태그 = commit SHA + `latest`). Trivy 로 취약점을 스캔합니다(현재 report-only).
+**CI** — PR 과 `main` 모두 백엔드 테스트·프론트 lint(eslint) → arm64 네이티브 이미지 빌드 → Trivy 스캔(수정 가능한 CRITICAL 이면 실패)까지 돕니다.
+스캔을 통과한 이미지만 `main` 에서 GHCR 에 푸시합니다(이미지 태그 = commit SHA + `latest`).
 
-**CD** — CI 성공 시 이어서 서버로 SSH 자동 배포합니다. `scripts/deploy.sh` 가 다음 안전장치를 수행합니다.
+**CD** — CI 성공 시 이어서 서버로 SSH 자동 배포합니다. 배포할 이미지는 CI 가 정합니다 — CI 가 스캔을 통과시켜
+push 한 직후 레지스트리 digest 를 `image-digests` 아티팩트로 남기고, CD 는 그 digest 만 서버에 넘깁니다(태그로 pull 하지 않습니다).
+`scripts/deploy.sh` 가 다음 안전장치를 수행합니다.
 
-1. GHCR 로그인(단기 토큰) 후 commit-sha 태그 이미지 pull
-2. **digest 고정** — 스캔한 그 이미지 그대로 배포(태그 덮어쓰기 무력화)
-3. **IOC 스캔 게이트** — 크립토마이너/C2 지표 검사, 발견 시 배포 차단
-4. **DB 백업**(mysqldump, 최근 10개 보관)
-5. 롤백용 현재 이미지 기록 → digest 고정으로 배포(서버 재빌드 없음)
-6. **배포 후 health 검증**(`/actuator/health` UP), 실패 시 **자동 롤백**
+1. GHCR 로그인(단기 토큰) 후 **CI 가 넘긴 digest 로 pull** — 스캔한 그 이미지 그대로 배포(태그 덮어쓰기 무력화)
+2. **IOC 스캔 게이트** — 크립토마이너/C2 지표 검사, 발견 시 배포 차단
+3. **DB 백업**(mysqldump, 최근 10개 보관)
+4. 롤백용 현재 이미지 기록 → digest 고정으로 배포(서버 재빌드 없음)
+5. **배포 후 health 검증**(`/actuator/health` UP), 실패 시 **자동 롤백**
 
-수동 재배포/롤백은 `workflow_dispatch` 로 특정 태그를 지정해 실행할 수 있습니다.
+수동 재배포는 `workflow_dispatch` 를 입력 없이 실행합니다(main 의 최근 성공 CI 를 쓰며, 그 커밋이 main HEAD 와 같아야 합니다).
+과거 릴리스로 롤백할 때는 `ci_run_id` 에 그 릴리스의 CI 실행 ID 를 넣습니다. 아티팩트 보존 기간(기본 90일)이 지난 릴리스는
+revert 커밋으로 되돌립니다.
 
 ### 운영 스택 기동 (참고)
 ```bash

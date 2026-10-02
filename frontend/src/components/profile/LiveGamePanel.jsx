@@ -54,9 +54,11 @@ export default function LiveGamePanel({ puuid, championKeyById = {} }) {
   const { region } = useParams();
   const regionLower = (region || 'kr').toLowerCase();
 
-  const [status, setStatus] = useState('loading'); // loading | in | out | error
-  const [game, setGame]     = useState(null);
-  const [now, setNow]       = useState(Date.now());
+  // 응답이 어느 소환사(puuid)의 것인지 남긴다. puuid 가 바뀌면 새 응답이 올 때까지 loading 이다.
+  const [live, setLive]     = useState({ puuid: null, status: 'loading', game: null });
+  const status = live.puuid === puuid ? live.status : 'loading'; // loading | in | out | error
+  const game   = live.puuid === puuid ? live.game : null;
+  const [now, setNow]       = useState(() => Date.now());
 
   const [spellMap, setSpellMap]           = useState({});
   const [runeIconById, setRuneIconById]   = useState({});
@@ -88,19 +90,16 @@ export default function LiveGamePanel({ puuid, championKeyById = {} }) {
   useEffect(() => {
     if (!puuid) return;
     let cancelled = false;
-    setStatus('loading');
-    setGame(null);
     (async () => {
       try {
         const res = await getLiveGame(puuid);
         if (cancelled) return;
-        if (res.status === 204 || !res.data) { setStatus('out'); return; }
-        setGame(res.data);
+        if (res.status === 204 || !res.data) { setLive({ puuid, status: 'out', game: null }); return; }
         setNow(Date.now());
-        setStatus('in');
+        setLive({ puuid, status: 'in', game: res.data });
       } catch (e) {
         console.error('인게임 정보 조회 실패', e);
-        if (!cancelled) setStatus('error');
+        if (!cancelled) setLive({ puuid, status: 'error', game: null });
       }
     })();
     return () => { cancelled = true; };

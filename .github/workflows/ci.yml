@@ -1,4 +1,4 @@
-## CI — arm64 이미지 빌드 후 GHCR(비공개)에 푸시.
+## CI — 테스트 → arm64 이미지 빌드 → Trivy 스캔 → (main 만) GHCR(비공개)에 푸시.
 ## 서버가 aarch64 이므로 GitHub-hosted ARM 러너에서 네이티브 arm64 로 빌드한다(QEMU 크로스빌드 불필요).
 ## 인증은 워크플로 GITHUB_TOKEN(단기) 만 사용 — 별도 시크릿 없음. 이미지 태그 = commit-sha(불변) + latest(편의).
 name: CI (build & push images)
@@ -6,7 +6,8 @@ name: CI (build & push images)
 on:
   push:
     branches: [main]
-  # PR(Dependabot 포함)에서는 test 잡만 돈다. 머지 전에 검증하지 않으면 머지가 곧 배포다.
+  # PR(Dependabot 포함)에서는 test 와 image(빌드·스캔)까지 돈다. GHCR push 는 main 에서만 한다.
+  # 머지 전에 검증하지 않으면 머지가 곧 배포다.
   pull_request:
   workflow_dispatch:
 
@@ -21,7 +22,8 @@ env:
   IMAGE_FRONTEND: ghcr.io/${{ github.repository_owner }}/record_site-frontend
 
 jobs:
-  # 백엔드 테스트. 이미지 빌드는 bootJar -x test 로 테스트를 건너뛰므로 검증은 여기서만 일어난다.
+  # 백엔드 테스트 + 배포할 jar 빌드. jar 는 여기서 한 번만 만들고 image 잡이 그대로 이미지에 넣는다
+  # (PLATFORM 7절 — 테스트를 통과한 산출물과 배포되는 산출물이 같은 빌드여야 한다).
   # 동시성 테스트(ChampionTipConcurrencyTest)는 실제 행 잠금 동작을 보기 때문에 진짜 MySQL 이 필요하다
   # (H2 로는 재현되지 않는다). 그래서 서비스 컨테이너로 MySQL·Redis 를 띄운다.
   test:
@@ -61,7 +63,27 @@ jobs:
           DB_PASSWORD: ci
           # 애플리케이션 기동에만 필요하고 테스트가 Riot 을 호출하지는 않는다(실키 불필요).
           RIOT_API_KEY: ci-dummy-key
-        run: chmod +x gradlew && ./gradlew test --no-daemon
+        run: chmod +x gradlew && ./gradlew test bootJar --no-daemon
+
+      # bootJar 하나만 고정 이름으로 넘긴다(-plain.jar 는 실행 불가 jar 라 제외).
+      # 하나가 아니면 어느 것을 배포할지 모호하므로 실패시킨다.
+      - name: Stage the boot jar
+        working-directory: ./backend
+        run: |
+          jars=()
+          for f in build/libs/*.jar; do case "$f" in *-plain.jar) ;; *) jars+=("$f") ;; esac; done
+          [ "${#jars[@]}" -eq 1 ] || { echo "expected exactly one boot jar, got: ${jars[*]}" >&2; exit 1; }
+          cp "${jars[0]}" app.jar
+          sha256sum app.jar
+
+      # image 잡(다른 러너)으로 넘기는 용도라 이 실행 안에서만 쓰인다.
+      - name: Upload boot jar
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: backend-jar
+          path: backend/app.jar
+          if-no-files-found: error
+          retention-days: 1
 
       # 실패 원인을 러너 로그만으로 좇기 어려우므로 리포트를 남긴다.
       - name: Upload test report
@@ -71,54 +93,89 @@ jobs:
           name: backend-test-report
           path: backend/build/reports/tests/test
 
-  build:
-    needs: test                    # 테스트가 깨지면 이미지를 만들지 않는다 → CD 도 트리거되지 않는다.
-    # GHCR 에 올리는 것도 배포다. PR·다른 브랜치의 dispatch 에서는 push 하지 않는다.
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-24.04-arm     # GitHub-hosted ARM(에페메럴·격리). 서버 arm64 와 동일 아키텍처.
+  # 프론트 정적 분석(eslint). 체크 이름 "lint" — ruleset 필수 체크다.
+  # 오류만 실패시킨다(경고는 통과). image 잡이 이것을 기다리므로, lint 가 깨지면
+  # 이미지를 만들지 않는다(PLATFORM 7절 순서: 테스트·정적 분석 → 이미지 빌드).
+  # Node 는 frontend/Dockerfile 빌드 스테이지와 같은 메이저로 맞춘다.
+  lint:
+    runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write              # GHCR 푸시 권한(GITHUB_TOKEN 에 부여)
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - name: Log in to GHCR
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Lint frontend
+        working-directory: ./frontend
+        run: npm ci && npm run lint
+
+  # 이미지 빌드 → Trivy 스캔 → (main 에서만) GHCR 로그인·push.
+  # PR(Dependabot 포함)에서도 빌드와 스캔까지는 돈다. 베이스 이미지 PR 은 이 잡이 아니면
+  # 머지 전에 빌드도 스캔도 받지 못한다 — 머지가 곧 배포라 main 에서 깨지면 이미 늦다.
+  # 체크 이름은 "image" 다. ruleset 필수 체크에 test·lint 와 함께 둔다.
+  #
+  # 스캔은 push 앞이다(PLATFORM 7절). 예전에는 push 뒤에 스캔해서, 스캔이 실패해도 불량 이미지가
+  # 이미 GHCR 에 올라가 있었다. 이제는 러너 로컬 도커에 load 한 이미지를 스캔하고, 통과한 그
+  # 이미지만 push 한다.
+  image:
+    needs: [test, lint]            # 테스트·lint 가 깨지면 이미지를 만들지 않는다 → CD 도 트리거되지 않는다.
+    runs-on: ubuntu-24.04-arm     # GitHub-hosted ARM(에페메럴·격리). 서버 arm64 와 동일 아키텍처.
+    permissions:
+      contents: read
+      # GHCR push 권한. permissions 는 이벤트별로 나눌 수 없어 PR 실행에도 붙지만,
+      # 로그인·push 스텝이 main 에서만 돌므로 PR 실행은 이 토큰을 레지스트리에 쓰지 않는다.
+      # (포크·Dependabot PR 은 GitHub 이 어차피 읽기 전용 토큰을 준다.)
+      packages: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      # test 잡이 테스트를 통과시킨 그 jar 를 빌드 컨텍스트(backend/app.jar)에 놓는다.
+      - name: Download the tested boot jar
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: backend-jar
+          path: backend
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
-      - name: Build & push backend (arm64)
+      # push 하지 않고 러너 로컬 도커에 load 한다. 아래 Trivy 가 이 이미지를 읽고,
+      # main 에서는 통과한 이 이미지를 그대로 docker push 한다.
+      - name: Build backend (arm64)
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: ./backend
           platforms: linux/arm64
-          push: true
+          # 이미지 안에서 Gradle 을 돌리지 않고 위에서 받은 jar 를 넣는다(backend/Dockerfile 머리말).
+          build-args: JAR_SOURCE=ctxjar
+          load: true
+          push: false
           tags: |
             ${{ env.IMAGE_BACKEND }}:${{ github.sha }}
             ${{ env.IMAGE_BACKEND }}:latest
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
 
-      - name: Build & push frontend (arm64)
+      - name: Build frontend (arm64)
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: ./frontend
           platforms: linux/arm64
-          push: true
+          load: true
+          push: false
           tags: |
             ${{ env.IMAGE_FRONTEND }}:${{ github.sha }}
             ${{ env.IMAGE_FRONTEND }}:latest
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
 
-      # 취약점 스캔 게이트. 종전에는 report-only(`--exit-code 0` + `|| true`)라 CRITICAL 이
-      # 있어도 그대로 배포됐다 — 결과를 아무도 안 보면 스캔은 있으나 마나다. 이제 실패시킨다:
-      # CI 가 실패하면 이미지가 push 되지 않고, CD 는 CI 성공에만 걸려 있으므로 배포가 막힌다.
+      # 취약점 스캔 게이트. PR 과 main 이 같은 조건이다 — PR 에서 통과한 것이 main 에서 막히면
+      # PR 검증이 의미가 없다.
       #
       # 기준 calibration:
       #   severity CRITICAL      HIGH 까지 막으면 베이스 이미지 사정으로 상시 빨간불이 된다.
@@ -128,15 +185,10 @@ jobs:
       # 설치를 `curl | sudo sh` 로 하던 것도 걷어냈다. main 브랜치의 스크립트를 검증 없이
       # root 로 실행하던 것인데, 이 잡은 GHCR push 권한 토큰을 쥐고 있어 이미지 오염 경로가 된다.
       # 액션은 커밋 SHA 로 고정한다(태그는 재지정될 수 있다).
-      # TRIVY_PLATFORM 이 필요한 이유: 여기서 만드는 이미지는 linux/arm64 하나뿐이다
-      # (서버가 aarch64 라 멀티아치를 만들지 않는다). buildx 는 push 만 하고 로컬 도커에
-      # 이미지를 남기지 않으므로 Trivy 는 레지스트리에서 받아오는데, 그때 기본값인
-      # linux/amd64 자식을 찾다가 "no child with platform linux/amd64" 로 죽는다.
-      # (종전 `curl | sh` 설치 방식은 arm 러너에 arm64 바이너리가 깔려 우연히 맞았던 것이다.)
+      # 스캔 대상은 위에서 load 한 로컬 이미지다(arm 러너에서 만든 arm64 단일 이미지라
+      # 플랫폼을 따로 지정할 필요가 없다). 레지스트리는 거치지 않는다.
       - name: Trivy scan (backend)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        env:
-          TRIVY_PLATFORM: linux/arm64
         with:
           image-ref: ${{ env.IMAGE_BACKEND }}:${{ github.sha }}
           scanners: vuln
@@ -149,14 +201,48 @@ jobs:
 
       - name: Trivy scan (frontend)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        env:
-          TRIVY_PLATFORM: linux/arm64
         with:
           image-ref: ${{ env.IMAGE_FRONTEND }}:${{ github.sha }}
           scanners: vuln
           severity: CRITICAL
           ignore-unfixed: true
-          # 예외 목록은 파일 하나로 모은다. 각 항목에 만료일이 있어 날짜가 지나면
-          # 자동으로 다시 배포를 막는다 — 예외가 영구히 잊히지 않게 하는 장치다.
           trivyignores: .trivyignore.yaml
           exit-code: '1'
+
+      # 여기부터 main 전용. GHCR 에 올리는 것도 배포다 — PR·다른 브랜치의 dispatch 에서는
+      # 로그인도 push 도 하지 않는다.
+      - name: Log in to GHCR
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push images
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker push "$IMAGE_BACKEND:$GITHUB_SHA"
+          docker push "$IMAGE_BACKEND:latest"
+          docker push "$IMAGE_FRONTEND:$GITHUB_SHA"
+          docker push "$IMAGE_FRONTEND:latest"
+
+      # 배포할 이미지는 CI 가 digest 로 지목한다(PLATFORM 7절). CD 는 태그를 해석하지 않고
+      # 이 아티팩트의 digest 로만 pull·배포한다. 전달 수단이 아티팩트인 이유: CD 는 workflow_run 으로
+      # 트리거되는데 그 이벤트는 잡 output 을 나르지 않는다.
+      # 보존 기간(저장소 기본 90일)이 workflow_dispatch 롤백(ci_run_id)이 닿는 한계다.
+      - name: Capture image digests
+        if: github.ref == 'refs/heads/main'
+        run: |
+          IMAGE_REPO="$IMAGE_BACKEND"  IMAGE_TAG="$GITHUB_SHA" COMMIT_SHA="$GITHUB_SHA" \
+            OUT_FILE=digests/backend.txt  bash .github/scripts/capture-image-digest.sh
+          IMAGE_REPO="$IMAGE_FRONTEND" IMAGE_TAG="$GITHUB_SHA" COMMIT_SHA="$GITHUB_SHA" \
+            OUT_FILE=digests/frontend.txt bash .github/scripts/capture-image-digest.sh
+
+      - name: Upload image digests
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: image-digests
+          path: digests/
+          if-no-files-found: error
