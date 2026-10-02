@@ -65,13 +65,23 @@ updates:
   # 위 "docker" 는 Dockerfile 만 읽고 compose 파일은 보지 않는다. 이게 없으면 compose 의
   # tag@digest 고정이 갱신 경로 없이 그대로 굳는다. 주기·메이저 정책은 docker 와 같다.
   # mysql·redis 메이저 PR(데이터 형식이 바뀌는 업그레이드)은 특히 그대로 머지하지 않는다.
+  # 관측 스택(prometheus·grafana·loki·alloy)은 PR 하나로 묶는다 — 서비스 경로 밖이라 같이 올려도
+  # 되고, 따로 오면 머지(=배포)가 4번이 된다. mysql·redis·nginx·squid 는 묶지 않는다.
   - package-ecosystem: "docker-compose"
     directory: "/"
     schedule:
       interval: "daily"
+    groups:
+      observability:
+        patterns: ["prom/*", "grafana/*"]
 
   # GitHub Actions 워크플로우
+  # 액션 업데이트는 메이저까지 PR 하나로 묶는다. CI 결과 하나로 함께 검증되고, 따로 오면
+  # 같은 워크플로 파일을 고치는 PR 이 여러 개라 서로 rebase 를 반복한다.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      actions:
+        patterns: ["*"]
