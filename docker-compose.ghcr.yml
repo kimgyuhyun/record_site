@@ -12,6 +12,9 @@ services:
   backend:
     # :? — 값이 비어있으면 즉시 에러(빈 태그로 잘못 배포되는 사고 방지)
     image: ${BACKEND_IMAGE:?BACKEND_IMAGE (ghcr sha or digest) required}
+    # deploy.sh 가 up 전에 직접 pull 한다. compose 가 여기서 다시 받지 않는다.
+    pull_policy: missing
 
   frontend:
     image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE (ghcr sha or digest) required}
+    pull_policy: missing

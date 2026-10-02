@@ -154,10 +154,12 @@ log "restart edge nginx to re-resolve upstream IPs"
 docker restart lol-nginx >/dev/null
 
 # ── 8) 배포 후 검증: 백엔드 health UP (내부망 원샷 컨테이너) ──
-#   JRE 이미지엔 curl 이 없어, 이미 받아둔 nginx:alpine 의 busybox wget 을 재사용한다.
+#   JRE 이미지엔 curl 이 없어, 방금 띄운 엣지 nginx 와 같은 이미지의 busybox wget 을 재사용한다.
+#   이름을 여기 다시 적지 않고 컨테이너에서 읽는다 — compose 의 tag@digest 고정과 어긋날 수 없다.
+PROBE_IMAGE=$(docker inspect --format '{{.Config.Image}}' lol-nginx)
 health_ok=false
 for _ in $(seq 1 30); do
-  out=$(docker run --rm --network "$NET" nginx:alpine \
+  out=$(docker run --rm --network "$NET" "$PROBE_IMAGE" \
         wget -qO- --timeout=3 http://backend:8080/actuator/health 2>/dev/null || true)
   case "$out" in *'"status":"UP"'*) health_ok=true; break;; esac
   sleep 3
@@ -203,11 +205,11 @@ fi
 #   동작한다(wget/curl 은 호스트명을 스스로 해석하려다 실패해 거짓 결과를 낸다).
 PROXY_NET=record_site_proxy
 connect_probe(){   # <호스트> → squid 응답 첫 줄
-  docker run --rm --network "$PROXY_NET" nginx:alpine sh -c \
+  docker run --rm --network "$PROXY_NET" "$PROBE_IMAGE" sh -c \
     "printf 'CONNECT $1:443 HTTP/1.1\r\nHost: $1:443\r\n\r\n' | timeout 10 nc egress-proxy 3128 2>/dev/null | head -1" 2>/dev/null
 }
 
-if docker run --rm --network "$PROXY_NET" nginx:alpine timeout 5 wget -q -O /dev/null http://1.1.1.1 2>/dev/null; then
+if docker run --rm --network "$PROXY_NET" "$PROBE_IMAGE" timeout 5 wget -q -O /dev/null http://1.1.1.1 2>/dev/null; then
   echo "[egress] FAIL: backend 계층이 프록시 없이 인터넷에 직접 도달했다 — 허용목록이 무력화된 상태" >&2
   netlock_ok=false
 else
