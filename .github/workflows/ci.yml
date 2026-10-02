@@ -93,16 +93,37 @@ jobs:
           name: backend-test-report
           path: backend/build/reports/tests/test
 
+  # 프론트 정적 분석(eslint). 체크 이름 "lint" — ruleset 필수 체크다.
+  # 오류만 실패시킨다(경고는 통과). image 잡이 이것을 기다리므로, lint 가 깨지면
+  # 이미지를 만들지 않는다(PLATFORM 7절 순서: 테스트·정적 분석 → 이미지 빌드).
+  # Node 는 frontend/Dockerfile 빌드 스테이지와 같은 메이저로 맞춘다.
+  lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Lint frontend
+        working-directory: ./frontend
+        run: npm ci && npm run lint
+
   # 이미지 빌드 → Trivy 스캔 → (main 에서만) GHCR 로그인·push.
   # PR(Dependabot 포함)에서도 빌드와 스캔까지는 돈다. 베이스 이미지 PR 은 이 잡이 아니면
   # 머지 전에 빌드도 스캔도 받지 못한다 — 머지가 곧 배포라 main 에서 깨지면 이미 늦다.
-  # 체크 이름은 "image" 다. ruleset 필수 체크에 test 와 함께 둔다.
+  # 체크 이름은 "image" 다. ruleset 필수 체크에 test·lint 와 함께 둔다.
   #
   # 스캔은 push 앞이다(PLATFORM 7절). 예전에는 push 뒤에 스캔해서, 스캔이 실패해도 불량 이미지가
   # 이미 GHCR 에 올라가 있었다. 이제는 러너 로컬 도커에 load 한 이미지를 스캔하고, 통과한 그
   # 이미지만 push 한다.
   image:
-    needs: test                    # 테스트가 깨지면 이미지를 만들지 않는다 → CD 도 트리거되지 않는다.
+    needs: [test, lint]            # 테스트·lint 가 깨지면 이미지를 만들지 않는다 → CD 도 트리거되지 않는다.
     runs-on: ubuntu-24.04-arm     # GitHub-hosted ARM(에페메럴·격리). 서버 arm64 와 동일 아키텍처.
     permissions:
       contents: read

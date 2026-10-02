@@ -280,7 +280,7 @@ src/main/resources/db/migration/V{yyyyMMddHHmmss}__{설명}.sql
 
 ## CI/CD & 배포
 
-**CI** — PR 과 `main` 모두 백엔드 테스트 → arm64 네이티브 이미지 빌드 → Trivy 스캔(수정 가능한 CRITICAL 이면 실패)까지 돕니다.
+**CI** — PR 과 `main` 모두 백엔드 테스트·프론트 lint(eslint) → arm64 네이티브 이미지 빌드 → Trivy 스캔(수정 가능한 CRITICAL 이면 실패)까지 돕니다.
 스캔을 통과한 이미지만 `main` 에서 GHCR 에 푸시합니다(이미지 태그 = commit SHA + `latest`).
 
 **CD** — CI 성공 시 이어서 서버로 SSH 자동 배포합니다. 배포할 이미지는 CI 가 정합니다 — CI 가 스캔을 통과시켜
