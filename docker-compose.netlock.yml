@@ -5,8 +5,8 @@
 #   data    잠금 → mysql/redis 가 인터넷으로 나갈 수 없다.
 #           ※ data 를 빠뜨리면 DB 가 egress 를 되찾는 회귀가 된다. 둘 다 잠글 것.
 #   proxy   잠금 → backend 는 여기에만 붙는다. 아웃바운드는 egress-proxy 경유만 가능하다.
-#   egress  는 잠그지 않는다 — egress-proxy(Riot/ddragon)/certbot(ACME) 아웃바운드와
-#           nginx 의 80/443 publish 가 이 망에 달려 있다.
+#   egress  는 잠그지 않는다 — egress-proxy(Riot/ddragon) 아웃바운드가 이 망에 달려 있다.
+#           (80/443 publish 와 인증서 발급은 server-infra 의 Caddy 로 옮겨 가서 여기 없다.)
 #
 # ── 아웃바운드 허용목록 (PLATFORM 3절 [상황] "아웃바운드 통신을 제어한다") ──
 # 망 분리는 아웃바운드가 필요 없는 서비스를 끊을 뿐, egress 망에 붙은 서비스의 목적지는

@@ -6,7 +6,7 @@
 #   BACKEND_IMAGE=ghcr.io/kimgyuhyun/record_site-backend@sha256:...
 #   FRONTEND_IMAGE=ghcr.io/kimgyuhyun/record_site-frontend@sha256:...
 #
-# 사용: docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.ghcr.yml [-f certbot] up -d --no-build
+# 사용: docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.ghcr.yml up -d --no-build
 services:
   backend:
     # :? — 값이 비어있으면 즉시 에러(빈 태그로 잘못 배포되는 사고 방지)

@@ -175,7 +175,7 @@ services:
 
   # ── 수집 대상 컨테이너에 이름표 달기 ──
   # backend 는 위에서 이미 붙였다(구조화 로깅 설정과 같이 두는 편이 읽기 쉬워서).
-  # 여기 없는 컨테이너(prometheus/grafana/loki/alloy/certbot)는 의도적으로 수집하지 않는다 —
+  # 여기 없는 컨테이너(prometheus/grafana/loki/alloy)는 의도적으로 수집하지 않는다 —
   # 관측 스택이 자기 로그를 수집하면 되먹임이 되고, 볼 일도 거의 없다.
   mysql:
     labels: { log_service: mysql }

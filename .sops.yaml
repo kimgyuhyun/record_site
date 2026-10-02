@@ -1,0 +1,8 @@
+# .env.enc 전용 수신자.
+# 개인키는 오라클 서버(~/.config/sops/age/keys.txt, sops 기본 위치)와 Bitwarden "record_site env key" 에만 있다.
+# GitHub Secret 에는 넣지 않는다 — CD 러너가 GitHub 호스팅이라 서버와 다른 머신이므로, 런타임 시크릿은
+# 서버에서 복호화한다(scripts/deploy.sh). 러너가 뚫려도 .env 는 새지 않는다.
+# 백업 암호화에는 이 키를 쓰지 않는다(키를 나눠야 이 키 하나로 .env 와 백업이 함께 열리지 않는다).
+creation_rules:
+  - path_regex: \.env(\.enc)?$
+    age: age1dksyjyfljkuw6u7wvhggs7rqqy8qh8r6wsvnprscxxy69080sduqak9t3k

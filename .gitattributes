@@ -1,2 +1,5 @@
 # shell 스크립트는 반드시 LF — 리눅스 서버에서 CRLF 면 `bash: bad interpreter` 로 깨진다.
 *.sh text eol=lf
+# SOPS 로 암호화한 .env.enc 도 LF 고정 — CRLF 가 섞이면 sops 가 메타데이터 타임스탬프의 \r 까지
+# 읽어 복호화에 실패한다(ott 에서 실제로 겪었다).
+.env.enc text eol=lf

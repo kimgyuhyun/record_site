@@ -83,17 +83,24 @@ services:
       # 이 값이 바뀌면 compose 가 nginx 를 재생성해 새 파일을 다시 마운트한다.
       # deploy.sh 가 nginx/*.conf 를 해시해 주입한다.
       NGINX_CONF_SHA: ${NGINX_CONF_SHA:-unset}
-    ports:
-      - "80:80"
+    # 호스트 포트를 열지 않는다. 80/443 과 TLS 는 server-infra 의 Caddy 가 맡고,
+    # 요청은 edge 망으로만 들어온다.
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-    # egress 는 인터넷 용도가 아니라 필수 제약 때문이다: internal 망만 붙은 컨테이너는
-    # 호스트 포트를 publish 할 수 없다 → 80/443 을 열려면 비-internal 망에 반드시 연결돼 있어야 한다.
+    # default(backend·frontend 로 프록시) + edge(Caddy 가 여기로 넘긴다).
+    # egress 에는 붙지 않는다 — 포트를 publish 하지 않으니 비-internal 망이 필요 없고,
+    # nginx 는 인터넷으로 나갈 일이 없다. edge 도 internal 이다.
     networks:
       - default
-      - egress
+      - edge
     depends_on:
       - backend
       - frontend
     mem_limit: 64m
     restart: unless-stopped
+
+networks:
+  # server-infra 가 만드는 internal 망(10.250.0.0/24). 서버에 server-infra 가 먼저 있어야 한다 —
+  # 없으면 compose 가 기동 전에 실패한다(조용히 다른 망으로 뜨지 않는다).
+  edge:
+    external: true

@@ -16,7 +16,8 @@ FRONTEND_REPO="$REGISTRY/$OWNER/record_site-frontend"
 PROJECT_DIR="$HOME/record_site"
 BACKUP_DIR="$PROJECT_DIR/backups"
 NET=record_site_default            # compose 기본 네트워크(프로젝트명이 record_site 라서)
-# 현재 운영 스택(base+prod+certbot) + GHCR 이미지 override + 보안 오버레이(netlock/hardening) + 관측성(monitoring).
+# 현재 운영 스택(base+prod) + GHCR 이미지 override + 보안 오버레이(netlock/hardening) + 관측성(monitoring).
+# TLS·80/443 은 이 저장소가 아니라 server-infra(Caddy)가 맡는다 — 그쪽이 만드는 edge 망이 있어야 뜬다.
 # 새 오버레이를 추가하면 반드시 이 배열에도 넣어야 배포에 반영된다.
 # monitoring 은 맨 뒤에 둔다 — 보안 오버레이 값을 덮지 않고, 자신의 추가분(backend env·새 서비스)만 얹는다.
 # (monitoring 이 배열에 있어야 --remove-orphans 가 관측 컨테이너를 orphan 으로 지우지 않는다.)
@@ -24,7 +25,6 @@ COMPOSE=(docker compose
   -f docker-compose.yml
   -f docker-compose.prod.yml
   -f docker-compose.ghcr.yml
-  -f docker-compose.certbot.yml
   -f docker-compose.netlock.yml
   -f docker-compose.hardening.yml
   -f docker-compose.monitoring.yml)
@@ -36,6 +36,22 @@ COMPOSE=(docker compose
 cd "$PROJECT_DIR"
 log(){ echo "[deploy $(date -u +%H:%M:%S)] $*"; }
 fail(){ echo "[deploy ERROR] $*" >&2; exit 1; }
+
+# ── 0) .env 생성 — 이 커밋의 .env.enc(SOPS+age)를 서버의 키로 복호화 ──
+#   값의 정본은 커밋된 .env.enc 하나다. 서버 .env 는 매 배포마다 여기서 다시 만들어지므로
+#   손으로 고친 값은 다음 배포에 사라진다 — 값을 바꾸려면 .env.enc 를 고쳐 커밋한다.
+#   키는 sops 기본 위치(~/.config/sops/age/keys.txt)에만 있고 GitHub 에는 없다. 러너가 GitHub
+#   호스팅이라 런타임 시크릿은 호스트에서 복호화한다(러너가 뚫려도 .env 는 새지 않는다).
+#   임시 파일(600)에 쓴 뒤 mv 로 바꾼다 — 복호화가 실패해도 기존 .env 가 반쯤 쓰인 채 남지 않는다.
+command -v sops >/dev/null 2>&1 || fail "sops not installed"
+[ -f .env.enc ] || fail ".env.enc not found in this commit"
+rm -f .env.tmp
+if ! (umask 077; sops --decrypt --input-type dotenv --output-type dotenv .env.enc > .env.tmp); then
+  rm -f .env.tmp
+  fail "sops decrypt of .env.enc failed"
+fi
+mv .env.tmp .env
+log ".env decrypted from .env.enc"
 
 # ── 1) GHCR 로그인(단기 토큰) ──
 log "docker login $REGISTRY"
@@ -213,7 +229,7 @@ esac
 # ── 10) 엣지 nginx 가 "이 커밋의" 설정으로 돌고 있는지 ──
 #   위 inode 함정 때문에 설정이 반영되지 않아도 컨테이너는 멀쩡히 떠 있다(옛 설정으로).
 #   보안 헤더·레이트리밋·Host 드롭이 조용히 빠진 채 배포 성공으로 보이는 상황을 막는다.
-host_conf_sha=$(sha256sum nginx/default.https.conf | cut -c1-64)
+host_conf_sha=$(sha256sum nginx/default.conf | cut -c1-64)
 live_conf_sha=$(docker exec lol-nginx sha256sum /etc/nginx/conf.d/default.conf 2>/dev/null | cut -c1-64)
 if [ "$host_conf_sha" != "$live_conf_sha" ]; then
   echo "[nginx] FAIL: edge nginx is serving a stale config" >&2
