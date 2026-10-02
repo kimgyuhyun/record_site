@@ -40,6 +40,15 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
+  # ── 메이저 정책: npm·gradle 과 docker·github-actions 가 다르다 ──
+  # 위 npm·gradle 은 메이저를 무시한다. 라이브러리 메이저는 API 가 바뀌어 코드 수정이 따라오고,
+  # 무시해도 지금 쓰는 메이저가 계속 패치를 받는다.
+  # 아래 docker·github-actions 는 메이저를 무시하지 않는다. 여기서 메이저는 런타임·플랫폼
+  # (Node, JDK, 액션 런타임) 세대라, 막아 두면 그 세대가 EOL 이 돼도 PR 이 오지 않고 조용히
+  # 갇힌다(node:20-alpine 이 그렇게 EOL 까지 남아 있었다).
+  # 그 결과 eclipse-temurin 25, node 26, actions/checkout 상위 메이저 같은 PR 이 온다.
+  # 메이저 PR 은 자동 머지하지 않는다(PLATFORM 6절) — 릴리스 노트와 CI 결과를 보고 손으로 머지한다.
+
   # Docker 베이스 이미지
   # npm/gradle과 달리 Docker는 advisory 매핑이 없어 security update PR이 따로 오지 않는다.
   # 이 스케줄이 곧 유일한 패치 주기이므로 daily로 둔다(다이제스트가 실제로 움직일 때만 PR이 열린다).
@@ -47,22 +56,13 @@ updates:
     directory: "/frontend"
     schedule:
       interval: "daily"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
   - package-ecosystem: "docker"
     directory: "/backend"
     schedule:
       interval: "daily"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
 
   # GitHub Actions 워크플로우
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
