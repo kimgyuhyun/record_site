@@ -25,7 +25,7 @@ services:
     logging: { driver: json-file, options: { labels: log_service } }
 
   prometheus:
-    image: prom/prometheus:v2.54.1@sha256:f6639335d34a77d9d9db382b92eeb7fc00934be8eae81dbc03b31cfe90411a94
+    image: prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
     pull_policy: missing
     container_name: lol-prometheus
     command:
@@ -58,7 +58,7 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:11.2.0@sha256:408afb9726de5122b00a2576763a8a57a3c86d5b0eff5305bc994ceb3eb96c3f
+    image: grafana/grafana:13.2.3@sha256:b28bae15e219c998fb0e0424ed724930cc61b1f61fb404d47c862f9a23f9e572
     pull_policy: missing
     container_name: lol-grafana
     environment:
@@ -102,7 +102,7 @@ services:
     restart: unless-stopped
 
   loki:
-    image: grafana/loki:3.1.1@sha256:e689cc634841c937de4d7ea6157f17e29cf257d6a320f1c293ab18d46cfea986
+    image: grafana/loki:3.7.8@sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193
     pull_policy: missing
     container_name: lol-loki
     command: -config.file=/etc/loki/loki-config.yml
@@ -135,7 +135,7 @@ services:
   # Alloy 는 소켓 대신 도커가 남긴 json-file 로그 파일을 읽기 전용으로 tail 한다.
   # 자세한 배경과 파이프라인은 monitoring/alloy/config.alloy 머리말 참고.
   alloy:
-    image: grafana/alloy:v1.5.1@sha256:01a63f4e032ce54ee94b22049bc27f597e74f85566478c377f4b5c7f020c1eb3
+    image: grafana/alloy:v1.20.1@sha256:2aa2099af76c0098d4af7a4d6e48f86cb66dc1a000222ad927a1c67c6542d13f
     pull_policy: missing
     container_name: lol-alloy
     command:
