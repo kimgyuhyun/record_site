@@ -24,18 +24,19 @@ const fmtClock = (ms) => {
 };
 
 export default function TimelineModal({ matchId, winTeamId, championKeyById = {}, championNameById = {}, onClose }) {
-  const [data, setData] = useState(null);
-  const [error, setError] = useState(false);
+  // 응답이 어느 매치의 것인지 남긴다. matchId 가 바뀌면 새 응답이 올 때까지 data·error 는 비어 있다.
+  const [result, setResult] = useState({ matchId: null, data: null, error: false });
+  const data = result.matchId === matchId ? result.data : null;
+  const error = result.matchId === matchId && result.error;
   const [showKill, setShowKill] = useState(true);
   const [showTower, setShowTower] = useState(true);
   const [atMinute, setAtMinute] = useState(99);
 
   useEffect(() => {
     let cancelled = false;
-    setData(null); setError(false);
     getMatchTimeline(matchId)
-      .then(res => { if (!cancelled) setData(res.data); })
-      .catch(() => { if (!cancelled) setError(true); });
+      .then(res => { if (!cancelled) setResult({ matchId, data: res.data, error: false }); })
+      .catch(() => { if (!cancelled) setResult({ matchId, data: null, error: true }); });
     return () => { cancelled = true; };
   }, [matchId]);
 
@@ -205,7 +206,6 @@ function EventMap({ data, effMinute, showKill, showTower, teamColor, pidMap }) {
 }
 
 function EventFeed({ data, champImg, champKo, teamColor, pidMap }) {
-  let lastMinute = -1;
   const champChip = (pid) => {
     const src = champImg(pid);
     return (
@@ -220,7 +220,8 @@ function EventFeed({ data, champImg, champKo, teamColor, pidMap }) {
       border: '1px solid #3c4350', borderRadius: 8, background: '#21252d' }}>
       {data.events.map((e, i) => {
         const minute = Math.floor(e.timestamp / 60000);
-        const showMin = minute !== lastMinute; lastMinute = minute;
+        // 분이 바뀌는 첫 이벤트에만 분 라벨을 단다(렌더 중 바깥 변수를 바꾸지 않고 직전 이벤트와 비교).
+        const showMin = i === 0 || minute !== Math.floor(data.events[i - 1].timestamp / 60000);
         const accent = e.category === 'ELITE_MONSTER_KILL'
           ? '#f0a800'
           : e.category === 'BUILDING_KILL'
@@ -240,7 +241,7 @@ function EventFeed({ data, champImg, champKo, teamColor, pidMap }) {
               )}
               {e.category === 'ELITE_MONSTER_KILL' && (
                 <>{champChip(e.killerId)}<span style={{ color: '#5a8fe7' }}>처치</span>
-                  <span style={{ color: '#f0a800', fontWeight: 700 }}>{MONSTER_KO[e.monsterType] || '오브젝트'}</span></>
+                  <span style={{ color: '#f0a800', fontWeight: 700 }}>{monsterName(e)}</span></>
               )}
               {e.category === 'BUILDING_KILL' && (
                 <>{e.killerId ? champChip(e.killerId) : <span style={{ color: '#9aa7b4' }}>미니언</span>}

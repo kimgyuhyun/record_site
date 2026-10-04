@@ -407,25 +407,9 @@ const OBJ_LABEL = { voidGrub:'공허 유충 처치', herald:'협곡의 전령 �
 // matchObj 필드명 매핑 (riftHerald 등 백엔드 필드명 그대로)
 const OBJ_FIELD = { voidGrub: 'Horde', herald:'RiftHerald', dragon:'Dragon', baron:'Baron', tower:'Tower', inhibitor:'Inhibitor' };
 
-function TeamDivider({ winRows, loseRows, matchObj, blueIsWin }) {
-  const wKills = winRows.reduce((s, r)  => s + r.kills, 0);
-  const lKills = loseRows.reduce((s, r) => s + r.kills, 0);
-  const wGold  = winRows.reduce((s, r)  => s + r.goldEarned, 0);
-  const lGold  = loseRows.reduce((s, r) => s + r.goldEarned, 0);
-  const totK   = wKills + lKills || 1;
-  const totG   = wGold  + lGold  || 1;
-  const wKPct  = Math.round((wKills / totK) * 100);
-  const wGPct  = Math.round((wGold  / totG) * 100);
-
-  /* 오브젝트: 승리팀이 블루(100)면 blue* 필드, 아니면 red* 필드 */
-  const winPfx   = blueIsWin ? 'blue' : 'red';
-  const losePfx  = blueIsWin ? 'red'  : 'blue';
-  const winTeamId  = blueIsWin ? 100 : 200;
-  const loseTeamId = blueIsWin ? 200 : 100;
-  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
-
-  /* 양방향 바 */
-  const BiBar = ({ wPct, wVal, lVal, label }) => (
+/* 양방향 바 — TeamDivider 안에 두면 렌더마다 새 컴포넌트 타입이 되어 매번 다시 마운트된다 */
+function BiBar({ wPct, wVal, lVal, label }) {
+  return (
     <div style={{ display:'flex', alignItems:'center', marginBottom: 5 }}>
       {/* 승리(파랑) 숫자 */}
       <span style={{ color: T.blue, fontWeight:700, fontSize:13,
@@ -455,6 +439,23 @@ function TeamDivider({ winRows, loseRows, matchObj, blueIsWin }) {
         width:80, paddingLeft:10, flexShrink:0 }}>{lVal}</span>
     </div>
   );
+}
+
+function TeamDivider({ winRows, loseRows, matchObj, blueIsWin }) {
+  const wKills = winRows.reduce((s, r)  => s + r.kills, 0);
+  const lKills = loseRows.reduce((s, r) => s + r.kills, 0);
+  const wGold  = winRows.reduce((s, r)  => s + r.goldEarned, 0);
+  const lGold  = loseRows.reduce((s, r) => s + r.goldEarned, 0);
+  const totK   = wKills + lKills || 1;
+  const totG   = wGold  + lGold  || 1;
+  const wKPct  = Math.round((wKills / totK) * 100);
+  const wGPct  = Math.round((wGold  / totG) * 100);
+
+  /* 오브젝트: 승리팀이 블루(100)면 blue* 필드, 아니면 red* 필드 */
+  const winPfx   = blueIsWin ? 'blue' : 'red';
+  const losePfx  = blueIsWin ? 'red'  : 'blue';
+  const winTeamId  = blueIsWin ? 100 : 200;
+  const loseTeamId = blueIsWin ? 200 : 100;
 
   return (
     <div style={{ background:'#1e2024', padding:'10px 16px',
@@ -518,7 +519,7 @@ const GRID = '1fr 120px 175px 60px 72px 242px';
 /* ═══════════════════════════════════════════════════════════════
    팀 헤더 (패배/승리 라벨 + 컬럼명)
 ════════════════════════════════════════════════════════════════ */
-function TeamHeader({ label, accentColor, teamSide }) {
+function TeamHeader({ label }) {
   return (
     <div style={{
       display: 'grid', gridTemplateColumns: GRID,
@@ -541,7 +542,7 @@ function TeamHeader({ label, accentColor, teamSide }) {
    플레이어 행  (min-height 62px)
 ════════════════════════════════════════════════════════════════ */
 function PlayerRow({ row, championKeyById, spellMap, runeIconById, styleIconById,
-  onSummonerClick, maxDealt, maxTaken, teamSide, isMe, gameDuration, isWin, isArena }) {
+  onSummonerClick, maxDealt, maxTaken, isMe, gameDuration, isWin, isArena }) {
 
   const items = [row.item0, row.item1, row.item2, row.item3,
                  row.item4, row.item5, row.item6];
@@ -559,8 +560,6 @@ function PlayerRow({ row, championKeyById, spellMap, runeIconById, styleIconById
     : ratio >= 3 ? T.mint : T.txtSub;
 
   /* 킬 기여율 */
-  const teamKills = (teamSide === 'blue'
-    ? /* 같은 팀 kills 합산은 외부에서 넘겨줘야 정확하나, 단순 표시용 */ 1 : 1);
   const killPct = row.kills + row.deaths + row.assists > 0
     ? Math.round(row.kills / (row.kills + row.deaths + row.assists) * 100) : 0;
 
@@ -707,36 +706,15 @@ function PlayerRow({ row, championKeyById, spellMap, runeIconById, styleIconById
 
 /* ═══════════════════════════════════════════════════════════════
    팀 섹션 (헤더 + 5명)
-   — MVP/ACE 뱃지: 각 팀 내 KDA 1위 → MVP, 2위 → ACE
 ════════════════════════════════════════════════════════════════ */
 function TeamSection({ rows, championKeyById, spellMap, runeIconById, styleIconById,
   onSummonerClick, maxDealt, maxTaken, isWin, isRemake, teamSide, myPuuid, gameDuration }) {
-
-  /* MVP/ACE 뱃지 할당 */
-  const sorted = [...rows].sort((a, b) => {
-    const ra = a.deaths === 0 ? Infinity : (a.kills + a.assists) / a.deaths;
-    const rb = b.deaths === 0 ? Infinity : (b.kills + b.assists) / b.deaths;
-    return rb - ra;
-  });
-  const mvpPuuid = sorted[0]?.puuid;
-  const acePuuid = sorted[1]?.puuid;
-  const taggedRows = rows.map(r => ({
-    ...r,
-    _badge: r.puuid === mvpPuuid ? 'MVP' : r.puuid === acePuuid ? 'ACE' : null,
-  }));
 
   const label = isRemake
     ? `다시하기 (${teamSide === 'blue' ? '블루팀' : '레드팀'})`
     : isWin
       ? `승리 (${teamSide === 'blue' ? '블루팀' : '레드팀'})`
       : `패배 (${teamSide === 'blue' ? '블루팀' : '레드팀'})`;
-
-  const accentColor = isRemake ? '#666' : isWin
-    ? (teamSide === 'blue' ? T.blue : T.blue)
-    : T.red;
-  const winAccent = isWin
-    ? (teamSide === 'blue' ? T.blue : T.blue) : T.red;
-  const finalAccent = isRemake ? '#666' : winAccent;
 
   const teamBg = isRemake
     ? 'rgba(255,255,255,0.02)'
@@ -746,7 +724,7 @@ function TeamSection({ rows, championKeyById, spellMap, runeIconById, styleIconB
 
   return (
     <div style={{ background: teamBg }}>
-      <TeamHeader label={label} accentColor={finalAccent} teamSide={teamSide} />
+      <TeamHeader label={label} />
       {rows.map(row => (
         <PlayerRow
           key={row.puuid + (row.participantId ?? '')}
@@ -757,7 +735,6 @@ function TeamSection({ rows, championKeyById, spellMap, runeIconById, styleIconB
           styleIconById={styleIconById}
           onSummonerClick={onSummonerClick}
           maxDealt={maxDealt} maxTaken={maxTaken}
-          teamSide={teamSide}
           isMe={row.puuid === myPuuid}
           gameDuration={gameDuration}
           isWin={isWin}
@@ -810,7 +787,6 @@ function ArenaDetail({ rows, championKeyById, spellMap, runeIconById, styleIconB
                 styleIconById={styleIconById}
                 onSummonerClick={onSummonerClick}
                 maxDealt={maxDealt} maxTaken={maxTaken}
-                teamSide={placement <= 3 ? 'blue' : 'red'}
                 isMe={row.puuid === myPuuid}
                 gameDuration={gameDur}
                 isWin={placement <= 3}
@@ -994,10 +970,11 @@ const STAT_SHARD_DESC = {
 const championSpellCache = {};
 
 function useChampionSpells(championName) {
-  const [spells, setSpells] = useState(() => (championName ? championSpellCache[championName] : null) || null);
+  // 캐시에 있으면 그대로 쓰고, 없으면 받아온 결과를 챔피언 이름과 함께 남긴다.
+  const [loaded, setLoaded] = useState({ name: null, spells: null });
+  const cached = championName ? championSpellCache[championName] : null;
   useEffect(() => {
-    if (!championName) return;
-    if (championSpellCache[championName]) { setSpells(championSpellCache[championName]); return; }
+    if (!championName || championSpellCache[championName]) return;
     let cancelled = false;
     (async () => {
       try {
@@ -1005,12 +982,12 @@ function useChampionSpells(championName) {
           .catch(() => getChampionDetail('en_US', championName));
         const arr = res?.data?.data?.[championName]?.spells || [];
         championSpellCache[championName] = arr;
-        if (!cancelled) setSpells(arr);
-      } catch { if (!cancelled) setSpells([]); }
+        if (!cancelled) setLoaded({ name: championName, spells: arr });
+      } catch { if (!cancelled) setLoaded({ name: championName, spells: [] }); }
     })();
     return () => { cancelled = true; };
   }, [championName]);
-  return spells;
+  return cached || (loaded.name === championName ? loaded.spells : null);
 }
 
 // "id:sec,id:sec" → [{ minute, items: [{ id, count }] }] (분이 바뀌면 새 묶음)
@@ -1182,7 +1159,7 @@ function RunePage({ row, runeTree }) {
   );
 }
 
-function BuildView({ row, championKeyById, runeIconById, styleIconById, runeTree }) {
+function BuildView({ row, championKeyById, runeTree }) {
   const { itemNameById, itemDescById, itemGoldById } = useContext(MetaContext);
   const spells = useChampionSpells(row ? championKeyById[row.championId] : null);
 
@@ -1425,6 +1402,8 @@ function MatchCard({ match, championKeyById, championNameById, spellMap, runeIco
   onSummonerClick, onToggle, isExpanded, summaryLoading, summaryRows }) {
 
   const [detailTab, setDetailTab] = useState('종합');
+  // "n분 전" 기준 시각. 렌더마다 Date.now() 를 부르지 않고 카드가 처음 그려질 때 한 번 잡는다.
+  const [now] = useState(() => Date.now());
 
   const isRemake    = match.gameEndedInEarlySurrender;
   /* 아레나면 승/패 대신 등수(N위)로 표시 */
@@ -1457,7 +1436,7 @@ function MatchCard({ match, championKeyById, championNameById, spellMap, runeIco
 
   const dur = match.gameDuration ?? 0;
   const durStr = `${Math.floor(dur / 60)}분 ${String(dur % 60).padStart(2, '0')}초`;
-  const diffSec  = Math.floor((Date.now() - match.gameCreation) / 1000);
+  const diffSec  = Math.floor((now - match.gameCreation) / 1000);
   const diffMin  = Math.floor(diffSec / 60);
   const diffHour = Math.floor(diffMin / 60);
   const diffDay  = Math.floor(diffHour / 24);
@@ -1676,8 +1655,6 @@ function MatchCard({ match, championKeyById, championNameById, spellMap, runeIco
                     <BuildView
                       row={summaryRows.find(r => r.puuid === match.myPuuid)}
                       championKeyById={championKeyById}
-                      runeIconById={runeIconById}
-                      styleIconById={styleIconById}
                       runeTree={runeTree}
                     />
                   )}

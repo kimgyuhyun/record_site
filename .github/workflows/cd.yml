@@ -5,6 +5,13 @@
 ##   DEPLOY_SSH_KEY      배포 전용 SSH 개인키(서버 authorized_keys 에 공개키 등록)
 ##   DEPLOY_HOST         서버 호스트/IP
 ##   DEPLOY_KNOWN_HOSTS  서버 호스트키(ssh-keyscan 결과) — MITM 방지용 핀
+##
+## 어떤 이미지를 배포하는가 (PLATFORM 7절)
+##   CI 가 Trivy 를 통과시켜 push 한 직후 레지스트리 digest 를 image-digests 아티팩트로 올린다.
+##   CD 는 그 아티팩트의 "<커밋SHA> ghcr.io/...@sha256:..." 만 서버에 넘긴다. 태그를 조립하지도,
+##   태그를 digest 로 해석하지도 않는다. 예전에는 서버가 commit-sha 태그로 pull 한 뒤
+##   RepoDigests[0] 로 digest 를 되뽑았다 — 해석 시점이 배포 쪽이라 CI 종료와 pull 사이에 태그가
+##   덮어써지면 그 이미지가 배포됐고, RepoDigests 는 순서가 정해져 있지 않아 값이 하나도 아니었다.
 name: CD (deploy to server)
 
 on:
@@ -13,11 +20,11 @@ on:
     workflows: ["CI (build & push images)"]
     types: [completed]
     branches: [main]
-  # 수동 실행 — 특정 태그로 롤백/재배포할 때.
+  # 수동 실행 — 재배포, 또는 과거 릴리스로 롤백.
   workflow_dispatch:
     inputs:
-      image_tag:
-        description: "배포할 GHCR 이미지 태그(비우면 트리거된 commit SHA)"
+      ci_run_id:
+        description: "이미지 digest 를 가져올 CI 실행 ID. 비우면 main 의 최근 성공 CI(그 커밋이 main HEAD 와 같아야 한다). 과거 릴리스로 롤백할 때만 채운다."
         required: false
         default: ""
 
@@ -37,18 +44,95 @@ jobs:
     permissions:
       contents: read
       packages: read              # 서버가 GHCR 에서 pull 할 때 넘겨줄 GITHUB_TOKEN 의 권한
+      actions: read               # 다른 워크플로 실행(CI)의 정보 조회와 아티팩트 다운로드
     steps:
-      - name: Resolve image tag
-        id: tag
+      # 어느 CI 실행의 digest 를 쓸지 정한다.
+      #   workflow_run         : 이 CD 를 띄운 그 CI 실행.
+      #   수동 + ci_run_id 지정: 그 실행. 과거 릴리스로 되돌리는 경로라 main HEAD 와의 일치를 요구하지 않는다.
+      #   수동 + 미지정        : main 의 가장 최근 성공 CI. 그 커밋이 지금 main HEAD 와 다르면 실패시킨다 —
+      #                          새 커밋의 CI 가 아직 안 끝났는데 옛 이미지를 "최신" 으로 배포하지 않게.
+      # 태그 폴백은 두지 않는다. 남기면 수동 배포 한 번으로 태그 해석 경로가 다시 열린다.
+      - name: Resolve the CI run that published the image digests
+        id: cirun
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          INPUT_RUN_ID: ${{ inputs.ci_run_id }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            TAG="${{ github.event.workflow_run.head_sha }}"   # CI 가 방금 빌드한 그 커밋
+          set -euo pipefail
+          expected_sha=""
+          if [ "$EVENT" = workflow_run ]; then
+            run_id="$WORKFLOW_RUN_ID"
+          elif [ -n "$INPUT_RUN_ID" ]; then
+            run_id="$INPUT_RUN_ID"
           else
-            TAG="${{ github.event.inputs.image_tag }}"
-            [ -n "$TAG" ] || TAG="${{ github.sha }}"
+            run_id=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&status=success&per_page=20" \
+                       --jq '[.workflow_runs[] | select(.event == "push" or .event == "workflow_dispatch")][0].id // empty')
+            expected_sha="$GITHUB_SHA"
           fi
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "deploying tag: $TAG"
+          case "$run_id" in ''|*[!0-9]*) echo "invalid or missing CI run id: '$run_id'" >&2; exit 1 ;; esac
+
+          # 손으로 넣은 ID 도 있으므로 그 실행이 main 의 성공한 CI 인지 확인한다.
+          IFS=$'\t' read -r path branch event conclusion head_sha < <(
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" \
+              --jq '[.path, .head_branch, .event, .conclusion, .head_sha] | @tsv')
+          path="${path%%@*}"
+          if [ "$path" != ".github/workflows/ci.yml" ] || [ "$branch" != main ] || [ "$conclusion" != success ] \
+             || { [ "$event" != push ] && [ "$event" != workflow_dispatch ]; }; then
+            echo "run $run_id is not a successful main CI run (path=$path branch=$branch event=$event conclusion=$conclusion)" >&2
+            exit 1
+          fi
+          if [ -n "$expected_sha" ] && [ "$head_sha" != "$expected_sha" ]; then
+            echo "the latest successful CI run is for $head_sha but main HEAD is $expected_sha - wait for CI, or pass ci_run_id" >&2
+            exit 1
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "using CI run $run_id (commit $head_sha)"
+
+      - name: Download the image digests published by that CI run
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: image-digests
+          run-id: ${{ steps.cirun.outputs.run_id }}
+          github-token: ${{ github.token }}
+          path: ci-digests
+
+      # 파일 형식: "<커밋SHA> ghcr.io/<owner>/record_site-<name>@sha256:<64hex>"
+      # 이 값은 아래 SSH 명령 문자열에 그대로 들어가므로 정규식으로 끝까지 맞는지 본다.
+      - name: Read image digests
+        id: img
+        env:
+          OWNER: ${{ github.repository_owner }}
+          WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          read_digest(){   # <name> → "<sha> <ref>" 검증 후 출력
+            local name="$1" file="ci-digests/$1.txt" sha ref extra
+            [ -f "$file" ] || { echo "digest file missing: $file" >&2; return 1; }
+            read -r sha ref extra < "$file"
+            [ -z "${extra:-}" ] || { echo "malformed digest file: $file" >&2; return 1; }
+            [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "bad commit sha in $file: $sha" >&2; return 1; }
+            [[ "$ref" =~ ^ghcr\.io/${OWNER}/record_site-${name}@sha256:[0-9a-f]{64}$ ]] \
+              || { echo "bad image ref in $file: $ref" >&2; return 1; }
+            printf '%s %s\n' "$sha" "$ref"
+          }
+          read -r backend_sha  backend_ref  < <(read_digest backend)
+          read -r frontend_sha frontend_ref < <(read_digest frontend)
+          [ -n "${backend_ref:-}" ] && [ -n "${frontend_ref:-}" ] || exit 1
+          [ "$backend_sha" = "$frontend_sha" ] \
+            || { echo "image digests come from different commits: $backend_sha / $frontend_sha" >&2; exit 1; }
+          if [ -n "$WORKFLOW_RUN_SHA" ] && [ "$backend_sha" != "$WORKFLOW_RUN_SHA" ]; then
+            echo "digests are from $backend_sha but the triggering CI ran on $WORKFLOW_RUN_SHA" >&2; exit 1
+          fi
+          {
+            echo "commit=$backend_sha"
+            echo "backend=$backend_ref"
+            echo "frontend=$frontend_ref"
+          } >> "$GITHUB_OUTPUT"
+          echo "commit   $backend_sha"
+          echo "backend  $backend_ref"
+          echo "frontend $frontend_ref"
 
       - name: Configure SSH
         run: |
@@ -57,11 +141,13 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
 
+      # 서버를 이미지와 같은 커밋에 고정한다(compose·nginx 설정이 이미지와 짝이 맞게).
+      # 이미지는 BACKEND_REF/FRONTEND_REF 의 digest 로만 받는다 — 서버는 태그를 읽지 않는다.
       - name: Deploy over SSH
         run: |
           ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
             "ubuntu@${{ secrets.DEPLOY_HOST }}" \
-            "set -e; cd ~/record_site && git fetch --all --prune && git checkout -f '${{ steps.tag.outputs.tag }}' && TAG='${{ steps.tag.outputs.tag }}' GHCR_USER='${{ github.actor }}' GHCR_TOKEN='${{ secrets.GITHUB_TOKEN }}' bash scripts/deploy.sh"
+            "set -e; cd ~/record_site && git fetch --all --prune && git checkout -f '${{ steps.img.outputs.commit }}' && TAG='${{ steps.img.outputs.commit }}' BACKEND_REF='${{ steps.img.outputs.backend }}' FRONTEND_REF='${{ steps.img.outputs.frontend }}' GHCR_USER='${{ github.actor }}' GHCR_TOKEN='${{ secrets.GITHUB_TOKEN }}' bash scripts/deploy.sh"
 
       - name: External check (live site 200)
         run: |

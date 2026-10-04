@@ -2,7 +2,8 @@
 # prod.yml 의 backend/frontend 에 있는 build: 는 남아있지만, 아래 image: 로 대체하고
 # 반드시 `up -d --no-build` 로 기동해 서버에서 재빌드가 일어나지 않게 한다.
 #
-# CD 흐름: commit-sha 태그로 pull → RepoDigest 로 고정(BACKEND_IMAGE/FRONTEND_IMAGE 를 digest 로 재설정) → up.
+# CD 흐름: CI 가 스캔·push 후 캡처한 digest 를 cd.yml 이 아티팩트로 받아 deploy.sh 에 넘기고,
+#          deploy.sh 가 그 digest 로 pull 한 뒤 아래 두 변수에 그대로 넣어 up 한다(태그는 읽지 않는다).
 #   BACKEND_IMAGE=ghcr.io/kimgyuhyun/record_site-backend@sha256:...
 #   FRONTEND_IMAGE=ghcr.io/kimgyuhyun/record_site-frontend@sha256:...
 #
