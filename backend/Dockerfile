@@ -11,7 +11,9 @@ ARG JAR_SOURCE=builder
 # ── 1단계(builder): Gradle 빌드 (JDK 21) ──
 # 테스트는 DB가 필요하고 이미지 빌드 단계에선 띄울 수 없어 제외(-x test)한다.
 # 베이스 이미지는 digest 로 고정한다. 태그가 가리키는 이미지가 바뀌어도 빌드가 조용히 달라지지 않고 Dependabot PR 로 드러난다.
-FROM eclipse-temurin:25-jdk@sha256:8c0a84ea11c8f6ed52600fc19f1040121f2a162998e9f50a5faebbbad9172dcc AS builder
+# build.gradle 의 toolchain 이 21 이고 자동 내려받기 플러그인이 없어서, 다른 JDK 로 올리면 빌드가 JDK 21 을 못 찾고 실패한다.
+# 런타임(아래 JRE)과 따로 움직인다 — Dependabot 이 같이 올려도 toolchain 을 바꾸기 전에는 이 줄을 받지 않는다.
+FROM eclipse-temurin:21-jdk@sha256:4d06038800655fe1211760cd561de70ef2ed7a47f5d69255e9834414602b7026 AS builder
 WORKDIR /app
 
 # 래퍼/빌드 스크립트 먼저 복사해 의존성 레이어를 캐싱한다.
@@ -31,7 +33,7 @@ COPY app.jar /app/app.jar
 
 FROM ${JAR_SOURCE} AS jarsrc
 
-# ── 2단계: 런타임 (JRE 21, 가벼움) ──
+# ── 2단계: 런타임 (JRE 25, 가벼움) ──
 FROM eclipse-temurin:25-jre@sha256:fcd7fd7b387f94bb2ac461478a7436ad8e349924c374ea8313919624dceae636
 WORKDIR /app
 
