@@ -28,3 +28,20 @@ vulnerabilities:
       JSON only and never configures XsltView or any XSLT view, so the vulnerable path is
       not reachable. Revisit on expiry.
     expired_at: 2027-04-07
+
+  # ── Spring Framework SSE 프래그먼트 렌더링 (backend 이미지의 app.jar) ──
+  # 상황: 위 XsltView 와 같다. spring-webmvc 6.2.19 가 해당되고 수정 버전은 7.0.9 뿐이다
+  #       (GHSA-j9f9-w8pj-32f8, 6.2.x 는 first_patched_version 없음).
+  #
+  # 감수 근거: 취약점은 SSE 로 뷰 프래그먼트(FragmentsRendering)를 내려보내는 앱에만 해당한다.
+  #       이 백엔드에는 SseEmitter·ServerSentEvent·text/event-stream·FragmentsRendering·
+  #       ModelAndView 를 쓰는 코드가 없고(backend/src 검색 기준) 뷰 템플릿 의존성도 없다.
+  #
+  # 만료일: 위와 같은 재검토일로 맞춰 한 번에 다시 본다.
+  - id: CVE-2026-47890
+    statement: >-
+      spring-webmvc 6.2.19: SSE stream corruption when rendering view fragments. Fixed only
+      in 7.0.9; same situation as CVE-2026-47884 (no OSS fix on 6.2, Boot 4 migration out of
+      scope). The backend serves JSON only and has no SSE endpoint or fragment rendering, so
+      the vulnerable path is not reachable. Revisit on expiry.
+    expired_at: 2027-04-07
