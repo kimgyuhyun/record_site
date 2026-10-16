@@ -13,7 +13,7 @@ ARG JAR_SOURCE=builder
 # 베이스 이미지는 digest 로 고정한다. 태그가 가리키는 이미지가 바뀌어도 빌드가 조용히 달라지지 않고 Dependabot PR 로 드러난다.
 # build.gradle 의 toolchain 이 21 이고 자동 내려받기 플러그인이 없어서, 다른 JDK 로 올리면 빌드가 JDK 21 을 못 찾고 실패한다.
 # 런타임(아래 JRE)과 따로 움직인다 — Dependabot 이 같이 올려도 toolchain 을 바꾸기 전에는 이 줄을 받지 않는다.
-FROM eclipse-temurin:21-jdk@sha256:4d06038800655fe1211760cd561de70ef2ed7a47f5d69255e9834414602b7026 AS builder
+FROM eclipse-temurin:23-jdk@sha256:83177670e43c17769a5402a60601545318e45e63adf634fb5022340e516cded4 AS builder
 WORKDIR /app
 
 # 래퍼/빌드 스크립트 먼저 복사해 의존성 레이어를 캐싱한다.
