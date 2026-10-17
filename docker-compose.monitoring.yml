@@ -97,7 +97,9 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    mem_limit: 192m
+    # 192m 은 Grafana 11 기준이었다. 13.x 는 기동 중(grafana-apiserver 초기화)에 이 선을 넘겨
+    # OOM(exit 137)으로 죽고 재시작하기를 반복했다(2026-10-18, 13.2.4 배포 직후 49회).
+    mem_limit: 384m
     cpus: 0.5
     restart: unless-stopped
 
