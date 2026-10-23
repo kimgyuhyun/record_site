@@ -137,7 +137,7 @@ services:
   # Alloy 는 소켓 대신 도커가 남긴 json-file 로그 파일을 읽기 전용으로 tail 한다.
   # 자세한 배경과 파이프라인은 monitoring/alloy/config.alloy 머리말 참고.
   alloy:
-    image: grafana/alloy:v1.20.1@sha256:2aa2099af76c0098d4af7a4d6e48f86cb66dc1a000222ad927a1c67c6542d13f
+    image: grafana/alloy:v1.21.0@sha256:9726bfba078de9bc2212c60c6e643238c700b4fe0868ea78cbe03163d03d95bf
     pull_policy: missing
     container_name: lol-alloy
     command:
