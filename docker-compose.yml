@@ -12,7 +12,7 @@
 #   digest 갱신은 Dependabot(docker-compose) PR 로 온다. 태그는 사람이 읽으라고 남긴다.
 services:
   mysql:
-    image: mysql:8.4@sha256:24989179f58856db763f418010c1169fecc944e3ec1ea7e921572d83eb070f70
+    image: mysql:8.4@sha256:76f0358884cb92d9a086d24e5671c38048d3fef40f2588703d73eb55392d6b69
     pull_policy: missing
     container_name: lol-mysql
     environment:
