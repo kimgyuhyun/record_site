@@ -13,7 +13,7 @@ RUN npm run build
 
 # ── 2단계: nginx 정적 서빙 ──
 # 이 컨테이너는 SPA 정적 파일만 서빙한다. /api 프록시는 앞단 edge nginx 가 담당한다.
-FROM nginx:1.31-alpine@sha256:a3554c0d0b48177b1413c26e01f695334428020d9df01243fbae3e11cfd17417
+FROM nginx:1.31-alpine@sha256:785835ea65db4bba6f021acc0f3be91b0fef76a53fe41f8588c6698d2aed0606
 # 베이스 이미지의 brotli-libs 1.2.0-r1 이 CVE-2026-111497(CRITICAL)로 Trivy 게이트를 막는다. 고친 1.2.1-r0 으로 올린다.
 # 베이스 이미지가 1.2.1 이상을 담아 나오면 이 줄은 지운다.
 RUN apk upgrade --no-cache brotli-libs
